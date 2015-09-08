@@ -49,6 +49,9 @@ func (p *Probe) GetInput() api.Step {
 }
 
 func (p *Probe) Do() error {
+	if err := p.init(); err != nil {
+		return err
+	}
 
 	input := p.GetInput()
 	if input == nil {

@@ -2,6 +2,8 @@ package steps
 
 import (
 	"testing"
+
+	"xor/automi/api"
 )
 
 func TestCsvRead_Init(t *testing.T) {
@@ -110,5 +112,30 @@ func TestCsvRead_HeaderConfig(t *testing.T) {
 	}
 }
 
-func TestCsvRead_DownStream(t *testing.T) {
+func TestCsvRead_OnewayConsume(t *testing.T) {
+	records := 0
+	csv := &CsvRead{Name: "read-file", FilePath: "txt_test.csv", HasHeaderRow: true}
+	probe := &Probe{
+		Name:  "Probe",
+		Input: csv,
+		Examine: func(item api.Item) api.Item {
+			records++
+			t.Log(item)
+			return item
+		},
+	}
+	if err := csv.Do(); err != nil {
+		t.Error(err)
+	}
+	if err := probe.Do(); err != nil {
+		t.Error(err)
+	}
+
+	// drain channel
+	for _ = range probe.GetChannel().Extract() {
+	}
+
+	if records != 2 {
+		t.Error("Probe failed to receive all items. Expecting 2, got", records)
+	}
 }
