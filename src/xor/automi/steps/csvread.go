@@ -5,13 +5,16 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 	"xor/automi/api"
 )
 
-type csvItem []string
+type CsvItem []string
 
-func (i csvItem) Get() interface{} {
+func (i CsvItem) Get() interface{} {
+	return i
+}
+
+func (i CsvItem) Values() []string {
 	return i
 }
 
@@ -24,17 +27,16 @@ func (c csvChan) Extract() <-chan api.Item {
 // CsvRead implements a Step that reads a text file
 // and serializes each row as a slice []string.
 type CsvRead struct {
-	Name          string // string identifer for the step
-	FilePath      string // path for the file
-	DelimiterChar rune   // Delimiter charater, defaults to comma
-	CommentChar   rune   // Charater indicating line is a comment
-	HeaderFields  string // delimited list of field names in the file
-	UseHeaderRow  bool   // indicates first row has fields (default false).
-	FieldCount    int    // if greater than zero is used to validate field count
+	Name          string   // string identifer for the step
+	FilePath      string   // path for the file
+	DelimiterChar rune     // Delimiter charater, defaults to comma
+	CommentChar   rune     // Charater indicating line is a comment
+	Headers       []string // Column header names (specified here or read from file)
+	HasHeaderRow  bool     // indicates first row is for headers (default false). Overrides the Headers attribute.
+	FieldCount    int      // if greater than zero is used to validate field count
 
 	file    *os.File
 	reader  *csv.Reader
-	headers []string
 	channel csvChan
 }
 
@@ -52,6 +54,10 @@ func (step *CsvRead) init() error {
 		step.DelimiterChar = ','
 	}
 
+	if step.CommentChar == 0 {
+		step.CommentChar = '#'
+	}
+
 	// open file
 	file, err := os.Open(step.FilePath)
 	if err != nil {
@@ -64,18 +70,16 @@ func (step *CsvRead) init() error {
 	step.reader.Comma = step.DelimiterChar
 
 	// resolve header and field count
-	if step.UseHeaderRow {
+	if step.HasHeaderRow {
 		if headers, err := step.reader.Read(); err == nil {
 			step.FieldCount = len(headers)
-			step.headers = headers
+			step.Headers = headers
 		} else {
 			return fmt.Errorf("Step [%s] - Failed to read header row: %s", step.Name, err)
 		}
 	} else {
-		if step.HeaderFields != "" {
-			headers := strings.Split(step.HeaderFields, string(step.DelimiterChar))
-			step.headers = headers
-			step.FieldCount = len(headers)
+		if step.Headers != nil {
+			step.FieldCount = len(step.Headers)
 		}
 	}
 
@@ -83,6 +87,10 @@ func (step *CsvRead) init() error {
 	var channel csvChan = make(chan api.Item)
 	step.channel = channel
 	return nil
+}
+
+func (step *CsvRead) GetName() string {
+	return step.Name
 }
 
 func (step *CsvRead) GetChannel() api.Channel {
@@ -101,6 +109,7 @@ func (step *CsvRead) Do() (err error) {
 
 	go func() {
 		defer func() {
+			close(step.channel)
 			err = step.file.Close()
 		}()
 
@@ -114,7 +123,7 @@ func (step *CsvRead) Do() (err error) {
 				//TODO: Handle read error
 			}
 
-			step.channel <- csvItem(row)
+			step.channel <- CsvItem(row)
 		}
 	}()
 
