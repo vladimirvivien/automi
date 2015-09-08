@@ -109,3 +109,6 @@ func TestCsvRead_HeaderConfig(t *testing.T) {
 		t.Error("Attribute UseHeaderRow not overridding supplied header.")
 	}
 }
+
+func TestCsvRead_DownStream(t *testing.T) {
+}
