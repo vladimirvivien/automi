@@ -1,6 +1,7 @@
 package steps
 
 import (
+	"sync/atomic"
 	"testing"
 
 	"xor/automi/api"
@@ -112,7 +113,7 @@ func TestCsvRead_HeaderConfig(t *testing.T) {
 	}
 }
 
-func TestCsvRead_OnewayConsume(t *testing.T) {
+func TestCsvRead_OneProbeDeep(t *testing.T) {
 	records := 0
 	csv := &CsvRead{Name: "read-file", FilePath: "txt_test.csv", HasHeaderRow: true}
 	probe := &Probe{
@@ -120,7 +121,6 @@ func TestCsvRead_OnewayConsume(t *testing.T) {
 		Input: csv,
 		Examine: func(item api.Item) api.Item {
 			records++
-			t.Log(item)
 			return item
 		},
 	}
@@ -137,5 +137,45 @@ func TestCsvRead_OnewayConsume(t *testing.T) {
 
 	if records != 2 {
 		t.Error("Probe failed to receive all items. Expecting 2, got", records)
+	}
+}
+
+func TestCsvRead_TwoProbesDeep(t *testing.T) {
+	var records int32
+	csv := &CsvRead{Name: "read-file", FilePath: "txt_test.csv", HasHeaderRow: true}
+	if err := csv.Do(); err != nil {
+		t.Error(err)
+	}
+
+	probe1 := &Probe{
+		Name:  "Probe1",
+		Input: csv,
+		Examine: func(item api.Item) api.Item {
+			records = atomic.AddInt32(&records, 1)
+			return item
+		},
+	}
+	if err := probe1.Do(); err != nil {
+		t.Error(err)
+	}
+
+	probe2 := &Probe{
+		Name:  "Probe2",
+		Input: probe1,
+		Examine: func(item api.Item) api.Item {
+			records = atomic.AddInt32(&records, 1)
+			return item
+		},
+	}
+	if err := probe2.Do(); err != nil {
+		t.Error(err)
+	}
+
+	// drain the last step
+	for _ = range probe2.GetChannel().Extract() {
+	}
+
+	if records != 4 {
+		t.Error("Probe steps did not run properly, expected count 4, got", records)
 	}
 }
