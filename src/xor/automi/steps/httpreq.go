@@ -8,12 +8,13 @@ import (
 	"xor/automi/api"
 )
 
-// HttpRequest impelments
+// HttpRequest implements a step that is able to make
+// http-requests to specified URL.
 type HttpRequest struct {
 	Name    string
 	Input   api.Step
 	Url     string
-	Prepare func(api.Item) *http.Request
+	Prepare func(*url.URL, api.Item) *http.Request
 	Handle  func(*http.Response) api.Item
 
 	itemChan chan api.Item
@@ -87,7 +88,7 @@ func (step *HttpRequest) Do() error {
 		}()
 
 		for item := range input.Items() {
-			req := step.Prepare(item)
+			req := step.Prepare(step.urlVal, item)
 			if req == nil { // skip, if req not prepared
 				continue
 			} else { // send req, handle response
