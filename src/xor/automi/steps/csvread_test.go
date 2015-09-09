@@ -151,7 +151,7 @@ func TestCsvRead_TwoProbesDeep(t *testing.T) {
 		Name:  "Probe1",
 		Input: csv,
 		Examine: func(item api.Item) api.Item {
-			records = atomic.AddInt32(&records, 1)
+			atomic.AddInt32(&records, 1)
 			return item
 		},
 	}
@@ -163,7 +163,7 @@ func TestCsvRead_TwoProbesDeep(t *testing.T) {
 		Name:  "Probe2",
 		Input: probe1,
 		Examine: func(item api.Item) api.Item {
-			records = atomic.AddInt32(&records, 1)
+			atomic.AddInt32(&records, 1)
 			return item
 		},
 	}
