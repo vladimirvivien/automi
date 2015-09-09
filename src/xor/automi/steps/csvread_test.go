@@ -42,7 +42,7 @@ func TestCsvRead_Init(t *testing.T) {
 		t.Error("File is not ready after init")
 	}
 
-	if s1.GetChannel().Extract() == nil {
+	if s1.GetChannel().Items() == nil {
 		t.Error("Channel should not be nil on init()")
 	}
 
@@ -61,7 +61,7 @@ func TestCsvRead_Do(t *testing.T) {
 	}
 
 	counter := 0
-	for item := range s.GetChannel().Extract() {
+	for item := range s.GetChannel().Items() {
 		counter++
 		csvItem, ok := item.(CsvItem)
 		if !ok {
@@ -132,7 +132,7 @@ func TestCsvRead_OneProbeDeep(t *testing.T) {
 	}
 
 	// drain channel
-	for _ = range probe.GetChannel().Extract() {
+	for _ = range probe.GetChannel().Items() {
 	}
 
 	if records != 2 {
@@ -172,7 +172,7 @@ func TestCsvRead_TwoProbesDeep(t *testing.T) {
 	}
 
 	// drain the last step
-	for _ = range probe2.GetChannel().Extract() {
+	for _ = range probe2.GetChannel().Items() {
 	}
 
 	if records != 4 {

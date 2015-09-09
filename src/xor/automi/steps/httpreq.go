@@ -8,45 +8,55 @@ import (
 	"xor/automi/api"
 )
 
-type reqChan chan api.Item
-
-func (r reqChan) Extract() <-chan api.Item {
-	return r
-}
-
 // HttpRequest impelments
 type HttpRequest struct {
 	Name    string
 	Input   api.Step
 	Url     string
 	Prepare func(api.Item) *http.Request
-	Handle  func(http.Response) api.Item
+	Handle  func(*http.Response) api.Item
 
-	channel reqChan
-	urlVal  url.URL
+	itemChan chan api.Item
+	errChan  chan api.ErrorItem
+	channel  *api.DefaultChannel
+
+	urlVal *url.URL
+	client *http.Client
 }
 
-func (step *HttpRequset) init() error {
+func (step *HttpRequest) init() error {
 	// validation
-	if p.Name == "" {
+	if step.Name == "" {
 		return fmt.Errorf("Step HttpRequest missing Name attribute")
 	}
 
 	if step.Input == nil {
-		return fmt.Errorf("HttpStep [%s] missing Input attribute")
+		return fmt.Errorf("HttpStep [%s] missing Input attribute", step.Name)
 	}
 
 	if step.Url == "" {
-		return fmt.Errorf("HttpStep [%s] missing Url attribute")
+		return fmt.Errorf("HttpStep [%s] missing Url attribute", step.Name)
 	}
 
+	if step.Prepare == nil {
+		return fmt.Errorf("HttpStep [%s] missing Prepare attribute", step.Name)
+	}
+
+	if step.Handle == nil {
+		return fmt.Errorf("HttpStep [%s] missing Handle attribute", step.Name)
+	}
+
+	// setup http client
 	if u, err := url.Parse(step.Url); err != nil {
 		return fmt.Errorf("HttpStep [%s] unable to parse URL %s: %s", step.Url, err)
 	} else {
 		step.urlVal = u
 	}
+	step.client = &http.Client{Transport: http.DefaultTransport}
 
-	step.channel = make(chan api.Item)
+	step.itemChan = make(chan api.Item)
+	step.errChan = make(chan api.ErrorItem)
+	step.channel = api.NewChannel(step.itemChan, step.errChan)
 
 	return nil
 }
@@ -68,17 +78,32 @@ func (step *HttpRequest) Do() error {
 		return err
 	}
 
-	input := step.GetInput()
-	if input == nil {
-		return fmt.Errorf("HttpStep [%s] has no Input specified, p.GetName()")
-	}
+	input := step.GetInput().GetChannel()
 
 	go func() {
 		defer func() {
-			close(step.channel)
+			close(step.itemChan)
+			close(step.errChan)
 		}()
 
-		for item := range input.Extract() {
+		for item := range input.Items() {
+			req := step.Prepare(item)
+			if req == nil { // skip, if req not prepared
+				continue
+			} else { // send req, handle response
+				rsp, err := step.client.Do(req)
+				if err != nil {
+					step.errChan <- api.ErrorItem{
+						Error:    err,
+						StepName: step.Name,
+						Item:     item,
+					}
+				} else {
+					step.itemChan <- step.Handle(rsp)
+				}
+			}
 		}
 	}()
+
+	return nil
 }

@@ -5,12 +5,6 @@ import (
 	"xor/automi/api"
 )
 
-type probeChan chan api.Item
-
-func (p probeChan) Extract() <-chan api.Item {
-	return p
-}
-
 type ProbeFunc func(api.Item) api.Item
 
 // Probe is a step designed for testing and inspecting data flow
@@ -19,7 +13,10 @@ type Probe struct {
 	Name    string
 	Input   api.Step
 	Examine ProbeFunc
-	channel probeChan
+
+	items   chan api.Item
+	errs    chan api.ErrorItem
+	channel *api.DefaultChannel
 }
 
 func (p *Probe) init() error {
@@ -32,7 +29,9 @@ func (p *Probe) init() error {
 		return fmt.Errorf("Probe [%s] missing input attribute")
 	}
 
-	p.channel = make(chan api.Item)
+	p.items = make(chan api.Item)
+	p.errs = make(chan api.ErrorItem)
+	p.channel = api.NewChannel(p.items, p.errs)
 	return nil
 }
 
@@ -53,18 +52,17 @@ func (p *Probe) Do() error {
 		return err
 	}
 
-	input := p.GetInput()
-	if input == nil {
-		return fmt.Errorf("Probe [%s] has no input specified", p.GetName())
-	}
+	input := p.GetInput().GetChannel()
+
 	go func() {
 		defer func() {
-			close(p.channel)
+			close(p.items)
+			close(p.errs)
 		}()
 
-		for item := range p.GetInput().GetChannel().Extract() {
+		for item := range input.Items() {
 			if p.Examine != nil {
-				p.channel <- p.Examine(item)
+				p.items <- p.Examine(item)
 			}
 		}
 	}()

@@ -18,12 +18,6 @@ func (i CsvItem) Values() []string {
 	return i
 }
 
-type csvChan chan api.Item
-
-func (c csvChan) Extract() <-chan api.Item {
-	return c
-}
-
 // CsvRead implements a Step that reads a text file
 // and serializes each row as a slice []string.
 type CsvRead struct {
@@ -35,9 +29,12 @@ type CsvRead struct {
 	HasHeaderRow  bool     // indicates first row is for headers (default false). Overrides the Headers attribute.
 	FieldCount    int      // if greater than zero is used to validate field count
 
-	file    *os.File
-	reader  *csv.Reader
-	channel csvChan
+	file   *os.File
+	reader *csv.Reader
+
+	itemChan chan api.Item
+	errChan  chan api.ErrorItem
+	channel  *api.DefaultChannel
 }
 
 func (step *CsvRead) init() error {
@@ -84,8 +81,9 @@ func (step *CsvRead) init() error {
 	}
 
 	// init channel
-	var channel csvChan = make(chan api.Item)
-	step.channel = channel
+	step.itemChan = make(chan api.Item)
+	step.errChan = make(chan api.ErrorItem)
+	step.channel = api.NewChannel(step.itemChan, step.errChan)
 	return nil
 }
 
@@ -109,7 +107,8 @@ func (step *CsvRead) Do() (err error) {
 
 	go func() {
 		defer func() {
-			close(step.channel)
+			close(step.itemChan)
+			close(step.errChan)
 			err = step.file.Close()
 		}()
 
@@ -123,7 +122,7 @@ func (step *CsvRead) Do() (err error) {
 				//TODO: Handle read error
 			}
 
-			step.channel <- CsvItem(row)
+			step.itemChan <- CsvItem(row)
 		}
 	}()
 
