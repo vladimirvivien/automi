@@ -9,10 +9,10 @@ import (
 	"github.com/vladimirvivien/automi/api"
 )
 
-// Csv implements an emitter that reads the content of a
+// CsvRead implements an Source process that reads the content of a
 // specified file and emits its record via its Output Channel
 // and serializes each row as a slice []string.
-type Csv struct {
+type CsvRead struct {
 	Name          string   // string identifer for the Csv emitter
 	FilePath      string   // path for the file
 	DelimiterChar rune     // Delimiter charater, defaults to comma
@@ -27,13 +27,13 @@ type Csv struct {
 	output  chan interface{}
 }
 
-func (c *Csv) Init() error {
+func (c *CsvRead) Init() error {
 	// validation
 	if c.Name == "" {
-		return fmt.Errorf("Csv emitter missing an identifying name.")
+		return fmt.Errorf("CsvRead  missing an identifying name.")
 	}
 	if c.FilePath == "" {
-		return fmt.Errorf("Csv emitter [%s] - Missing required FilePath attribute.")
+		return fmt.Errorf("CsvRead [%s] - Missing required FilePath attribute.")
 	}
 
 	// establish defaults
@@ -48,7 +48,7 @@ func (c *Csv) Init() error {
 	// open file
 	file, err := os.Open(c.FilePath)
 	if err != nil {
-		return fmt.Errorf("Csv emitter [%s] - Failed to create file: %s ", c.Name, err)
+		return fmt.Errorf("CsvRead [%s] - Failed to create file: %s ", c.Name, err)
 	}
 
 	c.file = file
@@ -62,7 +62,7 @@ func (c *Csv) Init() error {
 			c.FieldCount = len(headers)
 			c.Headers = headers
 		} else {
-			return fmt.Errorf("Csv emitter [%s] - Failed to read header row: %s", c.Name, err)
+			return fmt.Errorf("CsvRead [%s] - Failed to read header row: %s", c.Name, err)
 		}
 	} else {
 		if c.Headers != nil {
@@ -76,19 +76,23 @@ func (c *Csv) Init() error {
 	return nil
 }
 
-func (c *Csv) Uninit() error {
+func (c *CsvRead) Uninit() error {
 	return nil
 }
 
-func (c *Csv) GetName() string {
+func (c *CsvRead) GetName() string {
 	return c.Name
 }
 
-func (c *Csv) GetOutput() <-chan interface{} {
+func (c *CsvRead) GetOutput() <-chan interface{} {
 	return c.output
 }
 
-func (c *Csv) Exec() (err error) {
+func (c *CsvRead) GetErrors() <-chan api.ProcError {
+	return c.errChan
+}
+
+func (c *CsvRead) Exec() (err error) {
 	go func() {
 		defer func() {
 			close(c.output)
@@ -104,7 +108,7 @@ func (c *Csv) Exec() (err error) {
 					return
 				}
 				c.errChan <- api.ProcError{
-					Err:      fmt.Errorf("Csv [%s] Error reading row: %s", err),
+					Err:      fmt.Errorf("CsvRead [%s] Error reading row: %s", err),
 					ProcName: c.GetName(),
 				}
 				continue

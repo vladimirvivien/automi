@@ -8,17 +8,17 @@ import (
 )
 
 func TestCsvRead_Init(t *testing.T) {
-	s1 := &Csv{}
+	s1 := &CsvRead{}
 	if err := s1.Init(); err == nil {
 		t.Fatal("Error expected for missing Name.")
 	}
 
-	s1 = &Csv{Name: "s1"}
+	s1 = &CsvRead{Name: "s1"}
 	if err := s1.Init(); err == nil {
 		t.Fatal("Error expected for missing FilePath.")
 	}
 
-	s1 = &Csv{Name: "S1", FilePath: "txt_test.csv"}
+	s1 = &CsvRead{Name: "S1", FilePath: "txt_test.csv"}
 	if err := s1.Init(); err != nil {
 		t.Fatal("Not expecting error, got", err)
 	}
@@ -46,7 +46,7 @@ func TestCsvRead_Init(t *testing.T) {
 
 func TestCsvRead_Exec(t *testing.T) {
 	rowCount := 2
-	s := &Csv{Name: "S1", FilePath: "txt_test.csv", HasHeaderRow: true}
+	s := &CsvRead{Name: "S1", FilePath: "txt_test.csv", HasHeaderRow: true}
 	if err := s.Init(); err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +73,7 @@ func TestCsvRead_Exec(t *testing.T) {
 }
 
 func TestCsvRead_HeaderConfig(t *testing.T) {
-	s := &Csv{Name: "S1", FilePath: "txt_test.csv", HasHeaderRow: true}
+	s := &CsvRead{Name: "S1", FilePath: "txt_test.csv", HasHeaderRow: true}
 	if err := s.Init(); err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func TestCsvRead_HeaderConfig(t *testing.T) {
 	}
 
 	headers := []string{"Field1", "Field2", "Field3"}
-	s2 := &Csv{
+	s2 := &CsvRead{
 		Name:         "S2",
 		FilePath:     "txt_test.csv",
 		HasHeaderRow: true,
@@ -118,7 +118,7 @@ func TestCsvRead_HeaderConfig(t *testing.T) {
 
 func TestCsvRead_OneProbe(t *testing.T) {
 	records := 0
-	csv := &Csv{Name: "read-file", FilePath: "txt_test.csv", HasHeaderRow: true}
+	csv := &CsvRead{Name: "read-file", FilePath: "txt_test.csv", HasHeaderRow: true}
 	if err := csv.Init(); err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +162,7 @@ func TestCsvRead_OneProbe(t *testing.T) {
 
 func TestCsvRead_TwoProbesDeep(t *testing.T) {
 	var records int32
-	csv := &Csv{Name: "read-file", FilePath: "txt_test.csv", HasHeaderRow: true}
+	csv := &CsvRead{Name: "read-file", FilePath: "txt_test.csv", HasHeaderRow: true}
 	if err := csv.Init(); err != nil {
 		t.Fatal(err)
 	}

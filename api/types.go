@@ -14,12 +14,12 @@ type Processor interface {
 	GetOuput() <-chan interface{}
 }
 
-type Producer interface {
+type Source interface {
 	Process
 	GetOutput() <-chan interface{}
 }
 
-type Consumer interface {
+type Sink interface {
 	Process
 	GetInput() <-chan interface{}
 }
