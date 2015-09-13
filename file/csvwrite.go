@@ -25,10 +25,13 @@ type CsvWrite struct {
 func (c *CsvWrite) Init() error {
 	// validation
 	if c.Name == "" {
-		return fmt.Errorf("CsvWrite missing an identifying name.")
+		return fmt.Errorf("CsvWrite missing an identifying Name")
 	}
 	if c.FilePath == "" {
-		return fmt.Errorf("CsvWrite [%s] - Missing required FilePath attribute.")
+		return fmt.Errorf("CsvWrite [%s] - Missing required FilePath attribute")
+	}
+	if c.Input == nil {
+		return fmt.Errorf("CsvWrite [%s] - Missing required Input channel attribute")
 	}
 
 	// establish defaults
