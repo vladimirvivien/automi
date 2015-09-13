@@ -9,8 +9,8 @@ import (
 )
 
 // Req implements a processor that uses items from its input
-// to create and initiate an Http requet.  The reponse from the
-// request can be used as output data for downstream.
+// to create and initiate an Http requests.  The reponse from the
+// requests can be used as output data for downstream.
 type Req struct {
 	Name    string
 	Input   <-chan interface{}
@@ -69,7 +69,11 @@ func (req *Req) GetOutput() <-chan interface{} {
 	return req.output
 }
 
-func (req *Req) Do() error {
+func (req *Req) GetErrors() <-chan api.ProcError {
+	return req.errChan
+}
+
+func (req *Req) Exec() error {
 	input := req.GetInput()
 
 	go func() {
@@ -82,17 +86,34 @@ func (req *Req) Do() error {
 			rqst := req.Prepare(req.urlVal, item)
 			if rqst == nil { // skip, if req not prepared
 				continue
-			} else { // send req, handle response
-				rsp, err := req.client.Do(rqst)
-				if err != nil {
-					req.errChan <- api.ProcError{
-						Err:      err,
-						ProcName: req.Name,
-					}
-				} else {
-					req.output <- req.Handle(rsp)
-				}
 			}
+
+			// make http call
+			rsp, err := req.client.Do(rqst)
+
+			// route any http request error
+			if err != nil {
+				req.errChan <- api.ProcError{
+					Err:      err,
+					ProcName: req.Name,
+				}
+				continue
+			}
+
+			data := req.Handle(rsp)
+
+			if data == nil {
+				continue
+			}
+
+			// check for error from Handle()
+			if err, ok := data.(api.ProcError); ok {
+				req.errChan <- err
+				continue
+			}
+
+			req.output <- data
+
 		}
 	}()
 

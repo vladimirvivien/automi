@@ -5,7 +5,7 @@ type Process interface {
 	Exec() error
 	Init() error
 	Uninit() error
-	Errors() <-chan ProcError
+	GetErrors() <-chan ProcError
 }
 
 type Processor interface {
