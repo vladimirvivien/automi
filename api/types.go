@@ -1,5 +1,7 @@
 package api
 
+import "fmt"
+
 type Process interface {
 	GetName() string
 	Exec() error
@@ -39,4 +41,8 @@ type Emitter interface {
 type ProcError struct {
 	Err      error
 	ProcName string
+}
+
+func (e ProcError) Error() string {
+	return fmt.Sprintf("Process [%s] error %v", e.ProcName, e.Err)
 }

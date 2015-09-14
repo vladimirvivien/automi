@@ -1,7 +1,10 @@
 package file
 
 import (
+	"io/ioutil"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestCsvWrite_Init(t *testing.T) {
@@ -41,5 +44,60 @@ func TestCsvWrite_Init(t *testing.T) {
 	if s1.DelimiterChar != ',' {
 		t.Fatal("Default for DelimiterChar set to", s1.DelimiterChar)
 	}
+}
 
+func TestCsvWriteExec(t *testing.T) {
+	dataStr :=
+		`Col1|Col2|Col3
+Malachite|Pyrite|Calcite
+Jade|Fluorite|Mica`
+
+	// data
+	header := []string{"Col1", "Col2", "Col3"}
+	row1 := []string{"Malachite", "Pyrite", "Calcite"}
+	row2 := []string{"Jade", "Fluorite", "Mica"}
+
+	in := make(chan interface{})
+	go func() {
+		in <- header
+		in <- row1
+		in <- row2
+		close(in)
+	}()
+
+	w := &CsvWrite{
+		Name:          "csv-writer",
+		Input:         in,
+		FilePath:      "test_write.csv",
+		DelimiterChar: '|',
+	}
+
+	if err := w.Init(); err != nil {
+		t.Fatal("Unable to init:", err)
+	}
+
+	go func() {
+		for e := range w.GetErrors() {
+			t.Log(e)
+		}
+	}()
+
+	go func() {
+		if err := w.Exec(); err != nil {
+			t.Fatal("Error during execution:", err)
+		}
+	}()
+
+	select {
+	case <-w.Done():
+	case <-time.After(time.Millisecond * 50):
+		t.Fatal("Took too long to write file.")
+	}
+	data, err := ioutil.ReadFile("test_write.csv")
+	if err != nil {
+		t.Fatal("Unable to read file for validate CsvWrite operation:", err)
+	}
+	if strings.TrimSpace(dataStr) != strings.TrimSpace(string(data)) {
+		t.Fatal("Did not get expected data from CsvWrite file:", string(data))
+	}
 }

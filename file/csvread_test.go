@@ -18,7 +18,7 @@ func TestCsvRead_Init(t *testing.T) {
 		t.Fatal("Error expected for missing FilePath.")
 	}
 
-	s1 = &CsvRead{Name: "S1", FilePath: "txt_test.csv"}
+	s1 = &CsvRead{Name: "S1", FilePath: "test_read.csv"}
 	if err := s1.Init(); err != nil {
 		t.Fatal("Not expecting error, got", err)
 	}
@@ -46,7 +46,7 @@ func TestCsvRead_Init(t *testing.T) {
 
 func TestCsvRead_Exec(t *testing.T) {
 	rowCount := 2
-	s := &CsvRead{Name: "S1", FilePath: "txt_test.csv", HasHeaderRow: true}
+	s := &CsvRead{Name: "S1", FilePath: "test_read.csv", HasHeaderRow: true}
 	if err := s.Init(); err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +73,7 @@ func TestCsvRead_Exec(t *testing.T) {
 }
 
 func TestCsvRead_HeaderConfig(t *testing.T) {
-	s := &CsvRead{Name: "S1", FilePath: "txt_test.csv", HasHeaderRow: true}
+	s := &CsvRead{Name: "S1", FilePath: "test_read.csv", HasHeaderRow: true}
 	if err := s.Init(); err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +89,7 @@ func TestCsvRead_HeaderConfig(t *testing.T) {
 	headers := []string{"Field1", "Field2", "Field3"}
 	s2 := &CsvRead{
 		Name:         "S2",
-		FilePath:     "txt_test.csv",
+		FilePath:     "test_read.csv",
 		HasHeaderRow: true,
 		Headers:      headers,
 	}
@@ -118,7 +118,7 @@ func TestCsvRead_HeaderConfig(t *testing.T) {
 
 func TestCsvRead_OneProbe(t *testing.T) {
 	records := 0
-	csv := &CsvRead{Name: "read-file", FilePath: "txt_test.csv", HasHeaderRow: true}
+	csv := &CsvRead{Name: "read-file", FilePath: "test_read.csv", HasHeaderRow: true}
 	if err := csv.Init(); err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +162,7 @@ func TestCsvRead_OneProbe(t *testing.T) {
 
 func TestCsvRead_TwoProbesDeep(t *testing.T) {
 	var records int32
-	csv := &CsvRead{Name: "read-file", FilePath: "txt_test.csv", HasHeaderRow: true}
+	csv := &CsvRead{Name: "read-file", FilePath: "test_read.csv", HasHeaderRow: true}
 	if err := csv.Init(); err != nil {
 		t.Fatal(err)
 	}
