@@ -44,5 +44,5 @@ type ProcError struct {
 }
 
 func (e ProcError) Error() string {
-	return fmt.Sprintf("Process [%s] error %v", e.ProcName, e.Err)
+	return fmt.Sprintf("[%s] %v", e.ProcName, e.Err)
 }

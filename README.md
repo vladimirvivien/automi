@@ -42,11 +42,12 @@ db.Exec()
 #Status
 This is super alpha-level work.  The API is still taking shape into something that is enjoyable and easy to use.  The following components are available
 
- - **CsvRead**: emits csv records for downstream processing
- - **HttpReq**: Generates Http requests for each item received
-
+ - **CsvRead**: Source component that emits csv records to output channel
+ - **CsvWrite**: Sink component that csv records from input channel to file
+ - **HttpReq**: Allows Http requests/responses for each item sent to its input channel
+ 
 ###Coming Soon
- - CsvWrite
+ - FuncProc
  - DbUpdate 
  - DbQuery
  - Kafka Consumer

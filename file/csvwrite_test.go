@@ -2,6 +2,7 @@ package file
 
 import (
 	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -28,6 +29,7 @@ func TestCsvWrite_Init(t *testing.T) {
 	if err := s1.Init(); err != nil {
 		t.Fatal("Unexpected error:", err)
 	}
+	os.Remove("txt_test.csv")
 
 	if s1.GetInput() != in {
 		t.Fatal("Input should not be nil after init()")
@@ -75,6 +77,13 @@ Jade|Fluorite|Mica`
 	if err := w.Init(); err != nil {
 		t.Fatal("Unable to init:", err)
 	}
+
+	// remove file when done
+	defer func() {
+		if err := os.Remove("test_write.csv"); err != nil {
+			t.Fatal("Unable to delete file after CsvWrite test:", err)
+		}
+	}()
 
 	go func() {
 		for e := range w.GetErrors() {
