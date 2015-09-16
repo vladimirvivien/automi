@@ -53,15 +53,13 @@ func (e *ErrCollector) Exec() (err error) {
 	var barrier sync.WaitGroup
 	barrier.Add(len(e.Input))
 	for _, errCh := range e.Input {
-		go func() {
-			defer barrier.Done()
-			e.merge(errCh)
-		}()
+		go func(ec <-chan api.ProcError) {
+			e.merge(&barrier, ec)
+		}(errCh)
 	}
 
 	go func() {
 		defer func() {
-			fmt.Println("Done, closing output")
 			close(e.output)
 		}()
 		barrier.Wait()
@@ -70,11 +68,9 @@ func (e *ErrCollector) Exec() (err error) {
 	return nil
 }
 
-func (e *ErrCollector) merge(errCh <-chan api.ProcError) {
-	fmt.Println("Merging errors")
+func (e *ErrCollector) merge(wg *sync.WaitGroup, errCh <-chan api.ProcError) {
 	for err := range errCh {
-		fmt.Println("Merged:", err)
 		e.output <- err
 	}
-	fmt.Println("Done merging")
+	wg.Done()
 }

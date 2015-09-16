@@ -31,18 +31,19 @@ func TestErrCollector_Init(t *testing.T) {
 func TestErrCollector_Exec(t *testing.T) {
 	errs1 := make(chan api.ProcError)
 	errs2 := make(chan api.ProcError)
-	genErr := func() {
+	go func() {
 		errs1 <- api.ProcError{ProcName: "err", Err: fmt.Errorf("Error")}
 		errs1 <- api.ProcError{ProcName: "err", Err: fmt.Errorf("Error")}
 		close(errs1)
-
+	}()
+	go func() {
 		errs2 <- api.ProcError{ProcName: "err", Err: fmt.Errorf("Error")}
 		errs2 <- api.ProcError{ProcName: "err", Err: fmt.Errorf("Error")}
 		errs2 <- api.ProcError{ProcName: "err", Err: fmt.Errorf("Error")}
 		close(errs2)
-	}
+	}()
 
-	errs := []<-chan api.ProcError{errs1, errs2}
+	errs := []<-chan api.ProcError{errs2, errs1}
 	errCol := &ErrCollector{
 		Name:  "errors",
 		Input: errs,
@@ -51,21 +52,16 @@ func TestErrCollector_Exec(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	go genErr()
-
 	count := 0
 	wait := make(chan struct{})
-	go func(c *int) {
-		t.Log("Outputting")
+	go func() {
 		defer func() {
-			t.Log("Done waiting for GetOutput()")
 			close(wait)
 		}()
 		for _ = range errCol.GetOutput() {
-			t.Log("Counting")
-			*c = *c + 1
+			count++
 		}
-	}(&count)
+	}()
 
 	if err := errCol.Exec(); err != nil {
 		t.Fatal(err)
