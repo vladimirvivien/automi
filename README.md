@@ -50,11 +50,19 @@ This is super alpha-level work.  The API is still taking shape into something th
 ###Coming Soon
  - DbUpdate (Rdbms)
  - DbQuery (Rdbms)
+
+**Distributed Data**
  - Kafka Consumer
  - Kafka Producer
  - Etcd component
  - Hdfs compoents
+ - Cassandra
+ - Vitess
+ - Gluster
+
+**Routing/Topology**
  - Data Filters
  - Data Collectors
- - Routers and Balancers
+ - Broadcasters
+ - Balancers
  - Etc

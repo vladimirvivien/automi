@@ -7,6 +7,9 @@ type Process interface {
 	Exec() error
 	Init() error
 	Uninit() error
+}
+
+type ErrProducer interface {
 	GetErrors() <-chan ProcError
 }
 
