@@ -8,18 +8,18 @@ import (
 	"github.com/vladimirvivien/automi/api"
 )
 
-func TestErrCollector_Init(t *testing.T) {
-	e := &ErrCollector{}
+func TestItemCollector_Init(t *testing.T) {
+	e := &ItemCollector{}
 	if err := e.Init(); err == nil {
 		t.Fatal("Expected error for missing attributes")
 	}
-	e = &ErrCollector{Name: "errors"}
+	e = &ItemCollector{Name: "errors"}
 	if err := e.Init(); err == nil {
 		t.Fatal("Expected error for missing Input attribute")
 	}
 
-	errs := []<-chan api.ProcError{make(chan api.ProcError)}
-	e = &ErrCollector{Name: "errors", Input: errs}
+	errs := []<-chan interface{}{make(chan interface{})}
+	e = &ItemCollector{Name: "errors", Inputs: errs}
 	if err := e.Init(); err != nil {
 		t.Fatal("Unexpected error after init(): ", err)
 	}
@@ -28,9 +28,9 @@ func TestErrCollector_Init(t *testing.T) {
 	}
 }
 
-func TestErrCollector_Exec(t *testing.T) {
-	errs1 := make(chan api.ProcError)
-	errs2 := make(chan api.ProcError)
+func TestItemCollector_Exec(t *testing.T) {
+	errs1 := make(chan interface{})
+	errs2 := make(chan interface{})
 	go func() {
 		errs1 <- api.ProcError{ProcName: "err", Err: fmt.Errorf("Error")}
 		errs1 <- api.ProcError{ProcName: "err", Err: fmt.Errorf("Error")}
@@ -43,10 +43,10 @@ func TestErrCollector_Exec(t *testing.T) {
 		close(errs2)
 	}()
 
-	errs := []<-chan api.ProcError{errs2, errs1}
-	errCol := &ErrCollector{
-		Name:  "errors",
-		Input: errs,
+	errs := []<-chan interface{}{errs2, errs1}
+	errCol := &ItemCollector{
+		Name:   "errors",
+		Inputs: errs,
 	}
 	if err := errCol.Init(); err != nil {
 		t.Fatal(err)

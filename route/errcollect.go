@@ -7,60 +7,60 @@ import (
 	"github.com/vladimirvivien/automi/api"
 )
 
-// ErrCollector aggregates errors from different components
-// into a single stream of errors that can then be logged into a source.
-type ErrCollector struct {
-	Name  string
-	Input []<-chan api.ProcError
+// ItemCollector aggregates data itesm from different source components
+// into a single stream of data that can then be sinked into another component.
+type ItemCollector struct {
+	Name   string
+	Inputs []<-chan interface{}
 
-	output chan api.ProcError
+	output chan interface{}
 }
 
-func (e *ErrCollector) Init() error {
-	if e.Name == "" {
+func (c *ItemCollector) Init() error {
+	if c.Name == "" {
 		return api.ProcError{Err: fmt.Errorf("Missing Name attribute")}
 	}
 
-	if e.Input == nil {
+	if c.Inputs == nil {
 		return api.ProcError{
-			ProcName: e.Name,
-			Err:      fmt.Errorf("Missing input attribute"),
+			ProcName: c.Name,
+			Err:      fmt.Errorf("Missing Inputs attribute"),
 		}
 	}
 
-	e.output = make(chan api.ProcError)
+	c.output = make(chan interface{})
 
 	return nil
 }
 
-func (e *ErrCollector) Uninit() error {
+func (e *ItemCollector) Uninit() error {
 	return nil
 }
 
-func (e *ErrCollector) GetName() string {
-	return e.Name
+func (c *ItemCollector) GetName() string {
+	return c.Name
 }
 
-func (e *ErrCollector) GetOutput() <-chan api.ProcError {
-	return e.output
+func (c *ItemCollector) GetOutput() <-chan interface{} {
+	return c.output
 }
 
-func (e *ErrCollector) Exec() (err error) {
-	if len(e.Input) == 0 {
+func (c *ItemCollector) Exec() (err error) {
+	if len(c.Inputs) == 0 {
 		return
 	}
 
 	var barrier sync.WaitGroup
-	barrier.Add(len(e.Input))
-	for _, errCh := range e.Input {
-		go func(ec <-chan api.ProcError) {
-			e.merge(&barrier, ec)
-		}(errCh)
+	barrier.Add(len(c.Inputs))
+	for _, itemChan := range c.Inputs {
+		go func(ec <-chan interface{}) {
+			c.merge(&barrier, ec)
+		}(itemChan)
 	}
 
 	go func() {
 		defer func() {
-			close(e.output)
+			close(c.output)
 		}()
 		barrier.Wait()
 	}()
@@ -68,9 +68,9 @@ func (e *ErrCollector) Exec() (err error) {
 	return nil
 }
 
-func (e *ErrCollector) merge(wg *sync.WaitGroup, errCh <-chan api.ProcError) {
-	for err := range errCh {
-		e.output <- err
+func (c *ItemCollector) merge(wg *sync.WaitGroup, ch <-chan interface{}) {
+	for item := range ch {
+		c.output <- item
 	}
 	wg.Done()
 }
