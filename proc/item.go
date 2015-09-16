@@ -2,6 +2,7 @@ package proc
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/vladimirvivien/automi/api"
 )
@@ -80,18 +81,32 @@ func (p *ItemProc) Exec() (err error) {
 			close(p.errChan)
 		}()
 
-		for item := range p.Input {
-			procd := p.Function(item)
-			switch val := procd.(type) {
-			case nil:
-				continue
-			case api.ProcError:
-				p.errChan <- val
-			default:
-				p.output <- val
-			}
+		var barrier sync.WaitGroup
+		barrier.Add(p.Concurrency)
+
+		for i := 0; i < p.Concurrency; i++ {
+			go func() {
+				defer barrier.Done()
+				p.doProc(p.Input)
+			}()
 		}
+
+		barrier.Wait()
 	}()
 
 	return
+}
+
+func (p *ItemProc) doProc(input <-chan interface{}) {
+	for item := range input {
+		procd := p.Function(item)
+		switch val := procd.(type) {
+		case nil:
+			continue
+		case api.ProcError:
+			p.errChan <- val
+		default:
+			p.output <- val
+		}
+	}
 }
