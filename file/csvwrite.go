@@ -17,10 +17,10 @@ type CsvWrite struct {
 	Headers       []string           // Header column to use
 	Input         <-chan interface{} // Source input channel
 
-	file    *os.File
-	writer  *csv.Writer
-	done    chan struct{}
-	errChan chan api.ProcError
+	file   *os.File
+	writer *csv.Writer
+	done   chan struct{}
+	logs   chan interface{}
 }
 
 func (c *CsvWrite) Init() error {
@@ -58,7 +58,7 @@ func (c *CsvWrite) Init() error {
 	}
 
 	c.done = make(chan struct{})
-	c.errChan = make(chan api.ProcError)
+	c.logs = make(chan interface{})
 
 	return nil
 }
@@ -75,8 +75,8 @@ func (c *CsvWrite) GetInput() <-chan interface{} {
 	return c.Input
 }
 
-func (c *CsvWrite) GetErrors() <-chan api.ProcError {
-	return c.errChan
+func (c *CsvWrite) GetLogs() <-chan interface{} {
+	return c.logs
 }
 
 func (c *CsvWrite) Exec() (err error) {
@@ -91,7 +91,7 @@ func (c *CsvWrite) Exec() (err error) {
 			if e := c.file.Close(); e != nil {
 				err = fmt.Errorf("Unable to close file %s: %s", c.file.Name(), e)
 			}
-			close(c.errChan)
+			close(c.logs)
 			close(c.done)
 		}()
 
@@ -102,7 +102,7 @@ func (c *CsvWrite) Exec() (err error) {
 			}
 			err = c.writer.Write(data)
 			if err != nil {
-				c.errChan <- api.ProcError{
+				c.logs <- api.ProcError{
 					ProcName: c.Name,
 					Err:      fmt.Errorf("CsvWrite [%s] Unable to write record: %s", c.Name, err),
 				}
@@ -111,7 +111,7 @@ func (c *CsvWrite) Exec() (err error) {
 			// flush to io
 			c.writer.Flush()
 			if e := c.writer.Error(); e != nil {
-				c.errChan <- api.ProcError{
+				c.logs <- api.ProcError{
 					ProcName: c.Name,
 					Err:      fmt.Errorf("CsvWrite [%s] IO flush error: %s", c.Name, e),
 				}

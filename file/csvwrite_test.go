@@ -86,7 +86,7 @@ Jade|Fluorite|Mica`
 	}()
 
 	go func() {
-		for e := range w.GetErrors() {
+		for e := range w.GetLogs() {
 			t.Log(e)
 		}
 	}()

@@ -16,7 +16,7 @@ csv.Exec()
 
 db := &DbUpdate{
     Name:"dbWriter",
-    Dsn:"<connection string>"
+    Db:"<sql.DB value>"
     Input:csv.GetOutput(),
     Sql:"INSERT INTO tbl(name, age)VALUES(?,?)",
     Prepare: func(data interface{})[] interface{} {
@@ -46,7 +46,7 @@ This is super alpha-level work.  The API is still taking shape into something th
  - **CsvWrite**: Sink component that csv records from input channel to file
  - **HttpReq**: Allows Http requests/responses for each item sent to its input channel
  - **ItemProc**: A component for item processing
- 
+ - **ErrCollector**: Merges errors from other components
 ###Coming Soon
  - DbUpdate (Rdbms)
  - DbQuery (Rdbms)

@@ -40,8 +40,8 @@ func TestItemProc_Init(t *testing.T) {
 	if i.GetInput() == nil {
 		t.Fatal("Input should not be nil after Init()")
 	}
-	if i.GetErrors() == nil {
-		t.Fatal("Errors channel not available after Init()")
+	if i.GetLogs() == nil {
+		t.Fatal("Logs channel not available after Init()")
 	}
 }
 
@@ -69,7 +69,7 @@ func TestItemProc_Exec(t *testing.T) {
 
 	//grab errors
 	go func() {
-		for e := range i.GetErrors() {
+		for e := range i.GetLogs() {
 			t.Log(e)
 		}
 	}()

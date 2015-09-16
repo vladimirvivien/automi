@@ -18,8 +18,8 @@ type Req struct {
 	Prepare func(*url.URL, interface{}) *http.Request
 	Handle  func(*http.Response) interface{}
 
-	errChan chan api.ProcError
-	output  chan interface{}
+	logs   chan interface{}
+	output chan interface{}
 
 	urlVal *url.URL
 	client *http.Client
@@ -51,7 +51,7 @@ func (req *Req) Init() error {
 	}
 	req.client = &http.Client{Transport: http.DefaultTransport}
 
-	req.errChan = make(chan api.ProcError)
+	req.logs = make(chan interface{})
 	req.output = make(chan interface{})
 
 	return nil
@@ -69,8 +69,8 @@ func (req *Req) GetOutput() <-chan interface{} {
 	return req.output
 }
 
-func (req *Req) GetErrors() <-chan api.ProcError {
-	return req.errChan
+func (req *Req) GetLogs() <-chan interface{} {
+	return req.logs
 }
 
 func (req *Req) Exec() error {
@@ -79,7 +79,7 @@ func (req *Req) Exec() error {
 	go func() {
 		defer func() {
 			close(req.output)
-			close(req.errChan)
+			close(req.logs)
 		}()
 
 		for item := range input {
@@ -93,7 +93,7 @@ func (req *Req) Exec() error {
 
 			// route any http request error
 			if err != nil {
-				req.errChan <- api.ProcError{
+				req.logs <- api.ProcError{
 					Err:      err,
 					ProcName: req.Name,
 				}
@@ -108,12 +108,10 @@ func (req *Req) Exec() error {
 
 			// check for error from Handle()
 			if err, ok := data.(api.ProcError); ok {
-				req.errChan <- err
+				req.logs <- err
 				continue
 			}
-
 			req.output <- data
-
 		}
 	}()
 

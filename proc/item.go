@@ -15,9 +15,9 @@ type ItemProc struct {
 	Function    func(interface{}) interface{} // function to execute
 	Concurrency int                           // Concurrency level, default 1
 
-	output  chan interface{}
-	done    chan struct{}
-	errChan chan api.ProcError
+	output chan interface{}
+	done   chan struct{}
+	logs   chan interface{}
 }
 
 func (p *ItemProc) Init() error {
@@ -44,7 +44,7 @@ func (p *ItemProc) Init() error {
 
 	p.output = make(chan interface{})
 	p.done = make(chan struct{})
-	p.errChan = make(chan api.ProcError)
+	p.logs = make(chan interface{})
 
 	return nil
 }
@@ -65,8 +65,8 @@ func (p *ItemProc) GetOutput() <-chan interface{} {
 	return p.output
 }
 
-func (p *ItemProc) GetErrors() <-chan api.ProcError {
-	return p.errChan
+func (p *ItemProc) GetLogs() <-chan interface{} {
+	return p.logs
 }
 
 func (p *ItemProc) Done() <-chan struct{} {
@@ -78,17 +78,17 @@ func (p *ItemProc) Exec() (err error) {
 		defer func() {
 			close(p.output)
 			close(p.done)
-			close(p.errChan)
+			close(p.logs)
 		}()
 
 		var barrier sync.WaitGroup
 		barrier.Add(p.Concurrency)
 
 		for i := 0; i < p.Concurrency; i++ {
-			go func() {
-				defer barrier.Done()
+			go func(wg *sync.WaitGroup) {
+				defer wg.Done()
 				p.doProc(p.Input)
-			}()
+			}(&barrier)
 		}
 
 		barrier.Wait()
@@ -104,7 +104,7 @@ func (p *ItemProc) doProc(input <-chan interface{}) {
 		case nil:
 			continue
 		case api.ProcError:
-			p.errChan <- val
+			p.logs <- val
 		default:
 			p.output <- val
 		}

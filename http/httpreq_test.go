@@ -131,7 +131,7 @@ func TestHttpReqExec(t *testing.T) {
 
 	//watch errors
 	go func() {
-		for err := range req.GetErrors() {
+		for err := range req.GetLogs() {
 			t.Log(err)
 		}
 	}()

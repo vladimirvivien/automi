@@ -21,10 +21,10 @@ type CsvRead struct {
 	HasHeaderRow  bool     // indicates first row is for headers (default false). Overrides the Headers attribute.
 	FieldCount    int      // if greater than zero is used to validate field count
 
-	file    *os.File
-	reader  *csv.Reader
-	errChan chan api.ProcError
-	output  chan interface{}
+	file   *os.File
+	reader *csv.Reader
+	logs   chan interface{}
+	output chan interface{}
 }
 
 func (c *CsvRead) Init() error {
@@ -72,7 +72,7 @@ func (c *CsvRead) Init() error {
 
 	// init channel
 	c.output = make(chan interface{})
-	c.errChan = make(chan api.ProcError)
+	c.logs = make(chan interface{})
 	return nil
 }
 
@@ -88,15 +88,15 @@ func (c *CsvRead) GetOutput() <-chan interface{} {
 	return c.output
 }
 
-func (c *CsvRead) GetErrors() <-chan api.ProcError {
-	return c.errChan
+func (c *CsvRead) GetLogs() <-chan interface{} {
+	return c.logs
 }
 
 func (c *CsvRead) Exec() (err error) {
 	go func() {
 		defer func() {
 			close(c.output)
-			close(c.errChan)
+			close(c.logs)
 			err = c.file.Close()
 		}()
 
@@ -107,7 +107,7 @@ func (c *CsvRead) Exec() (err error) {
 				if err == io.EOF {
 					return
 				}
-				c.errChan <- api.ProcError{
+				c.logs <- api.ProcError{
 					Err:      fmt.Errorf("CsvRead [%s] Error reading row: %s", err),
 					ProcName: c.GetName(),
 				}
