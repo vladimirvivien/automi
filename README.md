@@ -45,11 +45,11 @@ This is super alpha-level work.  The API is still taking shape into something th
  - **CsvRead**: Source component that emits csv records to output channel
  - **CsvWrite**: Sink component that csv records from input channel to file
  - **HttpReq**: Allows Http requests/responses for each item sent to its input channel
- - **ItemProc**: A component for item processing 
+ - **ItemProc**: A component for item processing
+ 
 ###Coming Soon
- - FuncProc
- - DbUpdate 
- - DbQuery
+ - DbUpdate (Rdbms)
+ - DbQuery (Rdbms)
  - Kafka Consumer
  - Kafka Producer
  - Etcd component
