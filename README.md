@@ -45,20 +45,27 @@ This is super alpha-level work.  The API is still taking shape into something th
  - **CsvRead**: Source component that emits csv records to output channel
  - **CsvWrite**: Sink component that csv records from input channel to file
  - **HttpReq**: Allows Http requests/responses for each item sent to its input channel
- - **ItemProc**: A component for item processing
- - **ErrCollector**: Merges errors from other components
+ - **ItemProc**: A component for item processing with custom code
+ - **ItemCollector**: Merges collected channel items from other components
+ - **LogrusProc**: Logs collected log message with Logrus 
+
 ###Coming Soon
  - DbUpdate (Rdbms)
  - DbQuery (Rdbms)
+
+**System Integration**
+ - File system source/sink
+ - Ftp source/sink
 
 **Distributed Data**
  - Kafka Consumer
  - Kafka Producer
  - Etcd component
- - Hdfs compoents
+ - Hdfs source/sink
  - Cassandra
  - Vitess
  - Gluster
+ - Etc
 
 **Routing/Topology**
  - Data Filters
