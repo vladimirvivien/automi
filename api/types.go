@@ -19,6 +19,7 @@ type LogSource interface {
 
 type Sink interface {
 	GetInput() <-chan interface{}
+	Done() <-chan struct{}
 }
 
 type Collector interface {
@@ -35,5 +36,8 @@ type ProcError struct {
 }
 
 func (e ProcError) Error() string {
-	return fmt.Sprintf("[%s] %v", e.ProcName, e.Err)
+	if e.ProcName != "" {
+		return fmt.Sprintf("[%s] %v", e.ProcName, e.Err)
+	}
+	return e.Err.Error()
 }

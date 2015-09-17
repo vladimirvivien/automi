@@ -11,9 +11,12 @@ import (
 // * logrus.Entry
 // * api.ProcError
 type LogrusProc struct {
-	Name   string
-	Logger *logrus.Logger
-	Input  <-chan interface{}
+	Name       string
+	Logger     *logrus.Logger
+	LogContext *logrus.Entry
+	Input      <-chan interface{}
+
+	done chan struct{}
 }
 
 func (p *LogrusProc) Init() error {
@@ -35,6 +38,8 @@ func (p *LogrusProc) Init() error {
 		}
 	}
 
+	p.done = make(chan struct{})
+
 	return nil
 }
 
@@ -50,12 +55,24 @@ func (p *LogrusProc) GetInput() <-chan interface{} {
 	return p.Input
 }
 
+func (p *LogrusProc) Done() <-chan struct{} {
+	return p.done
+}
+
 func (p *LogrusProc) Exec() error {
 	go func() {
+		defer func() {
+			close(p.done)
+		}()
 		for item := range p.Input {
 			switch log := item.(type) {
 			case api.ProcError, error:
-				p.Logger.Errorln(log)
+				if p.LogContext != nil {
+					p.LogContext.Errorln(log)
+				} else {
+					p.Logger.Errorln(log)
+				}
+			default:
 			}
 		}
 	}()
