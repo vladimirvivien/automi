@@ -30,10 +30,15 @@ type CsvRead struct {
 func (c *CsvRead) Init() error {
 	// validation
 	if c.Name == "" {
-		return fmt.Errorf("CsvRead  missing an identifying name.")
+		return api.ProcError{
+			Err: fmt.Errorf("CsvRead missing an identifying name"),
+		}
 	}
 	if c.FilePath == "" {
-		return fmt.Errorf("CsvRead [%s] - Missing required FilePath attribute.")
+		return api.ProcError{
+			ProcName: c.Name,
+			Err:      fmt.Errorf("Missing required FilePath attribute"),
+		}
 	}
 
 	// establish defaults
@@ -48,7 +53,10 @@ func (c *CsvRead) Init() error {
 	// open file
 	file, err := os.Open(c.FilePath)
 	if err != nil {
-		return fmt.Errorf("CsvRead [%s] - Failed to create file: %s ", c.Name, err)
+		return api.ProcError{
+			ProcName: c.Name,
+			Err:      fmt.Errorf("Failed to create file: %s ", err),
+		}
 	}
 
 	c.file = file
@@ -62,7 +70,10 @@ func (c *CsvRead) Init() error {
 			c.FieldCount = len(headers)
 			c.Headers = headers
 		} else {
-			return fmt.Errorf("CsvRead [%s] - Failed to read header row: %s", c.Name, err)
+			return api.ProcError{
+				ProcName: c.Name,
+				Err:      fmt.Errorf("Unable to read header row: %s", err),
+			}
 		}
 	} else {
 		if c.Headers != nil {
