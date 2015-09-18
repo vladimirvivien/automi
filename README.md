@@ -1,6 +1,9 @@
 Automi
 ======
 Automi abstracts away (not too far away) the low-level manipulation of Go channels and exposes higher-level components to compose data and process flows.
+
+[![GoDoc](https://godoc.org/github.com/vladimirvivien/automi?status.svg)](https://godoc.org/github.com/vladimirvivien/automi)
+
 ###Example
 The following illustrates how Automi can be used to compose a data and process flow where the content of CSV file saved to a database and 
 
