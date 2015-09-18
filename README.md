@@ -1,6 +1,7 @@
 Automi
 ======
 Compose process and integration flows on top of Go channels!
+
 [![GoDoc](https://godoc.org/github.com/vladimirvivien/automi?status.svg)](https://godoc.org/github.com/vladimirvivien/automi)
 
 [![Build Status](https://travis-ci.org/vladimirvivien/automi.svg)](https://travis-ci.org/vladimirvivien/automi)
