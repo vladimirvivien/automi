@@ -46,11 +46,11 @@ db.Exec()
 This is super alpha-level work.  The API is still taking shape into something that is enjoyable and easy to use.  The following components are available
 
  - **CsvRead**: Source component that emits csv records to output channel
- - **CsvWrite**: Sink component that csv records from input channel to file
+ - **CsvWrite**: Sink component that writes channel items to a csv file
  - **HttpReq**: Allows Http requests/responses for each item sent to its input channel
  - **ItemProc**: A component for item processing with custom code
  - **ItemCollector**: Merges collected channel items from other components
- - **LogrusProc**: Logs collected log message with Logrus 
+ - **LogrusProc**: Logs messages with Logrus 
  - **DBUpdate**: A sink component that saves channel items to a database
 
 ###Coming Soon
