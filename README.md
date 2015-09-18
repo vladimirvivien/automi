@@ -48,9 +48,9 @@ This is super alpha-level work.  The API is still taking shape into something th
  - **ItemProc**: A component for item processing with custom code
  - **ItemCollector**: Merges collected channel items from other components
  - **LogrusProc**: Logs collected log message with Logrus 
+ - **DBUpdate**: A sink component that saves channel items to a database
 
 ###Coming Soon
- - DbUpdate (Rdbms)
  - DbQuery (Rdbms)
 
 **System Integration**
