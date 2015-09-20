@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"os"
 
+	"golang.org/x/net/context"
+
+	"github.com/Sirupsen/logrus"
 	"github.com/vladimirvivien/automi/api"
+	autoctx "github.com/vladimirvivien/automi/context"
 )
 
 // CsvWrite implements a Sink process that collects data
@@ -19,20 +23,35 @@ type CsvWrite struct {
 
 	file   *os.File
 	writer *csv.Writer
+	input  <-chan interface{}
+	log    *logrus.Entry
 	done   chan struct{}
-	logs   chan interface{}
 }
 
-func (c *CsvWrite) Init() error {
+func (c *CsvWrite) Init(ctx context.Context) error {
+	//extract log entry
+	log, ok := autoctx.GetLogEntry(ctx)
+	if !ok {
+		log = logrus.WithField("Proc", "CsvWrite")
+		log.Error("No logger found in context")
+	}
+
 	// validation
 	if c.Name == "" {
-		return fmt.Errorf("CsvWrite missing an identifying Name")
+		return fmt.Errorf("CsvWrite missing name attribute")
 	}
 	if c.FilePath == "" {
-		return fmt.Errorf("CsvWrite [%s] - Missing required FilePath attribute")
+		return api.ProcError{
+			ProcName: c.GetName(),
+			Err:      fmt.Errorf("Missing required FilePath attribute"),
+		}
 	}
-	if c.Input == nil {
-		return fmt.Errorf("CsvWrite [%s] - Missing required Input channel attribute")
+
+	if c.input == nil {
+		return api.ProcError{
+			ProcName: c.GetName(),
+			Err:      fmt.Errorf("Input attribute not set"),
+		}
 	}
 
 	// establish defaults
@@ -43,7 +62,10 @@ func (c *CsvWrite) Init() error {
 	// open file
 	file, err := os.Create(c.FilePath)
 	if err != nil {
-		return fmt.Errorf("CsvWrite [%s] - Failed to create file: %s ", c.Name, err)
+		return api.ProcError{
+			ProcName: c.GetName(),
+			Err:      fmt.Errorf("Failed to create file: %s ", c.Name, err),
+		}
 	}
 
 	c.file = file
@@ -58,7 +80,6 @@ func (c *CsvWrite) Init() error {
 	}
 
 	c.done = make(chan struct{})
-	c.logs = make(chan interface{})
 
 	return nil
 }
@@ -71,8 +92,8 @@ func (c *CsvWrite) GetName() string {
 	return c.Name
 }
 
-func (c *CsvWrite) GetInput() <-chan interface{} {
-	return c.Input
+func (c *CsvWrite) SetInput(<-chan interface{}) {
+	return c.input
 }
 
 func (c *CsvWrite) GetLogs() <-chan interface{} {
