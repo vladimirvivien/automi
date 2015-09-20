@@ -15,11 +15,10 @@ import (
 // CsvWrite implements a Sink process that collects data
 // from its input channel and write it to the specified file.
 type CsvWrite struct {
-	Name          string             //Identifer name for the component
-	FilePath      string             //Path for the output file
-	DelimiterChar rune               // Delimiter character
-	Headers       []string           // Header column to use
-	Input         <-chan interface{} // Source input channel
+	Name          string   //Identifer name for the component
+	FilePath      string   //Path for the output file
+	DelimiterChar rune     // Delimiter character
+	Headers       []string // Header column to use
 
 	file   *os.File
 	writer *csv.Writer
@@ -84,7 +83,7 @@ func (c *CsvWrite) Init(ctx context.Context) error {
 	return nil
 }
 
-func (c *CsvWrite) Uninit() error {
+func (c *CsvWrite) Uninit(ctx context.Context) error {
 	return nil
 }
 
@@ -92,52 +91,58 @@ func (c *CsvWrite) GetName() string {
 	return c.Name
 }
 
-func (c *CsvWrite) SetInput(<-chan interface{}) {
-	return c.input
+func (c *CsvWrite) SetInput(in <-chan interface{}) {
+	c.input = in
 }
 
-func (c *CsvWrite) GetLogs() <-chan interface{} {
-	return c.logs
-}
-
-func (c *CsvWrite) Exec() (err error) {
+func (c *CsvWrite) Exec(ctx context.Context) (err error) {
 	go func() {
 		defer func() {
 
 			c.writer.Flush()
 			if e := c.writer.Error(); e != nil {
-				err = fmt.Errorf("CsvWrite [%s] IO flush error: %s", c.Name, e)
+				err = api.ProcError{
+					ProcName: c.GetName(),
+					Err:      fmt.Errorf("IO flush error: %s", c.Name, e),
+				}
+				c.log.Error(err)
 			}
 
 			if e := c.file.Close(); e != nil {
-				err = fmt.Errorf("Unable to close file %s: %s", c.file.Name(), e)
+				err = api.ProcError{
+					ProcName: c.GetName(),
+					Err:      fmt.Errorf("Unable to close file %s: %s", c.file.Name(), e),
+				}
+				c.log.Error(err)
 			}
-			close(c.logs)
 			close(c.done)
 		}()
 
-		for item := range c.Input {
+		for item := range c.input {
 			data, ok := item.([]string)
 			if !ok { // hard-fail on bad data type`
-				panic(fmt.Sprintf("CsvWrite [%s] expects []string, got %T", item))
+				panic(fmt.Sprintf("CsvWrite [%s] expects []string, got %T", c.GetName(), item))
+
 			}
 			err = c.writer.Write(data)
 			if err != nil {
-				c.logs <- api.ProcError{
+				perr := api.ProcError{
 					ProcName: c.Name,
-					Err:      fmt.Errorf("CsvWrite [%s] Unable to write record: %s", c.Name, err),
+					Err:      fmt.Errorf("Unable to write: %s", c.Name, err),
 				}
+				c.log.Error(perr)
+				continue
 			}
 
 			// flush to io
 			c.writer.Flush()
 			if e := c.writer.Error(); e != nil {
-				c.logs <- api.ProcError{
+				perr := api.ProcError{
 					ProcName: c.Name,
-					Err:      fmt.Errorf("CsvWrite [%s] IO flush error: %s", c.Name, e),
+					Err:      fmt.Errorf("IO flush error: %s", c.Name, e),
 				}
+				c.log.Error(perr)
 			}
-
 		}
 	}()
 

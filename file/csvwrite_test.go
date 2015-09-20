@@ -6,34 +6,33 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/net/context"
 )
 
-func TestCsvWrite_Init(t *testing.T) {
+func TestCsvWriteInit(t *testing.T) {
 	s1 := &CsvWrite{}
-	if err := s1.Init(); err == nil {
+	if err := s1.Init(context.TODO()); err == nil {
 		t.Fatal("Error expected for missing Name.")
 	}
 
 	s1 = &CsvWrite{Name: "s1"}
-	if err := s1.Init(); err == nil {
+	if err := s1.Init(context.TODO()); err == nil {
 		t.Fatal("Error expected for missing FilePath.")
 	}
 
 	s1 = &CsvWrite{Name: "S1", FilePath: "txt_test.csv"}
-	if err := s1.Init(); err == nil {
+	if err := s1.Init(context.TODO()); err == nil {
 		t.Fatal("Error expected for missing Input")
 	}
 
 	in := make(chan interface{})
-	s1 = &CsvWrite{Name: "S1", FilePath: "txt_test.csv", Input: in}
-	if err := s1.Init(); err != nil {
+	s1 = &CsvWrite{Name: "S1", FilePath: "txt_test.csv"}
+	s1.SetInput(in)
+	if err := s1.Init(context.TODO()); err != nil {
 		t.Fatal("Unexpected error:", err)
 	}
 	os.Remove("txt_test.csv")
-
-	if s1.GetInput() != in {
-		t.Fatal("Input should not be nil after init()")
-	}
 
 	if s1.file == nil {
 		t.Fatal("File is not ready after init")
@@ -69,12 +68,11 @@ Jade|Fluorite|Mica`
 
 	w := &CsvWrite{
 		Name:          "csv-writer",
-		Input:         in,
 		FilePath:      "test_write.csv",
 		DelimiterChar: '|',
 	}
-
-	if err := w.Init(); err != nil {
+	w.SetInput(in)
+	if err := w.Init(context.TODO()); err != nil {
 		t.Fatal("Unable to init:", err)
 	}
 
@@ -86,13 +84,7 @@ Jade|Fluorite|Mica`
 	}()
 
 	go func() {
-		for e := range w.GetLogs() {
-			t.Log(e)
-		}
-	}()
-
-	go func() {
-		if err := w.Exec(); err != nil {
+		if err := w.Exec(context.TODO()); err != nil {
 			t.Fatal("Error during execution:", err)
 		}
 	}()
