@@ -10,42 +10,44 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/vladimirvivien/automi/api"
 )
 
 func TestHttpReq_InitValidation(t *testing.T) {
 	req := &Req{}
-	err := req.Init()
+	err := req.Init(context.TODO())
 	if err == nil {
 		t.Fatal("Expecting error, but got nil")
 	}
 
 	req = &Req{Name: "http"}
-	err = req.Init()
+	err = req.Init(context.TODO())
 	if err == nil {
 		t.Fatal("Expecting error, but got nil")
 	}
 
 	req = &Req{Name: "http", Url: "http://localhost/test"}
-	err = req.Init()
+	err = req.Init(context.TODO())
 	if err == nil {
 		t.Fatal("Expecting error, but got nil")
 	}
 
+	in := make(chan interface{})
 	req = &Req{
-		Name:  "http",
-		Url:   "http://localhost/test",
-		Input: make(chan interface{}),
+		Name: "http",
+		Url:  "http://localhost/test",
 	}
-	err = req.Init()
+	req.SetInput(in)
+	err = req.Init(context.TODO())
 	if err == nil {
 		t.Fatal("Expecting error for missing Prepare and Handle attributes, but got nil")
 	}
 
 	req = &Req{
-		Name:  "http",
-		Url:   "http://localhost/test",
-		Input: make(chan interface{}),
+		Name: "http",
+		Url:  "http://localhost/test",
 		Prepare: func(u *url.URL, d interface{}) *http.Request {
 			return nil
 		},
@@ -53,11 +55,12 @@ func TestHttpReq_InitValidation(t *testing.T) {
 			return nil
 		},
 	}
-	if err := req.Init(); err != nil {
+	req.SetInput(in)
+	if err := req.Init(context.TODO()); err != nil {
 		t.Fatal("Was not expecting error")
 	}
 
-	if req.GetInput() == nil {
+	if req.input == nil {
 		t.Fatal("Failed to set Input after Init()")
 	}
 
@@ -93,10 +96,8 @@ func TestHttpReqExec(t *testing.T) {
 	}()
 
 	req := &Req{
-		Name:  "http",
-		Url:   server.URL,
-		Input: in,
-
+		Name: "http",
+		Url:  server.URL,
 		Prepare: func(u *url.URL, d interface{}) *http.Request {
 			data := d.(string)
 			req, _ := http.NewRequest("POST", u.String(), bytes.NewReader([]byte(data)))
@@ -129,18 +130,12 @@ func TestHttpReqExec(t *testing.T) {
 		},
 	}
 
-	//watch errors
-	go func() {
-		for err := range req.GetLogs() {
-			t.Log(err)
-		}
-	}()
-
-	if err := req.Init(); err != nil {
+	req.SetInput(in)
+	if err := req.Init(context.TODO()); err != nil {
 		t.Fatal("Unable to init:", err)
 	}
 
-	if err := req.Exec(); err != nil {
+	if err := req.Exec(context.TODO()); err != nil {
 		t.Fatal("Unable to Exec:", err)
 	}
 

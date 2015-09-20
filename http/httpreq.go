@@ -5,7 +5,11 @@ import (
 	"net/http"
 	"net/url"
 
+	"golang.org/x/net/context"
+
+	"github.com/Sirupsen/logrus"
 	"github.com/vladimirvivien/automi/api"
+	autoctx "github.com/vladimirvivien/automi/context"
 )
 
 // Req implements a processor that uses items from its input
@@ -13,34 +17,53 @@ import (
 // requests can be used as output data for downstream.
 type Req struct {
 	Name    string
-	Input   <-chan interface{}
 	Url     string
 	Prepare func(*url.URL, interface{}) *http.Request
 	Handle  func(*http.Response) interface{}
 
-	logs   chan interface{}
+	input  <-chan interface{}
 	output chan interface{}
-
+	log    *logrus.Entry
 	urlVal *url.URL
 	client *http.Client
 }
 
-func (req *Req) Init() error {
+func (req *Req) Init(ctx context.Context) error {
+	// extract logger
+	log, ok := autoctx.GetLogEntry(ctx)
+	if !ok {
+		log = logrus.WithField("Proc", "Req (http)")
+		log.Error("Logger not found in context, using default")
+	}
 	// validation
 	if req.Name == "" {
 		return fmt.Errorf("Http.Req missing Name attribute")
 	}
 
-	if req.Input == nil {
-		return fmt.Errorf("Http Req [%s] missing Input attribute", req.Name)
+	if req.input == nil {
+		return api.ProcError{
+			ProcName: req.GetName(),
+			Err:      fmt.Errorf("Missing Input attribute"),
+		}
 	}
 
 	if req.Url == "" {
-		return fmt.Errorf("Http Req [%s] missing Url attribute", req.Name)
+		return api.ProcError{
+			ProcName: req.Name,
+			Err:      fmt.Errorf("Missing Url attribute"),
+		}
 	}
-
-	if req.Prepare == nil || req.Handle == nil {
-		return fmt.Errorf("Http Req [%s] Both Prepare and Handle functions are required", req.Name)
+	if req.Prepare == nil {
+		return api.ProcError{
+			ProcName: req.Name,
+			Err:      fmt.Errorf("Missing Prepare function"),
+		}
+	}
+	if req.Handle == nil {
+		return api.ProcError{
+			ProcName: req.Name,
+			Err:      fmt.Errorf("Missing Handle function"),
+		}
 	}
 
 	// setup http client
@@ -51,9 +74,12 @@ func (req *Req) Init() error {
 	}
 	req.client = &http.Client{Transport: http.DefaultTransport}
 
-	req.logs = make(chan interface{})
 	req.output = make(chan interface{})
 
+	return nil
+}
+
+func (req *Req) Uninit(ctx context.Context) error {
 	return nil
 }
 
@@ -61,28 +87,21 @@ func (req *Req) GetName() string {
 	return req.Name
 }
 
-func (req *Req) GetInput() <-chan interface{} {
-	return req.Input
+func (req *Req) SetInput(in <-chan interface{}) {
+	req.input = in
 }
 
 func (req *Req) GetOutput() <-chan interface{} {
 	return req.output
 }
 
-func (req *Req) GetLogs() <-chan interface{} {
-	return req.logs
-}
-
-func (req *Req) Exec() error {
-	input := req.GetInput()
-
+func (req *Req) Exec(ctx context.Context) error {
 	go func() {
 		defer func() {
 			close(req.output)
-			close(req.logs)
 		}()
 
-		for item := range input {
+		for item := range req.input {
 			rqst := req.Prepare(req.urlVal, item)
 			if rqst == nil { // skip, if req not prepared
 				continue
@@ -93,10 +112,11 @@ func (req *Req) Exec() error {
 
 			// route any http request error
 			if err != nil {
-				req.logs <- api.ProcError{
+				perr := api.ProcError{
 					Err:      err,
 					ProcName: req.Name,
 				}
+				req.log.Error(perr)
 				continue
 			}
 
@@ -108,7 +128,7 @@ func (req *Req) Exec() error {
 
 			// check for error from Handle()
 			if err, ok := data.(api.ProcError); ok {
-				req.logs <- err
+				req.log.Error(err)
 				continue
 			}
 			req.output <- data
