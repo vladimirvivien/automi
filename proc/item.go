@@ -4,27 +4,40 @@ import (
 	"fmt"
 	"sync"
 
+	"golang.org/x/net/context"
+
+	"github.com/Sirupsen/logrus"
 	"github.com/vladimirvivien/automi/api"
+	autoctx "github.com/vladimirvivien/automi/context"
 )
 
 // ItemProc implements a processor that applies a function to each item received.
 // Processed items are placed in the output channel for down stream use.
 type ItemProc struct {
 	Name        string                        // Name identifier for component
-	Input       <-chan interface{}            // input channel for component
 	Function    func(interface{}) interface{} // function to execute
 	Concurrency int                           // Concurrency level, default 1
 
+	input  <-chan interface{}
 	output chan interface{}
 	done   chan struct{}
-	logs   chan interface{}
+	log    *logrus.Entry
 }
 
-func (p *ItemProc) Init() error {
+func (p *ItemProc) Init(ctx context.Context) error {
+	// extract logger
+	log, ok := autoctx.GetLogEntry(ctx)
+	if !ok {
+		log = logrus.WithField("Proc", "ItemProc")
+		log.Error("Logger not found in context")
+	}
+	p.log = log
+	p.log.Info("Initializing component", p.Name)
+
 	if p.Name == "" {
 		return api.ProcError{Err: fmt.Errorf("Name attribute is required")}
 	}
-	if p.Input == nil {
+	if p.input == nil {
 		return api.ProcError{
 			ProcName: p.Name,
 			Err:      fmt.Errorf("Input attribute required"),
@@ -44,12 +57,11 @@ func (p *ItemProc) Init() error {
 
 	p.output = make(chan interface{})
 	p.done = make(chan struct{})
-	p.logs = make(chan interface{})
 
 	return nil
 }
 
-func (p *ItemProc) Uninit() error {
+func (p *ItemProc) Uninit(ctx context.Context) error {
 	return nil
 }
 
@@ -57,28 +69,23 @@ func (p *ItemProc) GetName() string {
 	return p.Name
 }
 
-func (p *ItemProc) GetInput() <-chan interface{} {
-	return p.Input
+func (p *ItemProc) SetInput(in <-chan interface{}) {
+	p.input = in
 }
 
 func (p *ItemProc) GetOutput() <-chan interface{} {
 	return p.output
 }
 
-func (p *ItemProc) GetLogs() <-chan interface{} {
-	return p.logs
-}
-
 func (p *ItemProc) Done() <-chan struct{} {
 	return p.done
 }
 
-func (p *ItemProc) Exec() (err error) {
+func (p *ItemProc) Exec(ctx context.Context) (err error) {
 	go func() {
 		defer func() {
 			close(p.output)
 			close(p.done)
-			close(p.logs)
 		}()
 
 		var barrier sync.WaitGroup
@@ -87,13 +94,12 @@ func (p *ItemProc) Exec() (err error) {
 		for i := 0; i < p.Concurrency; i++ {
 			go func(wg *sync.WaitGroup) {
 				defer wg.Done()
-				p.doProc(p.Input)
+				p.doProc(p.input)
 			}(&barrier)
 		}
 
 		barrier.Wait()
 	}()
-
 	return
 }
 
@@ -104,7 +110,7 @@ func (p *ItemProc) doProc(input <-chan interface{}) {
 		case nil:
 			continue
 		case api.ProcError:
-			p.logs <- val
+			p.log.Error(val)
 		default:
 			p.output <- val
 		}
