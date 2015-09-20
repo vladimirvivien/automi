@@ -6,7 +6,11 @@ import (
 	"io"
 	"os"
 
+	"golang.org/x/net/context"
+
+	"github.com/Sirupsen/logrus"
 	"github.com/vladimirvivien/automi/api"
+	autoctx "github.com/vladimirvivien/automi/context"
 )
 
 // CsvRead implements an Source process that reads the content of a
@@ -23,11 +27,19 @@ type CsvRead struct {
 
 	file   *os.File
 	reader *csv.Reader
-	logs   chan interface{}
+	log    *logrus.Entry
 	output chan interface{}
 }
 
-func (c *CsvRead) Init() error {
+func (c *CsvRead) Init(ctx context.Context) error {
+	// extract logger
+	log, ok := autoctx.GetLogEntry(ctx)
+	if !ok {
+		log = logrus.WithField("Proc", "CsvRead")
+		log.Error("No logger found incontext")
+	}
+	c.log = log
+
 	// validation
 	if c.Name == "" {
 		return api.ProcError{
@@ -55,7 +67,7 @@ func (c *CsvRead) Init() error {
 	if err != nil {
 		return api.ProcError{
 			ProcName: c.Name,
-			Err:      fmt.Errorf("Failed to create file: %s ", err),
+			Err:      fmt.Errorf("Failed to open file: %s ", err),
 		}
 	}
 
@@ -83,11 +95,13 @@ func (c *CsvRead) Init() error {
 
 	// init channel
 	c.output = make(chan interface{})
-	c.logs = make(chan interface{})
+
+	c.log.Info("Component initiated")
+
 	return nil
 }
 
-func (c *CsvRead) Uninit() error {
+func (c *CsvRead) Uninit(ctx context.Context) error {
 	return nil
 }
 
@@ -99,15 +113,10 @@ func (c *CsvRead) GetOutput() <-chan interface{} {
 	return c.output
 }
 
-func (c *CsvRead) GetLogs() <-chan interface{} {
-	return c.logs
-}
-
-func (c *CsvRead) Exec() (err error) {
+func (c *CsvRead) Exec(ctx context.Context) (err error) {
 	go func() {
 		defer func() {
 			close(c.output)
-			close(c.logs)
 			err = c.file.Close()
 		}()
 
@@ -118,10 +127,11 @@ func (c *CsvRead) Exec() (err error) {
 				if err == io.EOF {
 					return
 				}
-				c.logs <- api.ProcError{
+				perr := api.ProcError{
 					Err:      fmt.Errorf("CsvRead [%s] Error reading row: %s", err),
 					ProcName: c.GetName(),
 				}
+				c.log.Error(perr)
 				continue
 			}
 

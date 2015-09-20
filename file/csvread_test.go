@@ -4,22 +4,24 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"golang.org/x/net/context"
+
 	"github.com/vladimirvivien/automi/sup"
 )
 
 func TestCsvRead_Init(t *testing.T) {
 	s1 := &CsvRead{}
-	if err := s1.Init(); err == nil {
+	if err := s1.Init(context.TODO()); err == nil {
 		t.Fatal("Error expected for missing Name.")
 	}
 
 	s1 = &CsvRead{Name: "s1"}
-	if err := s1.Init(); err == nil {
+	if err := s1.Init(context.TODO()); err == nil {
 		t.Fatal("Error expected for missing FilePath.")
 	}
 
 	s1 = &CsvRead{Name: "S1", FilePath: "test_read.csv"}
-	if err := s1.Init(); err != nil {
+	if err := s1.Init(context.TODO()); err != nil {
 		t.Fatal("Not expecting error, got", err)
 	}
 
@@ -47,10 +49,10 @@ func TestCsvRead_Init(t *testing.T) {
 func TestCsvRead_Exec(t *testing.T) {
 	rowCount := 2
 	s := &CsvRead{Name: "S1", FilePath: "test_read.csv", HasHeaderRow: true}
-	if err := s.Init(); err != nil {
+	if err := s.Init(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Exec(); err != nil {
+	if err := s.Exec(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -74,11 +76,11 @@ func TestCsvRead_Exec(t *testing.T) {
 
 func TestCsvRead_HeaderConfig(t *testing.T) {
 	s := &CsvRead{Name: "S1", FilePath: "test_read.csv", HasHeaderRow: true}
-	if err := s.Init(); err != nil {
+	if err := s.Init(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := s.Exec(); err != nil {
+	if err := s.Exec(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -94,11 +96,11 @@ func TestCsvRead_HeaderConfig(t *testing.T) {
 		Headers:      headers,
 	}
 
-	if err := s2.Init(); err != nil {
+	if err := s2.Init(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := s2.Exec(); err != nil {
+	if err := s2.Exec(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -119,7 +121,7 @@ func TestCsvRead_HeaderConfig(t *testing.T) {
 func TestCsvRead_OneProbe(t *testing.T) {
 	records := 0
 	csv := &CsvRead{Name: "read-file", FilePath: "test_read.csv", HasHeaderRow: true}
-	if err := csv.Init(); err != nil {
+	if err := csv.Init(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -127,27 +129,23 @@ func TestCsvRead_OneProbe(t *testing.T) {
 		t.Fatal("No Output channel found after init()")
 	}
 
-	if err := csv.Exec(); err != nil {
+	if err := csv.Exec(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
 	probe := &sup.Probe{
-		Name:  "Probe",
-		Input: csv.GetOutput(),
+		Name: "Probe",
 		Examine: func(item interface{}) interface{} {
 			records++
 			return item
 		},
 	}
-	if err := probe.Init(); err != nil {
+	probe.SetInput(csv.GetOutput())
+	if err := probe.Init(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
-	if probe.GetInput() == nil {
-		t.Fatal("No Input found after Init()")
-	}
-
-	if err := probe.Exec(); err != nil {
+	if err := probe.Exec(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -163,7 +161,7 @@ func TestCsvRead_OneProbe(t *testing.T) {
 func TestCsvRead_TwoProbesDeep(t *testing.T) {
 	var records int32
 	csv := &CsvRead{Name: "read-file", FilePath: "test_read.csv", HasHeaderRow: true}
-	if err := csv.Init(); err != nil {
+	if err := csv.Init(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -171,57 +169,48 @@ func TestCsvRead_TwoProbesDeep(t *testing.T) {
 		t.Fatal("No Output found after init()")
 	}
 
-	if err := csv.Exec(); err != nil {
+	if err := csv.Exec(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
 	probe1 := &sup.Probe{
-		Name:  "Probe1",
-		Input: csv.GetOutput(),
+		Name: "Probe1",
 		Examine: func(item interface{}) interface{} {
 			atomic.AddInt32(&records, 1)
 			return item
 		},
 	}
 
-	if err := probe1.Init(); err != nil {
+	probe1.SetInput(csv.GetOutput())
+	if err := probe1.Init(context.TODO()); err != nil {
 		t.Fatal(err)
-	}
-
-	if probe1.GetInput() != csv.GetOutput() {
-		t.Fatal("probe.GetInput() not set after Init()")
 	}
 
 	if probe1.GetOutput() == nil {
 		t.Fatal("Probe Output not set after Init()")
 	}
 
-	if err := probe1.Exec(); err != nil {
+	if err := probe1.Exec(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
 	probe2 := &sup.Probe{
-		Name:  "Probe2",
-		Input: probe1.GetOutput(),
+		Name: "Probe2",
 		Examine: func(item interface{}) interface{} {
 			atomic.AddInt32(&records, 1)
 			return item
 		},
 	}
-
-	if err := probe2.Init(); err != nil {
+	probe2.SetInput(probe1.GetOutput())
+	if err := probe2.Init(context.TODO()); err != nil {
 		t.Fatal(err)
-	}
-
-	if probe2.GetInput() != probe1.GetOutput() {
-		t.Fatal("Probe.GetInput() not set after Init()")
 	}
 
 	if probe2.GetOutput() == nil {
 		t.Fatal("Probe Output not set after Init()")
 	}
 
-	if err := probe2.Exec(); err != nil {
+	if err := probe2.Exec(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
