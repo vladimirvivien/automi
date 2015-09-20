@@ -5,22 +5,25 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/vladimirvivien/automi/api"
 )
 
 func TestItemCollector_Init(t *testing.T) {
 	e := &ItemCollector{}
-	if err := e.Init(); err == nil {
+	if err := e.Init(context.TODO()); err == nil {
 		t.Fatal("Expected error for missing attributes")
 	}
 	e = &ItemCollector{Name: "errors"}
-	if err := e.Init(); err == nil {
+	if err := e.Init(context.TODO()); err == nil {
 		t.Fatal("Expected error for missing Input attribute")
 	}
 
 	errs := []<-chan interface{}{make(chan interface{})}
-	e = &ItemCollector{Name: "errors", Inputs: errs}
-	if err := e.Init(); err != nil {
+	e = &ItemCollector{Name: "errors"}
+	e.SetInputs(errs)
+	if err := e.Init(context.TODO()); err != nil {
 		t.Fatal("Unexpected error after init(): ", err)
 	}
 	if e.GetOutput() == nil {
@@ -45,10 +48,10 @@ func TestItemCollector_Exec(t *testing.T) {
 
 	errs := []<-chan interface{}{errs2, errs1}
 	errCol := &ItemCollector{
-		Name:   "errors",
-		Inputs: errs,
+		Name: "errors",
 	}
-	if err := errCol.Init(); err != nil {
+	errCol.SetInputs(errs)
+	if err := errCol.Init(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -63,7 +66,7 @@ func TestItemCollector_Exec(t *testing.T) {
 		}
 	}()
 
-	if err := errCol.Exec(); err != nil {
+	if err := errCol.Exec(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 	select {
