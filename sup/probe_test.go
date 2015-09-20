@@ -2,38 +2,28 @@ package sup
 
 import (
 	"testing"
-)
+	"time"
 
-func TestProbeCreation(t *testing.T) {
-	in := make(chan interface{})
-	p := &Probe{Name: "P1", Input: in, Output: nil}
-	if p.GetName() != p.Name {
-		t.Fatal("Error, GetName() not returning Name attribute")
-	}
-	if p.GetInput() != in {
-		t.Fatal("Error, GetInput().Items() not returning expected channel")
-	}
-	if p.GetOutput() != nil {
-		t.Fatal("Error, GetOutput should be nil")
-	}
-}
+	"golang.org/x/net/context"
+)
 
 func TestProbeInit(t *testing.T) {
 	in := make(chan interface{})
-	p := &Probe{
-		Name:  "P1",
-		Input: in,
-	}
-	err := p.Init()
-	if err != nil {
+	p := &Probe{Name: "P1"}
+	p.SetInput(in)
+
+	if err := p.Init(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
-	if p.GetInput() != p.Input {
-		t.Fatal("Failed to set input properly")
+	if p.GetName() != p.Name {
+		t.Fatal("Error, GetName() not returning Name attribute")
+	}
+	if p.input != in {
+		t.Fatal("Error, GetInput().Items() not returning expected channel")
 	}
 	if p.GetOutput() == nil {
-		t.Fatal("Failed to create Output channel after init()")
+		t.Fatal("Error, GetOutput() should not be nil")
 	}
 }
 
@@ -47,8 +37,7 @@ func TestProbeExec(t *testing.T) {
 
 	sum := 0
 	p := &Probe{
-		Name:  "P1",
-		Input: in,
+		Name: "P1",
 		Examine: func(data interface{}) interface{} {
 			i, ok := data.(int)
 			if !ok {
@@ -59,26 +48,35 @@ func TestProbeExec(t *testing.T) {
 		},
 	}
 
-	if err := p.Init(); err != nil {
+	p.SetInput(in)
+
+	if err := p.Init(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
 	if p.GetOutput() == nil {
 		t.Fatal("Failed to create Output channel after init")
 	}
-	if p.GetInput() != in {
-		t.Fatal("Failed to set Input channel after Init()")
-	}
 
-	if err := p.Exec(); err != nil {
+	if err := p.Exec(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
 	actual := 0
-	for i := range p.GetOutput() {
-		if s, ok := i.(int); ok {
-			actual += s
+	wait := make(chan struct{})
+	go func() {
+		defer close(wait)
+		for i := range p.GetOutput() {
+			if s, ok := i.(int); ok {
+				actual += s
+			}
 		}
+	}()
+
+	select {
+	case <-wait:
+	case <-time.After(5 * time.Millisecond):
+		t.Fatal("Took too long")
 	}
 
 	if sum != actual {
@@ -96,8 +94,7 @@ func TestProbeChaining(t *testing.T) {
 
 	submitted := 0
 	p := &Probe{
-		Name:  "P1",
-		Input: in,
+		Name: "P1",
 		Examine: func(data interface{}) interface{} {
 			i, ok := data.(int)
 			if !ok {
@@ -107,18 +104,19 @@ func TestProbeChaining(t *testing.T) {
 			return i
 		},
 	}
-	if err := p.Init(); err != nil {
+
+	p.SetInput(in)
+	if err := p.Init(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := p.Exec(); err != nil {
+	if err := p.Exec(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
 	calculated := 0
 	p2 := &Probe{
-		Name:  "P2",
-		Input: p.GetOutput(),
+		Name: "P2",
 		Examine: func(data interface{}) interface{} {
 			if s, ok := data.(int); ok {
 				calculated += s
@@ -126,12 +124,12 @@ func TestProbeChaining(t *testing.T) {
 			return data
 		},
 	}
-
-	if err := p2.Init(); err != nil {
+	p2.SetInput(p.GetOutput())
+	if err := p2.Init(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := p2.Exec(); err != nil {
+	if err := p2.Exec(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 

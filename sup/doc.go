@@ -1,3 +1,3 @@
-// Package sup(support) contains common implementation
-// of process and tools for Automi
+// Package sup(port) contains implementation of component tools
+// that can be used for development and testing
 package sup

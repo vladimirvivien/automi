@@ -1,29 +1,29 @@
 package api
 
-import "fmt"
+import (
+	"fmt"
+
+	"golang.org/x/net/context"
+)
 
 type Processor interface {
 	GetName() string
-	Exec() error
-	Init() error
-	Uninit() error
+	Exec(context.Context) error
+	Init(context.Context) error
+	Uninit(context.Context) error
 }
 
 type Source interface {
 	GetOutput() <-chan interface{}
 }
 
-type LogSource interface {
-	GetLogs() <-chan interface{}
-}
-
 type Sink interface {
-	GetInput() <-chan interface{}
+	SetInput(<-chan interface{})
 	Done() <-chan struct{}
 }
 
 type Collector interface {
-	GetInputs() []<-chan interface{}
+	SetInputs([]<-chan interface{})
 }
 
 type Emitter interface {
