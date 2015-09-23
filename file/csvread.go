@@ -128,7 +128,7 @@ func (c *CsvRead) Exec(ctx context.Context) (err error) {
 					return
 				}
 				perr := api.ProcError{
-					Err:      fmt.Errorf("CsvRead [%s] Error reading row: %s", err),
+					Err:      fmt.Errorf("Error reading row: %s", err),
 					ProcName: c.GetName(),
 				}
 				c.log.Error(perr)

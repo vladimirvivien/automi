@@ -6,7 +6,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-type Processor interface {
+type Process interface {
 	GetName() string
 	Exec(context.Context) error
 	Init(context.Context) error
@@ -19,6 +19,15 @@ type Source interface {
 
 type Sink interface {
 	SetInput(<-chan interface{})
+}
+
+type Processor interface {
+	Process
+	Source
+	Sink
+}
+
+type Endpoint interface {
 	Done() <-chan struct{}
 }
 
@@ -40,4 +49,8 @@ func (e ProcError) Error() string {
 		return fmt.Sprintf("[%s] %v", e.ProcName, e.Err)
 	}
 	return e.Err.Error()
+}
+
+type Plan interface {
+	Flow(interface{}) Plan
 }
