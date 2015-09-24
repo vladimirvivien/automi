@@ -20,10 +20,9 @@ type Endpoint struct {
 	Function    func(interface{}) error // function to execute
 	Concurrency int                     // Concurrency level, default 1
 
-	input  <-chan interface{}
-	output chan interface{}
-	done   chan struct{}
-	log    *logrus.Entry
+	input <-chan interface{}
+	done  chan struct{}
+	log   *logrus.Entry
 }
 
 func (p *Endpoint) Init(ctx context.Context) error {
@@ -57,7 +56,6 @@ func (p *Endpoint) Init(ctx context.Context) error {
 		p.Concurrency = 1
 	}
 
-	p.output = make(chan interface{})
 	p.done = make(chan struct{})
 
 	return nil
@@ -75,10 +73,6 @@ func (p *Endpoint) SetInput(in <-chan interface{}) {
 	p.input = in
 }
 
-func (p *Endpoint) GetOutput() <-chan interface{} {
-	return p.output
-}
-
 func (p *Endpoint) Done() <-chan struct{} {
 	return p.done
 }
@@ -86,7 +80,6 @@ func (p *Endpoint) Done() <-chan struct{} {
 func (p *Endpoint) Exec(ctx context.Context) (err error) {
 	go func() {
 		defer func() {
-			close(p.output)
 			close(p.done)
 		}()
 
