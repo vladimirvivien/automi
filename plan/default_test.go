@@ -120,7 +120,11 @@ func TestDefaultPlan_Graph(t *testing.T) {
 		},
 	}
 
-	walk(tree, func(n *node) { t.Log(n) })
+	count := 0
+	walk(tree, func(n *node) { count++ })
+	if count != 5 {
+		t.Fatal("Walk failed to visit all expected nodes")
+	}
 }
 
 func TestDefaultPlan_FromTo(t *testing.T) {
@@ -140,7 +144,7 @@ func TestDefaultPlan_Flow(t *testing.T) {
 	p4 := &sup.NoopProc{Name: "P4"}
 	p5 := &sup.NoopProc{Name: "P5"}
 
-	plan := New()
+	plan := New(Conf{})
 	flow := From(p1).To(p2)
 	plan.Flow(flow).Flow(From(p2).To(p3, p4, p5))
 
@@ -189,7 +193,7 @@ func TestDefaultPlan_Exec(t *testing.T) {
 			callCount++
 		},
 	}
-	plan := New()
+	plan := New(Conf{})
 	plan.Flow(From(p1).To(p2))
 
 	plan.Exec()

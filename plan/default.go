@@ -6,7 +6,9 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/vladimirvivien/automi/api"
+	autoctx "github.com/vladimirvivien/automi/context"
 )
 
 type node struct {
@@ -85,7 +87,7 @@ func walk(t tree, f func(*node)) {
 }
 
 // To used as part of the From().To() builder
-func (n *node) To(sinks ...api.Processor) *node {
+func (n *node) To(sinks ...api.Sink) *node {
 	for _, sink := range sinks {
 		n.nodes = append(n.nodes, &node{proc: sink})
 	}
@@ -94,8 +96,14 @@ func (n *node) To(sinks ...api.Processor) *node {
 
 // From is a builder function used to create a node
 // of form From(proc).To(proc)
-func From(from api.Processor) *node {
+func From(from api.Source) *node {
 	return &node{proc: from}
+}
+
+// Conf is a configuration struct for creating new Plan.
+type Conf struct {
+	Log *logrus.Entry
+	Ctx context.Context
 }
 
 // DefaultPlan is an implementation of the Plan type.
@@ -109,9 +117,23 @@ type DefaultPlan struct {
 
 // New creates a default plan that can be used
 // to assemble process nodes and execute them.
-func New() *DefaultPlan {
+func New(conf Conf) *DefaultPlan {
+	log := func() *logrus.Entry {
+		if conf.Log == nil {
+			return logrus.WithField("Plan", "Default")
+		}
+		return conf.Log
+	}()
+
+	ctx := func() context.Context {
+		if conf.Ctx == nil {
+			return autoctx.WithLogEntry(context.TODO(), log)
+		}
+		return conf.Ctx
+	}()
+
 	return &DefaultPlan{
-		ctx:  context.Background(),
+		ctx:  ctx,
 		tree: make(tree, 0),
 	}
 }
@@ -131,13 +153,12 @@ func (p *DefaultPlan) Flow(n *node) *DefaultPlan {
 		panic("Node must flow to child node(s)")
 	}
 
-	// link proc with downstream
+	// validate types for parent node/children
 	_, ok := n.proc.(api.Source)
 	if !ok {
 		panic("Flow must start with a Source node")
 	}
 
-	// link components
 	for _, sink := range n.nodes {
 		_, ok := sink.proc.(api.Sink)
 		if !ok {
