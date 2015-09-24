@@ -30,14 +30,14 @@ func search(root tree, key *node) *node {
 
 	kproc, ok := key.proc.(api.Process)
 	if !ok {
-		panic("Unable to search, Node.proc not a valid Process")
+		panic("Unable to search, node is not a Process")
 	}
 
 	// width search at root level first
 	for _, n := range root {
 		nproc, ok := n.proc.(api.Process)
 		if !ok {
-			panic("Unable to search, Node.proc not a valid Process")
+			panic("Unable to search, node is not a Process")
 		}
 		if kproc.GetName() == nproc.GetName() {
 			return n
@@ -68,7 +68,7 @@ func graph(t tree, n *node) tree {
 func update(t tree, node *node, branch ...*node) tree {
 	found := search(t, node)
 	if found == nil {
-		panic("Branch op failed, node not found")
+		panic("Update failed, node not found")
 	}
 	found.nodes = append(found.nodes, branch...)
 	return t
@@ -91,7 +91,7 @@ func (n *node) To(sinks ...interface{}) *node {
 	for _, sink := range sinks {
 		dest, ok := sink.(api.Sink)
 		if !ok {
-			panic("To param must be a Sink")
+			panic("To() param must be a Sink")
 		}
 		n.nodes = append(n.nodes, &node{proc: dest})
 	}
@@ -103,7 +103,7 @@ func (n *node) To(sinks ...interface{}) *node {
 func From(from interface{}) *node {
 	src, ok := from.(api.Source)
 	if !ok {
-		panic("From param must be a Source")
+		panic("From() param must be a Source")
 	}
 	return &node{proc: src}
 }
@@ -152,13 +152,13 @@ func New(conf Conf) *DefaultPlan {
 func (p *DefaultPlan) Flow(n *node) *DefaultPlan {
 	// validate node before admitting
 	if n == nil {
-		panic("Node in flow is nil")
+		panic("Flow() param is nil")
 	}
 	if n.proc == nil {
-		panic("Node does not have an a process")
+		panic("Flow() param does not resolve to a Process")
 	}
 	if n.nodes == nil || len(n.nodes) == 0 {
-		panic("Node must flow to child node(s)")
+		panic("Flow must from source node to child node(s)")
 	}
 
 	// validate types for parent node/children
@@ -170,7 +170,7 @@ func (p *DefaultPlan) Flow(n *node) *DefaultPlan {
 	for _, sink := range n.nodes {
 		_, ok := sink.proc.(api.Sink)
 		if !ok {
-			panic("Flow must flow into a Sink node")
+			panic("Children nodes must be Sink node(s)")
 		}
 	}
 
@@ -184,7 +184,7 @@ func (p *DefaultPlan) init() {
 		func(n *node) {
 			nproc, ok := n.proc.(api.Process)
 			if !ok {
-				panic("Node not a process, unable to initialize")
+				panic(fmt.Sprintf("Init failed, expects Process type, got %T", nproc))
 			}
 			if err := nproc.Init(p.ctx); err != nil {
 				panic(fmt.Sprintf("Unable to init node: %s", err))
@@ -192,7 +192,7 @@ func (p *DefaultPlan) init() {
 			if n.nodes != nil {
 				srcproc, ok := n.proc.(api.Source)
 				if !ok {
-					panic("Node with children are expected to be Source")
+					panic("Nodes with children are expected to be Source")
 				}
 				// link components
 				for _, sink := range n.nodes {
@@ -203,10 +203,8 @@ func (p *DefaultPlan) init() {
 					sinkproc.SetInput(srcproc.GetOutput())
 				}
 			}
-
 		},
 	)
-
 }
 
 // Exec walks the node graph and calls
