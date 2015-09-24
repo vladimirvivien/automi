@@ -11,24 +11,26 @@ import (
 	autoctx "github.com/vladimirvivien/automi/context"
 )
 
-// Item implements a processor that applies a function to each item received.
-// Processed items are expected to be placed on the output channel for down stream use.
-// Use and endpoint processor for termination.
-type Item struct {
-	Name        string                        // Name identifier for component
-	Function    func(interface{}) interface{} // function to execute
-	Concurrency int                           // Concurrency level, default 1
+// Endpoint implements an endpoint processor that applies a function to each item
+// received from its input. Once all items are processed, the endpoin closes Done().
+// This is a terminal component.  If you need to pass output downstream, use  the
+// Item processor.
+type Endpoint struct {
+	Name        string                  // Name identifier for component
+	Function    func(interface{}) error // function to execute
+	Concurrency int                     // Concurrency level, default 1
 
 	input  <-chan interface{}
 	output chan interface{}
+	done   chan struct{}
 	log    *logrus.Entry
 }
 
-func (p *Item) Init(ctx context.Context) error {
+func (p *Endpoint) Init(ctx context.Context) error {
 	// extract logger
 	log, ok := autoctx.GetLogEntry(ctx)
 	if !ok {
-		log = logrus.WithField("Proc", "Item")
+		log = logrus.WithField("Proc", "Endpoint")
 		log.Error("Logger not found in context")
 	}
 	p.log = log
@@ -56,30 +58,36 @@ func (p *Item) Init(ctx context.Context) error {
 	}
 
 	p.output = make(chan interface{})
+	p.done = make(chan struct{})
 
 	return nil
 }
 
-func (p *Item) Uninit(ctx context.Context) error {
+func (p *Endpoint) Uninit(ctx context.Context) error {
 	return nil
 }
 
-func (p *Item) GetName() string {
+func (p *Endpoint) GetName() string {
 	return p.Name
 }
 
-func (p *Item) SetInput(in <-chan interface{}) {
+func (p *Endpoint) SetInput(in <-chan interface{}) {
 	p.input = in
 }
 
-func (p *Item) GetOutput() <-chan interface{} {
+func (p *Endpoint) GetOutput() <-chan interface{} {
 	return p.output
 }
 
-func (p *Item) Exec(ctx context.Context) (err error) {
+func (p *Endpoint) Done() <-chan struct{} {
+	return p.done
+}
+
+func (p *Endpoint) Exec(ctx context.Context) (err error) {
 	go func() {
 		defer func() {
 			close(p.output)
+			close(p.done)
 		}()
 
 		var barrier sync.WaitGroup
@@ -97,16 +105,11 @@ func (p *Item) Exec(ctx context.Context) (err error) {
 	return
 }
 
-func (p *Item) doProc(input <-chan interface{}) {
+func (p *Endpoint) doProc(input <-chan interface{}) {
 	for item := range input {
-		procd := p.Function(item)
-		switch val := procd.(type) {
-		case nil:
-			continue
-		case api.ProcError:
-			p.log.Error(val)
-		default:
-			p.output <- val
+		err := p.Function(item)
+		if err != nil {
+			p.log.Error(err)
 		}
 	}
 }
