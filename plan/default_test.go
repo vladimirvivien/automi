@@ -14,7 +14,8 @@ type testProc struct {
 	initFunc func(context.Context)
 	execFunc func(context.Context)
 	input    <-chan interface{}
-	output   <-chan interface{}
+	output   chan interface{}
+	done     chan struct{}
 }
 
 func (p *testProc) GetName() string {
@@ -22,9 +23,13 @@ func (p *testProc) GetName() string {
 }
 
 func (p *testProc) Init(ctx context.Context) error {
+	p.output = make(chan interface{})
+	p.done = make(chan struct{})
+
 	if p.initFunc != nil {
 		p.initFunc(ctx)
 	}
+
 	return nil
 }
 
@@ -36,6 +41,15 @@ func (p *testProc) Exec(ctx context.Context) error {
 	if p.execFunc != nil {
 		p.execFunc(ctx)
 	}
+	go func() {
+		defer func() {
+			close(p.output)
+			close(p.done)
+		}()
+		for in := range p.input {
+			p.output <- in
+		}
+	}()
 	return nil
 }
 
@@ -43,7 +57,10 @@ func (p *testProc) GetOutput() <-chan interface{} {
 	return p.output
 }
 func (p *testProc) SetInput(in <-chan interface{}) {
-	p.output = in
+	p.input = in
+}
+func (p *testProc) Done() <-chan struct{} {
+	return p.done
 }
 
 func TestDefaultPlan_Graph(t *testing.T) {
@@ -117,42 +134,30 @@ func TestDefaultPlan_FromTo(t *testing.T) {
 }
 
 func TestDefaultPlan_Flow(t *testing.T) {
-	in := make(chan interface{})
-	go func() {
-		in <- 1
-		in <- 2
-		close(in)
-	}()
-
 	p1 := &sup.NoopProc{Name: "P1"}
-	p1.SetInput(in)
 	p2 := &sup.NoopProc{Name: "P2"}
-	//p3 := sup.NoopProc{Name:"P3"}
+	p3 := &sup.NoopProc{Name: "P3"}
+	p4 := &sup.NoopProc{Name: "P4"}
+	p5 := &sup.NoopProc{Name: "P5"}
+
 	plan := New()
-	node := From(p1).To(p2)
-	plan.Flow(node)
+	flow := From(p1).To(p2)
+	plan.Flow(flow).Flow(From(p2).To(p3, p4, p5))
 
-	if p2.GetOutput() == nil {
-		t.Fatal("Flow() not connecting components")
+	if flow == nil {
+		t.Fatal("From() not building prober node")
 	}
-
 	count := 0
-	wait := make(chan struct{})
-	go func() {
-		defer close(wait)
-		for _ = range p2.GetOutput() {
+	walk(
+		plan.tree,
+		func(n *node) {
 			count++
-		}
-	}()
-
-	select {
-	case <-wait:
-		if count != 2 {
-			t.Fatal("Flow not connecting properly. Expected 2 items, got", count)
-		}
-	case <-time.After(5 * time.Millisecond):
-		t.Fatal("Waited too long, something is broken")
+		},
+	)
+	if count != 5 {
+		t.Fatal("Unexpected node count of ", count)
 	}
+
 }
 
 func TestDefaultPlan_Exec(t *testing.T) {
@@ -187,12 +192,13 @@ func TestDefaultPlan_Exec(t *testing.T) {
 	plan := New()
 	plan.Flow(From(p1).To(p2))
 
+	plan.Exec()
+
 	if p2.GetOutput() == nil {
 		t.Fatal("Flow() not connecting components")
 	}
 
-	plan.Exec()
-
+	// make sure all data made it
 	count := 0
 	wait := make(chan struct{})
 	go func() {

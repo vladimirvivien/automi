@@ -2,6 +2,7 @@ package plan
 
 import (
 	"fmt"
+	"sync"
 
 	"golang.org/x/net/context"
 
@@ -9,7 +10,7 @@ import (
 )
 
 type node struct {
-	proc  api.Processor
+	proc  interface{}
 	nodes []*node
 }
 
@@ -21,12 +22,22 @@ type tree []*node
 
 // search bails after first match
 func search(root tree, key *node) *node {
-	if root == nil {
-		return nil
+	if root == nil || key == nil {
+		panic("Unable to search for nil tree or key")
 	}
+
+	kproc, ok := key.proc.(api.Process)
+	if !ok {
+		panic("Unable to search, Node.proc not a valid Process")
+	}
+
 	// width search at root level first
 	for _, n := range root {
-		if key.proc.GetName() == n.proc.GetName() {
+		nproc, ok := n.proc.(api.Process)
+		if !ok {
+			panic("Unable to search, Node.proc not a valid Process")
+		}
+		if kproc.GetName() == nproc.GetName() {
 			return n
 		}
 	}
@@ -96,6 +107,8 @@ type DefaultPlan struct {
 	ctx  context.Context
 }
 
+// New creates a default plan that can be used
+// to assemble process nodes and execute them.
 func New() *DefaultPlan {
 	return &DefaultPlan{
 		ctx:  context.Background(),
@@ -103,6 +116,9 @@ func New() *DefaultPlan {
 	}
 }
 
+// Flow is the building block used to assemble plan
+// elements using the idiom:
+// plan.Flow(From(<proc1>).To(<proc2>))
 func (p *DefaultPlan) Flow(n *node) *DefaultPlan {
 	// validate node before admitting
 	if n == nil {
@@ -112,28 +128,118 @@ func (p *DefaultPlan) Flow(n *node) *DefaultPlan {
 		panic("Node does not have an a process")
 	}
 	if n.nodes == nil || len(n.nodes) == 0 {
-		panic("Node is not linked to other nodes")
+		panic("Node must flow to child node(s)")
+	}
+
+	// link proc with downstream
+	_, ok := n.proc.(api.Source)
+	if !ok {
+		panic("Flow must start with a Source node")
 	}
 
 	// link components
 	for _, sink := range n.nodes {
-		sink.proc.SetInput(n.proc.GetOutput())
+		_, ok := sink.proc.(api.Sink)
+		if !ok {
+			panic("Flow must flow into a Sink node")
+		}
 	}
 
 	p.tree = graph(p.tree, n) // insert new node
 	return p
 }
 
-func (p *DefaultPlan) Exec() {
+func (p *DefaultPlan) init() {
 	walk(
 		p.tree,
 		func(n *node) {
-			if err := n.proc.Init(p.ctx); err != nil {
-				panic(fmt.Sprintf("Failed to init node %s: %s", n.proc.GetName(), err))
+			nproc, ok := n.proc.(api.Process)
+			if !ok {
+				panic("Node not a process, unable to initialize")
 			}
-			if err := n.proc.Exec(p.ctx); err != nil {
-				panic(fmt.Sprintf("Failed to Exec node %s: %s", n.proc.GetName(), err))
+			if err := nproc.Init(p.ctx); err != nil {
+				panic(fmt.Sprintf("Unable to init node: %s", err))
+			}
+			if n.nodes != nil {
+				srcproc, ok := n.proc.(api.Source)
+				if !ok {
+					panic("Node with children are expected to be Source")
+				}
+				// link components
+				for _, sink := range n.nodes {
+					sinkproc, ok := sink.proc.(api.Sink)
+					if !ok {
+						panic("Children nodes are expected to be Sink nodes")
+					}
+					sinkproc.SetInput(srcproc.GetOutput())
+				}
+			}
+
+		},
+	)
+
+}
+
+// Exec walks the node graph and calls
+// Init() and Exec() on each element
+func (p *DefaultPlan) Exec() <-chan struct{} {
+	defer func() {
+		if re := recover(); re != nil {
+			fmt.Println("[Failure]", re)
+		}
+	}()
+
+	p.init() // initialize nodes
+
+	// walk and look for leaves
+	// ensure they are of type api.Endpoint
+	// if so, collect them
+	endpoints := make([]api.Endpoint, 0)
+	walk(
+		p.tree,
+		func(n *node) {
+			if n.nodes == nil {
+				ep, ok := n.proc.(api.Endpoint)
+				if !ok {
+					panic("Leave nodes must be of type Endpoint")
+				}
+				endpoints = append(endpoints, ep)
 			}
 		},
 	)
+
+	if len(endpoints) == 0 {
+		panic("Graph must be terminated with Endpoint nodes")
+	}
+
+	walk(
+		p.tree,
+		func(n *node) {
+			nproc, ok := n.proc.(api.Process)
+			if !ok {
+				panic("Plan can only execute nodes that implement Process")
+			}
+			if err := nproc.Exec(p.ctx); err != nil {
+				panic(fmt.Sprintf("Failed to Exec node %s: %s", nproc.GetName(), err))
+			}
+		},
+	)
+
+	// wait for end points to finish
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(len(endpoints))
+	go func(wait *sync.WaitGroup) {
+		for _, ep := range endpoints {
+			<-ep.Done()
+			wait.Done()
+		}
+	}(&wg)
+
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	return done
 }
