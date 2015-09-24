@@ -3,6 +3,8 @@ package plan
 import (
 	"fmt"
 
+	"golang.org/x/net/context"
+
 	"github.com/vladimirvivien/automi/api"
 )
 
@@ -59,6 +61,18 @@ func update(t tree, node *node, branch ...*node) tree {
 	return t
 }
 
+// walks the tree and exec f() for each node
+func walk(t tree, f func(*node)) {
+	for _, n := range t {
+		if f != nil {
+			f(n)
+		}
+		if n.nodes != nil {
+			walk(n.nodes, f)
+		}
+	}
+}
+
 // To used as part of the From().To() builder
 func (n *node) To(sinks ...api.Processor) *node {
 	for _, sink := range sinks {
@@ -79,10 +93,14 @@ func From(from api.Processor) *node {
 // Flow(From(src).To(snk))
 type DefaultPlan struct {
 	tree tree
+	ctx  context.Context
 }
 
 func New() *DefaultPlan {
-	return &DefaultPlan{tree: make(tree, 0)}
+	return &DefaultPlan{
+		ctx:  context.Background(),
+		tree: make(tree, 0),
+	}
 }
 
 func (p *DefaultPlan) Flow(n *node) *DefaultPlan {
@@ -104,4 +122,18 @@ func (p *DefaultPlan) Flow(n *node) *DefaultPlan {
 
 	p.tree = graph(p.tree, n) // insert new node
 	return p
+}
+
+func (p *DefaultPlan) Exec() {
+	walk(
+		p.tree,
+		func(n *node) {
+			if err := n.proc.Init(p.ctx); err != nil {
+				panic(fmt.Sprintf("Failed to init node %s: %s", n.proc.GetName(), err))
+			}
+			if err := n.proc.Exec(p.ctx); err != nil {
+				panic(fmt.Sprintf("Failed to Exec node %s: %s", n.proc.GetName(), err))
+			}
+		},
+	)
 }
