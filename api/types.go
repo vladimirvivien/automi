@@ -50,7 +50,3 @@ func (e ProcError) Error() string {
 	}
 	return e.Err.Error()
 }
-
-type Plan interface {
-	Flow(interface{}) Plan
-}
