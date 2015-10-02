@@ -35,6 +35,12 @@ func (req *Req) Init(ctx context.Context) error {
 		log = logrus.WithField("Proc", "Req (http)")
 		log.Error("Logger not found in context, using default")
 	}
+
+	req.log = log.WithFields(logrus.Fields{
+		"Component": req.Name,
+		"Type":      fmt.Sprintf("%T", req),
+	})
+
 	// validation
 	if req.Name == "" {
 		return fmt.Errorf("Http.Req missing Name attribute")
@@ -76,6 +82,8 @@ func (req *Req) Init(ctx context.Context) error {
 
 	req.output = make(chan interface{})
 
+	req.log.Info("Component initialized: URL = ", req.Url)
+
 	return nil
 }
 
@@ -96,9 +104,11 @@ func (req *Req) GetOutput() <-chan interface{} {
 }
 
 func (req *Req) Exec(ctx context.Context) error {
+	req.log.Info("Execution started")
 	go func() {
 		defer func() {
 			close(req.output)
+			req.log.Info("Execution completed")
 		}()
 
 		for item := range req.input {

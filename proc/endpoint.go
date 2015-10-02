@@ -32,8 +32,11 @@ func (p *Endpoint) Init(ctx context.Context) error {
 		log = logrus.WithField("Proc", "Endpoint")
 		log.Error("Logger not found in context")
 	}
-	p.log = log
-	p.log.Info("Initializing component", p.Name)
+
+	p.log = log.WithFields(logrus.Fields{
+		"Component": p.Name,
+		"Type":      fmt.Sprintf("%T", p),
+	})
 
 	if p.Name == "" {
 		return api.ProcError{Err: fmt.Errorf("Name attribute is required")}
@@ -57,7 +60,7 @@ func (p *Endpoint) Init(ctx context.Context) error {
 	}
 
 	p.done = make(chan struct{})
-
+	p.log.Info("Component initialized")
 	return nil
 }
 
@@ -78,9 +81,11 @@ func (p *Endpoint) Done() <-chan struct{} {
 }
 
 func (p *Endpoint) Exec(ctx context.Context) (err error) {
+	p.log.Info("Execution started")
 	go func() {
 		defer func() {
 			close(p.done)
+			p.log.Info("Execution completed")
 		}()
 
 		var barrier sync.WaitGroup

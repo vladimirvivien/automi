@@ -38,7 +38,10 @@ func (c *CsvRead) Init(ctx context.Context) error {
 		log = logrus.WithField("Proc", "CsvRead")
 		log.Error("No logger found incontext")
 	}
-	c.log = log
+	c.log = log.WithFields(logrus.Fields{
+		"Component": c.Name,
+		"Type":      fmt.Sprintf("%T", c),
+	})
 
 	// validation
 	if c.Name == "" {
@@ -46,6 +49,7 @@ func (c *CsvRead) Init(ctx context.Context) error {
 			Err: fmt.Errorf("CsvRead missing an identifying name"),
 		}
 	}
+
 	if c.FilePath == "" {
 		return api.ProcError{
 			ProcName: c.Name,
@@ -92,11 +96,12 @@ func (c *CsvRead) Init(ctx context.Context) error {
 			c.FieldCount = len(c.Headers)
 		}
 	}
+	log.Debug("HasHeaderRow ", c.HasHeaderRow, " Headers [", c.Headers, "]")
 
 	// init channel
 	c.output = make(chan interface{})
 
-	c.log.Info("Component initiated")
+	c.log.Info("Component initiated OK: reading from file ", c.file.Name())
 
 	return nil
 }
@@ -114,10 +119,15 @@ func (c *CsvRead) GetOutput() <-chan interface{} {
 }
 
 func (c *CsvRead) Exec(ctx context.Context) (err error) {
+	c.log.Info("Execution started")
 	go func() {
 		defer func() {
 			close(c.output)
 			err = c.file.Close()
+			if err != nil {
+				c.log.Error(err)
+			}
+			c.log.Info("Execution completed")
 		}()
 
 		for {

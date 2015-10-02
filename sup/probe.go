@@ -41,8 +41,11 @@ func (p *Probe) Init(ctx context.Context) error {
 		log.Errorf("No valid logger set for %s", p.Name)
 	}
 
-	p.log = log
-	p.log.Infof("[%s] Initiated OK", p.Name)
+	p.log = log.WithFields(logrus.Fields{
+		"Component": p.Name,
+		"Type":      fmt.Sprintf("%T", p),
+	})
+	p.log.Info("Component initialized")
 
 	return nil
 }

@@ -35,6 +35,11 @@ func (c *CsvWrite) Init(ctx context.Context) error {
 		log.Error("No logger found in context")
 	}
 
+	c.log = log.WithFields(logrus.Fields{
+		"Component": c.Name,
+		"Type":      fmt.Sprintf("%T", c),
+	})
+
 	// validation
 	if c.Name == "" {
 		return fmt.Errorf("CsvWrite missing name attribute")
@@ -76,9 +81,11 @@ func (c *CsvWrite) Init(ctx context.Context) error {
 		if err := c.writer.Write(c.Headers); err != nil {
 			return err
 		}
+		c.log.Debug("Headers [", c.Headers, "]")
 	}
 
 	c.done = make(chan struct{})
+	c.log.Info("Component initialized OK: writing to file ", c.file.Name())
 
 	return nil
 }
@@ -96,9 +103,9 @@ func (c *CsvWrite) SetInput(in <-chan interface{}) {
 }
 
 func (c *CsvWrite) Exec(ctx context.Context) (err error) {
+	c.log.Debug("Execution started")
 	go func() {
 		defer func() {
-
 			c.writer.Flush()
 			if e := c.writer.Error(); e != nil {
 				err = api.ProcError{
@@ -116,6 +123,7 @@ func (c *CsvWrite) Exec(ctx context.Context) (err error) {
 				c.log.Error(err)
 			}
 			close(c.done)
+			c.log.Info("Execution completed")
 		}()
 
 		for item := range c.input {

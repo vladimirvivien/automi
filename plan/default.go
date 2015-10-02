@@ -119,8 +119,9 @@ type Conf struct {
 // fluent API.
 // Flow(From(src).To(snk))
 type DefaultPlan struct {
-	tree tree
-	ctx  context.Context
+	tree    tree
+	ctx     context.Context
+	auxChan chan interface{}
 }
 
 // New creates a default plan that can be used
@@ -133,16 +134,20 @@ func New(conf Conf) *DefaultPlan {
 		return conf.Log
 	}()
 
+	auxChan := make(chan interface{})
 	ctx := func() context.Context {
 		if conf.Ctx == nil {
-			return autoctx.WithLogEntry(context.TODO(), log)
+			ctx := autoctx.WithLogEntry(context.TODO(), log)
+			ctx = autoctx.WithAuxChan(ctx, auxChan)
+			return ctx
 		}
 		return conf.Ctx
 	}()
 
 	return &DefaultPlan{
-		ctx:  ctx,
-		tree: make(tree, 0),
+		ctx:     ctx,
+		tree:    make(tree, 0),
+		auxChan: auxChan,
 	}
 }
 
@@ -176,6 +181,30 @@ func (p *DefaultPlan) Flow(n *node) *DefaultPlan {
 
 	p.tree = graph(p.tree, n) // insert new node
 	return p
+}
+
+// HandleAux executes the provided func for each item from the
+// auxiliary channel.  It returns a channel for synchronization that
+// when there is no more item to process from the aux chan.
+func (p *DefaultPlan) HandleAux(f func(interface{})) chan<- struct{} {
+	var done chan struct{}
+	if f != nil && p.auxChan != nil {
+		done = make(chan struct{})
+		go func() {
+			defer close(done)
+			for item := range p.auxChan {
+				f(item)
+			}
+		}()
+	}
+	return done
+}
+
+// AuxChan returns a readonly instance of the auxiliary channel
+// Thi chan be used as input to a separate flow for futher processing
+// of auxialiary items.
+func (p *DefaultPlan) AuxChan() <-chan interface{} {
+	return p.auxChan
 }
 
 func (p *DefaultPlan) init() {

@@ -28,7 +28,11 @@ func (c *ItemCollector) Init(ctx context.Context) error {
 		log = logrus.WithField("Proc", "ItemCollector")
 		log.Error("Logger not set for component")
 	}
-	c.log = log
+
+	c.log = log.WithFields(logrus.Fields{
+		"Component": c.Name,
+		"Type":      fmt.Sprintf("%T", c),
+	})
 
 	if c.Name == "" {
 		return api.ProcError{Err: fmt.Errorf("Missing Name attribute")}
@@ -42,7 +46,7 @@ func (c *ItemCollector) Init(ctx context.Context) error {
 	}
 
 	c.output = make(chan interface{})
-
+	c.log.Info("Component initialized")
 	return nil
 }
 
