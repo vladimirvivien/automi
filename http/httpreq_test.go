@@ -48,10 +48,10 @@ func TestHttpReq_InitValidation(t *testing.T) {
 	req = &Req{
 		Name: "http",
 		Url:  "http://localhost/test",
-		Prepare: func(u *url.URL, d interface{}) *http.Request {
+		Prepare: func(ctx context.Context, d interface{}) *http.Request {
 			return nil
 		},
-		Handle: func(d *http.Response) interface{} {
+		Handle: func(ctx context.Context, d *http.Response) interface{} {
 			return nil
 		},
 	}
@@ -98,13 +98,14 @@ func TestHttpReqExec(t *testing.T) {
 	req := &Req{
 		Name: "http",
 		Url:  server.URL,
-		Prepare: func(u *url.URL, d interface{}) *http.Request {
+		Prepare: func(ctx context.Context, d interface{}) *http.Request {
 			data := d.(string)
+			u, _ := ctx.Value(urlCtxKey).(*url.URL)
 			req, _ := http.NewRequest("POST", u.String(), bytes.NewReader([]byte(data)))
 			return req
 		},
 
-		Handle: func(rsp *http.Response) interface{} {
+		Handle: func(ctx context.Context, rsp *http.Response) interface{} {
 			if rsp.StatusCode != http.StatusOK {
 				t.Fatal("Did not get status OK")
 			}

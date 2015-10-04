@@ -6,6 +6,8 @@ import (
 
 	"golang.org/x/net/context"
 
+	autoctx "github.com/vladimirvivien/automi/context"
+	"github.com/vladimirvivien/automi/proc"
 	"github.com/vladimirvivien/automi/sup"
 )
 
@@ -214,7 +216,6 @@ func TestDefaultPlan_Exec(t *testing.T) {
 
 	select {
 	case <-wait:
-		t.Log("callCount", callCount)
 		if callCount != 4 {
 			t.Fatal("Plan.Exec may not be walking to all nodes")
 		}
@@ -223,5 +224,126 @@ func TestDefaultPlan_Exec(t *testing.T) {
 		}
 	case <-time.After(5 * time.Millisecond):
 		t.Fatal("Waited too long, something is broken")
+	}
+}
+
+func TestDefaultPlan_WithAuxEndpoint(t *testing.T) {
+	in := make(chan interface{})
+	go func() {
+		in <- 1
+		in <- 2
+		close(in)
+	}()
+
+	p1 := &testProc{
+		name: "P1",
+		execFunc: func(ctx context.Context) {
+			err := autoctx.SendAuxMsg(ctx, 1)
+			if err != nil {
+				t.Fatal(err)
+			}
+		},
+		input: in,
+	}
+
+	p1.SetInput(in)
+	p2 := &testProc{
+		name: "P2",
+		execFunc: func(ctx context.Context) {
+			err := autoctx.SendAuxMsg(ctx, 2)
+			if err != nil {
+				t.Fatal(err)
+			}
+		},
+	}
+	plan := New(Conf{})
+	plan.Flow(From(p1).To(p2))
+
+	auxCount := 0
+	plan.WithAuxEndpoint(
+		&proc.Endpoint{
+			Name: "Auxproc",
+			Function: func(ctx context.Context, item interface{}) error {
+				auxCount++
+				return nil
+			},
+		},
+	)
+
+	go func() {
+		for _ = range p2.GetOutput() {
+		}
+	}()
+
+	select {
+	case <-plan.Exec():
+	case <-time.After(5 * time.Millisecond):
+		t.Fatal("Waited too long to execute")
+	}
+	if auxCount != 2 {
+		t.Fatal("Auxiliary not processed properly")
+	}
+
+}
+
+func TestDefaultPlan_WithAuxPlan(t *testing.T) {
+	in := make(chan interface{})
+	go func() {
+		in <- 1
+		in <- 2
+		close(in)
+	}()
+
+	p1 := &testProc{
+		name: "P1",
+		execFunc: func(ctx context.Context) {
+			err := autoctx.SendAuxMsg(ctx, 1)
+			if err != nil {
+				t.Fatal(err)
+			}
+		},
+		input: in,
+	}
+
+	p1.SetInput(in)
+	p2 := &testProc{
+		name: "P2",
+		execFunc: func(ctx context.Context) {
+			err := autoctx.SendAuxMsg(ctx, 2)
+			if err != nil {
+				t.Fatal(err)
+			}
+		},
+	}
+	plan := New(Conf{})
+	plan.Flow(From(p1).To(p2))
+
+	auxPlan := New(Conf{})
+	auxOp := &sup.NoopProc{Name: "auxOp"}
+	auxOp.SetInput(plan.AuxChan())
+
+	auxCount := 0
+	endpoint := &proc.Endpoint{
+		Name: "endpoint",
+		Function: func(ctx context.Context, item interface{}) error {
+			auxCount++
+			return nil
+		},
+	}
+	auxPlan.Flow(From(auxOp).To(endpoint))
+	plan.WithAuxPlan(auxPlan)
+
+	go func() {
+		for _ = range p2.GetOutput() {
+		}
+	}()
+
+	select {
+	case <-plan.Exec():
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("Waited too long to execute")
+	}
+	if auxCount != 2 {
+		t.Fatal("Expected auxCount = 2, got ", auxCount)
 	}
 }

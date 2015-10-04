@@ -15,9 +15,9 @@ import (
 // Processed items are expected to be placed on the output channel for down stream use.
 // Use and endpoint processor for termination.
 type Item struct {
-	Name        string                        // Name identifier for component
-	Function    func(interface{}) interface{} // function to execute
-	Concurrency int                           // Concurrency level, default 1
+	Name        string                                         // Name identifier for component
+	Function    func(context.Context, interface{}) interface{} // function to execute
+	Concurrency int                                            // Concurrency level, default 1
 
 	input  <-chan interface{}
 	output chan interface{}
@@ -94,7 +94,7 @@ func (p *Item) Exec(ctx context.Context) (err error) {
 		for i := 0; i < p.Concurrency; i++ {
 			go func(wg *sync.WaitGroup) {
 				defer wg.Done()
-				p.doProc(p.input)
+				p.doProc(ctx, p.input)
 			}(&barrier)
 		}
 
@@ -103,9 +103,9 @@ func (p *Item) Exec(ctx context.Context) (err error) {
 	return
 }
 
-func (p *Item) doProc(input <-chan interface{}) {
+func (p *Item) doProc(ctx context.Context, input <-chan interface{}) {
 	for item := range input {
-		procd := p.Function(item)
+		procd := p.Function(ctx, item)
 		switch val := procd.(type) {
 		case nil:
 			continue

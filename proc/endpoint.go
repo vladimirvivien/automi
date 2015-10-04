@@ -16,9 +16,9 @@ import (
 // This is a terminal component.  If you need to pass output downstream, use  the
 // Item processor.
 type Endpoint struct {
-	Name        string                  // Name identifier for component
-	Function    func(interface{}) error // function to execute
-	Concurrency int                     // Concurrency level, default 1
+	Name        string                                   // Name identifier for component
+	Function    func(context.Context, interface{}) error // function to execute
+	Concurrency int                                      // Concurrency level, default 1
 
 	input <-chan interface{}
 	done  chan struct{}
@@ -94,7 +94,7 @@ func (p *Endpoint) Exec(ctx context.Context) (err error) {
 		for i := 0; i < p.Concurrency; i++ {
 			go func(wg *sync.WaitGroup) {
 				defer wg.Done()
-				p.doProc(p.input)
+				p.doProc(ctx, p.input)
 			}(&barrier)
 		}
 
@@ -103,9 +103,9 @@ func (p *Endpoint) Exec(ctx context.Context) (err error) {
 	return
 }
 
-func (p *Endpoint) doProc(input <-chan interface{}) {
+func (p *Endpoint) doProc(ctx context.Context, input <-chan interface{}) {
 	for item := range input {
-		err := p.Function(item)
+		err := p.Function(ctx, item)
 		if err != nil {
 			p.log.Error(err)
 		}

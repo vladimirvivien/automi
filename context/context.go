@@ -1,6 +1,8 @@
 package context
 
 import (
+	"fmt"
+
 	"github.com/Sirupsen/logrus"
 	"golang.org/x/net/context"
 )
@@ -22,19 +24,31 @@ func GetLogEntry(ctx context.Context) (*logrus.Entry, bool) {
 	return l, ok
 }
 
-// WithAuxChan sets the auiliary channel for components using the
-// specified context so they can export message/event that is not
-// part of the main processing flow.  This is useful for pushing rejected
-// processed items, system messages, or communicating events, etc.
-// The Plan that is executing the flow will make the auxiliary channel
-// available for downstream processing.
+// WithAuxChan sets the auiliary channel to be used by components using the
+// so they can export message/event that is not
+// part of the main processing flow.
 func WithAuxChan(ctx context.Context, auxChan chan<- interface{}) context.Context {
 	return context.WithValue(ctx, auxChKey, auxChan)
 }
 
+// SendAuxMsg submits an item to be sent to the auxiliary channel.
+// The item can be any arbitrary value that can be used for non-processing
+// messaging such as an event, rejected data, etc.  These messages can be
+// processed using the Plan that is running the flow.
+func SendAuxMsg(ctx context.Context, item interface{}) error {
+	ch, ok := ctx.Value(auxChKey).(chan<- interface{})
+	if !ok {
+		return fmt.Errorf("Unable to find the auxiliary channel in context")
+	}
+	go func() {
+		ch <- item
+	}()
+	return nil
+}
+
 // GetAuxChan returns the auxiliary channel used for communicating
-// non-processing messaging or event to outside
+// non-processing messaging or event to outside of the flow.
 func GetAuxChan(ctx context.Context) (chan<- interface{}, bool) {
-	ch, ok := ctx.Value(auxChKey).(chan interface{})
+	ch, ok := ctx.Value(auxChKey).(chan<- interface{})
 	return ch, ok
 }

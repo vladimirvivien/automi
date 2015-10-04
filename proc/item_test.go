@@ -27,7 +27,7 @@ func TestItem_Init(t *testing.T) {
 
 	i = &Item{
 		Name: "proc",
-		Function: func(i interface{}) interface{} {
+		Function: func(ctx context.Context, i interface{}) interface{} {
 			return i
 		},
 	}
@@ -52,7 +52,7 @@ func TestItem_Exec(t *testing.T) {
 
 	i := &Item{
 		Name: "proc",
-		Function: func(i interface{}) interface{} {
+		Function: func(ctx context.Context, i interface{}) interface{} {
 			s := i.(string)
 			return rune(s[0])
 		},

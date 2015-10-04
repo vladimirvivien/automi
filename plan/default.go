@@ -76,6 +76,9 @@ func update(t tree, node *node, branch ...*node) tree {
 
 // walks the tree and exec f() for each node
 func walk(t tree, f func(*node)) {
+	if t == nil {
+		panic("Unable to walk nil tree")
+	}
 	for _, n := range t {
 		if f != nil {
 			f(n)
@@ -110,8 +113,9 @@ func From(from interface{}) *node {
 
 // Conf is a configuration struct for creating new Plan.
 type Conf struct {
-	Log *logrus.Entry
-	Ctx context.Context
+	PlanName string
+	Log      *logrus.Entry
+	Ctx      context.Context
 }
 
 // DefaultPlan is an implementation of the Plan type.
@@ -119,9 +123,11 @@ type Conf struct {
 // fluent API.
 // Flow(From(src).To(snk))
 type DefaultPlan struct {
-	tree    tree
-	ctx     context.Context
-	auxChan chan interface{}
+	tree        tree
+	ctx         context.Context
+	auxChan     chan interface{}
+	auxPlan     *DefaultPlan
+	auxEndpoint interface{}
 }
 
 // New creates a default plan that can be used
@@ -129,12 +135,16 @@ type DefaultPlan struct {
 func New(conf Conf) *DefaultPlan {
 	log := func() *logrus.Entry {
 		if conf.Log == nil {
-			return logrus.WithField("Plan", "Default")
+			entry := logrus.WithField("Plan", "Default")
+			if conf.PlanName != "" {
+				entry = logrus.WithField("Plan", conf.PlanName)
+			}
+			conf.Log = entry
 		}
 		return conf.Log
 	}()
 
-	auxChan := make(chan interface{})
+	auxChan := make(chan interface{}, 1024)
 	ctx := func() context.Context {
 		if conf.Ctx == nil {
 			ctx := autoctx.WithLogEntry(context.TODO(), log)
@@ -183,31 +193,41 @@ func (p *DefaultPlan) Flow(n *node) *DefaultPlan {
 	return p
 }
 
-// HandleAux executes the provided func for each item from the
-// auxiliary channel.  It returns a channel for synchronization that
-// when there is no more item to process from the aux chan.
-func (p *DefaultPlan) HandleAux(f func(interface{})) chan<- struct{} {
-	var done chan struct{}
-	if f != nil && p.auxChan != nil {
-		done = make(chan struct{})
-		go func() {
-			defer close(done)
-			for item := range p.auxChan {
-				f(item)
-			}
-		}()
+// WithAuxPlan accepts an auxiliary plan that is launched
+// to process items on the auxiliary channel after the main plan is
+// done. Set either WithAuxPlan or WithAuxEndpoint but not both.
+func (p *DefaultPlan) WithAuxPlan(auxPlan *DefaultPlan) *DefaultPlan {
+	p.auxPlan = auxPlan
+	return p
+}
+
+// WithAuxEndpoint accepts an endpoint processor that will be used to
+// process items from the auxiliary channel after the main plan is done.
+// Set either WithAuxPlan or WithAuxEndpoint but not both.
+func (p *DefaultPlan) WithAuxEndpoint(endpoint interface{}) *DefaultPlan {
+	if _, ok := endpoint.(api.Endpoint); !ok {
+		panic("WithAuxEndpoint param must implement api.Endpoint")
 	}
-	return done
+	if sink, ok := endpoint.(api.Sink); ok {
+		sink.SetInput(p.AuxChan())
+	} else {
+		panic("WithAuxEndpoint param must implement api.Sink")
+	}
+	p.auxEndpoint = endpoint
+	return p
 }
 
 // AuxChan returns a readonly instance of the auxiliary channel
-// Thi chan be used as input to a separate flow for futher processing
-// of auxialiary items.
+// This channel can be used as input to a separate flow for futher processing
+// of auxialiary items (see DefaultPlan.WithAuxPlan)
 func (p *DefaultPlan) AuxChan() <-chan interface{} {
 	return p.auxChan
 }
 
 func (p *DefaultPlan) init() {
+	if p == nil {
+		panic("Internal node tree is nil")
+	}
 	walk(
 		p.tree,
 		func(n *node) {
@@ -268,6 +288,7 @@ func (p *DefaultPlan) Exec() <-chan struct{} {
 		panic("Graph must be terminated with Endpoint nodes")
 	}
 
+	// walk tree and execute each process
 	walk(
 		p.tree,
 		func(n *node) {
@@ -292,10 +313,47 @@ func (p *DefaultPlan) Exec() <-chan struct{} {
 		}
 	}(&wg)
 
+	// go and complete plan
 	go func() {
+		defer close(done)
 		wg.Wait()
-		close(done)
+
+		// handle auxiliary chan
+		close(p.auxChan)
+		p.processAux()
 	}()
 
 	return done
+}
+
+func (p *DefaultPlan) processAux() {
+	// process auxiliary plan if any
+	if p.auxPlan != nil {
+		wait := make(chan struct{})
+		go func() {
+			<-p.auxPlan.Exec()
+			close(wait)
+		}()
+		<-wait
+	}
+
+	// process auxliary endpoint if any
+	if p.auxEndpoint != nil {
+		proc, ok := p.auxEndpoint.(api.Process)
+		if !ok {
+			panic("Aux endpoint must be an api.Process")
+		}
+		if err := proc.Init(p.ctx); err != nil {
+			panic(err)
+		}
+		if err := proc.Exec(p.ctx); err != nil {
+			panic(err)
+		}
+		ep, ok := p.auxEndpoint.(api.Endpoint)
+		if !ok {
+			panic("Aux endpoint must be an api.Endpoint")
+		}
+		<-ep.Done()
+	}
+
 }

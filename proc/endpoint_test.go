@@ -27,7 +27,7 @@ func TestEndpoint_Init(t *testing.T) {
 
 	i = &Endpoint{
 		Name: "proc",
-		Function: func(i interface{}) error {
+		Function: func(ctx context.Context, i interface{}) error {
 			return nil
 		},
 	}
@@ -52,7 +52,7 @@ func TestEndpoint_Exec(t *testing.T) {
 
 	i := &Endpoint{
 		Name: "proc",
-		Function: func(i interface{}) error {
+		Function: func(ctx context.Context, i interface{}) error {
 			s := i.(string)
 			if s != "A" && s != "B" && s != "C" {
 				t.Fatal("Unexpected data from input", s)

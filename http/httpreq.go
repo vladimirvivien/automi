@@ -12,14 +12,18 @@ import (
 	autoctx "github.com/vladimirvivien/automi/context"
 )
 
+var (
+	urlCtxKey = "key.ctx.Url"
+)
+
 // Req implements a processor that uses items from its input
 // to create and initiate an Http requests.  The reponse from the
 // requests can be used as output data for downstream.
 type Req struct {
 	Name    string
 	Url     string
-	Prepare func(*url.URL, interface{}) *http.Request
-	Handle  func(*http.Response) interface{}
+	Prepare func(context.Context, interface{}) *http.Request
+	Handle  func(context.Context, *http.Response) interface{}
 
 	input  <-chan interface{}
 	output chan interface{}
@@ -105,6 +109,7 @@ func (req *Req) GetOutput() <-chan interface{} {
 
 func (req *Req) Exec(ctx context.Context) error {
 	req.log.Info("Execution started")
+	ctx = context.WithValue(ctx, urlCtxKey, req.urlVal)
 	go func() {
 		defer func() {
 			close(req.output)
@@ -112,7 +117,7 @@ func (req *Req) Exec(ctx context.Context) error {
 		}()
 
 		for item := range req.input {
-			rqst := req.Prepare(req.urlVal, item)
+			rqst := req.Prepare(ctx, item)
 			if rqst == nil { // skip, if req not prepared
 				continue
 			}
@@ -130,7 +135,7 @@ func (req *Req) Exec(ctx context.Context) error {
 				continue
 			}
 
-			data := req.Handle(rsp)
+			data := req.Handle(ctx, rsp)
 
 			if data == nil {
 				continue
