@@ -222,3 +222,31 @@ func TestCsvRead_TwoProbesDeep(t *testing.T) {
 		t.Fatal("Probe steps did not run properly, expected count 4, got", records)
 	}
 }
+
+func TestCsvRead_Function(t *testing.T) {
+	rowCount := 2
+	rowCounted := 0
+	s := &CsvRead{
+		Name:         "S1",
+		FilePath:     "test_read.csv",
+		HasHeaderRow: true,
+		Function: func(ctx context.Context, item interface{}) interface{} {
+			rowCounted++
+			return item
+		},
+	}
+	if err := s.Init(context.TODO()); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Exec(context.TODO()); err != nil {
+		t.Fatal(err)
+	}
+
+	for _ = range s.GetOutput() {
+
+	}
+	if rowCounted != rowCount {
+		t.Fatalf("Expecting %d rows read from file, got %d", rowCount, rowCounted)
+	}
+
+}

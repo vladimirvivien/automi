@@ -17,13 +17,14 @@ import (
 // specified file and emits its record via its Output Channel
 // and serializes each row as a slice []string.
 type CsvRead struct {
-	Name          string   // string identifer for the Csv emitter
-	FilePath      string   // path for the file
-	DelimiterChar rune     // Delimiter charater, defaults to comma
-	CommentChar   rune     // Charater indicating line is a comment
-	Headers       []string // Column header names (specified here or read from file)
-	HasHeaderRow  bool     // indicates first row is for headers (default false). Overrides the Headers attribute.
-	FieldCount    int      // if greater than zero is used to validate field count
+	Name          string                                         // string identifer for the Csv emitter
+	FilePath      string                                         // path for the file
+	DelimiterChar rune                                           // Delimiter charater, defaults to comma
+	CommentChar   rune                                           // Charater indicating line is a comment
+	Headers       []string                                       // Column header names (specified here or read from file)
+	HasHeaderRow  bool                                           // indicates first row is for headers (default false). Overrides the Headers attribute.
+	FieldCount    int                                            // if greater than zero is used to validate field count
+	Function      func(context.Context, interface{}) interface{} // function applied to items
 
 	file   *os.File
 	reader *csv.Reader
@@ -145,7 +146,21 @@ func (c *CsvRead) Exec(ctx context.Context) (err error) {
 				continue
 			}
 
-			c.output <- row
+			// if Function provided apply it, else submit row downstream
+			if c.Function != nil {
+				procd := c.Function(ctx, row)
+				switch val := procd.(type) {
+				case nil:
+					continue
+				case api.ProcError:
+					c.log.Error(val)
+					continue
+				default:
+					c.output <- val
+				}
+			} else {
+				c.output <- row
+			}
 		}
 	}()
 
