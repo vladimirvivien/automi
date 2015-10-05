@@ -67,9 +67,11 @@ func (p *Probe) GetOutput() <-chan interface{} {
 }
 
 func (p *Probe) Exec(ctx context.Context) error {
+	p.log.Info("Execution started")
 	go func() {
 		defer func() {
 			close(p.output)
+			p.log.Info("Execution completed")
 		}()
 
 		// output data
