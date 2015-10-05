@@ -10,7 +10,7 @@ Automi abstracts away (not too far away) the gnarly details of using Go channels
 ###Example
 The following illustrates how Automi can be used to stream data from a csv file to a remote service with some data type transformation in between.
 
-```
+```Go
 reader := &file.CsvRead{
     Name:"LogReader",
     FilePath : "./loca/file.txt",
