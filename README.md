@@ -81,6 +81,10 @@ The API is still taking shape into something that is enjoyable and easy to use. 
 
 ###Coming Later (Eventually)
 
+**Timout and Cancellation**
+ - Support for cancellation of executing flow
+ - Ability to specify per-process timeouts
+ 
 **Metrics**
  - Comprehensive metrics capture/report
    
@@ -102,3 +106,6 @@ The API is still taking shape into something that is enjoyable and easy to use. 
  - Broadcasters
  - Balancers
  - Etc
+
+# Motivation
+This work was highly-motivated by Sameer Ajmani's blog entry on Pipelining data over Go channels https://blog.golang.org/pipelines.
