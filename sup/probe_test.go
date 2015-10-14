@@ -1,6 +1,7 @@
 package sup
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -92,6 +93,7 @@ func TestProbeChaining(t *testing.T) {
 		close(in)
 	}()
 
+	var m sync.RWMutex
 	submitted := 0
 	p := &Probe{
 		Name: "P1",
@@ -100,7 +102,9 @@ func TestProbeChaining(t *testing.T) {
 			if !ok {
 				t.Fatal("Unexpected type")
 			}
+			m.Lock()
 			submitted += i
+			m.Unlock()
 			return i
 		},
 	}
@@ -119,7 +123,9 @@ func TestProbeChaining(t *testing.T) {
 		Name: "P2",
 		Examine: func(data interface{}) interface{} {
 			if s, ok := data.(int); ok {
+				m.Lock()
 				calculated += s
+				m.Unlock()
 			}
 			return data
 		},
@@ -133,7 +139,17 @@ func TestProbeChaining(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	wait := make(chan struct{})
+	go func() {
+		for _ = range p2.output {
+		}
+		close(wait)
+	}()
+	<-wait
+
+	m.RLock()
 	if submitted != calculated {
 		t.Fatalf("Data flow broken, expecting %d, got %d", submitted, calculated)
 	}
+	m.RUnlock()
 }

@@ -40,9 +40,7 @@ func SendAuxMsg(ctx context.Context, item interface{}) error {
 	if !ok {
 		return fmt.Errorf("Unable to find the auxiliary channel in context")
 	}
-	go func() {
-		ch <- item
-	}()
+	ch <- item
 	return nil
 }
 

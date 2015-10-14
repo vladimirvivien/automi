@@ -132,11 +132,11 @@ func (c *CsvWrite) Exec(ctx context.Context) (err error) {
 				panic(fmt.Sprintf("CsvWrite [%s] expects []string, got %T", c.GetName(), item))
 
 			}
-			err = c.writer.Write(data)
-			if err != nil {
+
+			if e := c.writer.Write(data); e != nil {
 				perr := api.ProcError{
 					ProcName: c.Name,
-					Err:      fmt.Errorf("Unable to write: %s", c.Name, err),
+					Err:      fmt.Errorf("Unable to write: %s", c.Name, e),
 				}
 				c.log.Error(perr)
 				continue

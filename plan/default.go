@@ -319,7 +319,7 @@ func (p *DefaultPlan) Exec() <-chan struct{} {
 		wg.Wait()
 
 		// handle auxiliary chan
-		close(p.auxChan)
+		//close(p.auxChan)
 		p.processAux()
 	}()
 
@@ -329,6 +329,7 @@ func (p *DefaultPlan) Exec() <-chan struct{} {
 func (p *DefaultPlan) processAux() {
 	// process auxiliary plan if any
 	if p.auxPlan != nil {
+		close(p.auxChan)
 		wait := make(chan struct{})
 		go func() {
 			<-p.auxPlan.Exec()
@@ -339,6 +340,7 @@ func (p *DefaultPlan) processAux() {
 
 	// process auxliary endpoint if any
 	if p.auxEndpoint != nil {
+		close(p.auxChan)
 		proc, ok := p.auxEndpoint.(api.Process)
 		if !ok {
 			panic("Aux endpoint must be an api.Process")
