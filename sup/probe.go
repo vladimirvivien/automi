@@ -9,7 +9,8 @@ import (
 	autoctx "github.com/vladimirvivien/automi/context"
 )
 
-type ProbeFunc func(interface{}) interface{}
+// ProbeFunc type for implementing function to be executed for each item probed.
+type ProbeFunc func(context.Context, interface{}) interface{}
 
 // The Probe is a processor designed for testing and inspecting data flow.
 // It captures data in its input channel, apply specified function,
@@ -67,6 +68,9 @@ func (p *Probe) GetOutput() <-chan interface{} {
 }
 
 func (p *Probe) Exec(ctx context.Context) error {
+	exeCtx, cancel := context.WithCancel(ctx)
+	defer cancel() // cancel everthing downstream (if necessary)
+
 	p.log.Info("Execution started")
 	go func() {
 		defer func() {
@@ -77,7 +81,14 @@ func (p *Probe) Exec(ctx context.Context) error {
 		// output data
 		for item := range p.input {
 			if p.Examine != nil {
-				p.output <- p.Examine(item)
+				p.output <- p.Examine(exeCtx, item)
+			}
+
+			select {
+			case <-ctx.Done():
+				cancel()
+				return
+			default:
 			}
 		}
 	}()

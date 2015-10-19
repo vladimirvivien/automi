@@ -9,6 +9,7 @@ import (
 
 // DbUpdate is a processor that can submit SQL updates for items in its input.
 // The compoenent allows for preparation of statement and handling of result.
+// TODO - Rewrite how DbUpdate should work.
 type DbUpdate struct {
 	Name    string
 	Input   <-chan interface{}
