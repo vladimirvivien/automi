@@ -322,3 +322,72 @@ func BenchmarkCsvWrite(b *testing.B) {
 		b.Fatalf("Not all records written to file, expecting %d, got %d", counter, written)
 	}
 }
+
+func BenchmarkCsvWrite_Cancelled(b *testing.B) {
+	ctx := context.Background()
+	N := b.N
+	b.Logf("N = %d", N)
+
+	chanSize := func() int {
+		if N == 1 {
+			return 1
+		}
+		return N - int(float64(0.5)*float64(N))
+	}()
+	in := make(chan interface{}, chanSize)
+	b.Log("Created chan size ", chanSize)
+	go func() {
+		in <- []string{"col1", "col2", "col3"}
+		for i := 0; i < N; i++ {
+			in <- []string{sup.GenWord(), sup.GenWord(), sup.GenWord()}
+		}
+		close(in)
+	}()
+
+	counter := 0
+	stamp := time.Now().Nanosecond()
+	fileName := strconv.Itoa(stamp) + testCsvWriteFile
+	var mutex sync.RWMutex
+	w := &CsvWrite{
+		Name:          "csv-writer",
+		FilePath:      fileName,
+		DelimiterChar: '|',
+		Function: func(ctx context.Context, item interface{}) interface{} {
+			mutex.Lock()
+			counter++
+			mutex.Unlock()
+			return item
+		},
+	}
+
+	w.SetInput(in)
+	if err := w.Init(ctx); err != nil {
+		b.Fatal("Unable to init:", err)
+	}
+
+	// remove file when done
+	defer func() {
+		if err := os.Remove(fileName); err != nil {
+			b.Fatal("Unable to delete file after CsvWrite test:", err)
+		}
+	}()
+
+	go func() {
+		if err := w.Exec(ctx); err != nil {
+			b.Fatal("Error during execution:", err)
+		}
+	}()
+
+	select {
+	case <-w.Done():
+	case <-time.After(60 * time.Second):
+		b.Fatal("Took too long to write file.")
+	}
+
+	// test row counter including header
+	if counter == (N+1) || counter <= (N+1) {
+		return
+	} else {
+		b.Fatalf("Process not cancelling OK. Expecting processed items %d to be less than %d", counter, (N + 1))
+	}
+}
