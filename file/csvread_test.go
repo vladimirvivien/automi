@@ -1,8 +1,11 @@
 package file
 
 import (
-	"sync/atomic"
+	"bytes"
+	"encoding/csv"
+	"sync"
 	"testing"
+	"time"
 
 	"golang.org/x/net/context"
 
@@ -74,6 +77,49 @@ func TestCsvRead_Exec(t *testing.T) {
 
 }
 
+func TestCsvRead_Exec_Cancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	rowCount := 2
+	s := &CsvRead{Name: "S1", FilePath: "test_read.csv", HasHeaderRow: true}
+	if err := s.Init(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	counter := 0
+	wait := make(chan struct{})
+	go func() {
+		for item := range s.GetOutput() {
+			counter++
+			row, ok := item.([]string)
+			if !ok {
+				t.Fatalf("Expecting type []string, got %T", row)
+			}
+
+			if len(row) != 3 {
+				t.Fatal("Expecting 3 columns, got", len(row))
+			}
+		}
+		close(wait)
+	}()
+
+	cancel()
+
+	select {
+	case <-wait:
+	case <-time.After(1 * time.Millisecond):
+		t.Fatal("Waited too long for completion...")
+	}
+
+	if counter == rowCount {
+		t.Fatalf("Expecting %d rows read from file to be less than expected row  %d", rowCount, counter)
+	}
+
+}
+
 func TestCsvRead_HeaderConfig(t *testing.T) {
 	s := &CsvRead{Name: "S1", FilePath: "test_read.csv", HasHeaderRow: true}
 	if err := s.Init(context.TODO()); err != nil {
@@ -118,10 +164,11 @@ func TestCsvRead_HeaderConfig(t *testing.T) {
 
 }
 
-func TestCsvRead_OneProbe(t *testing.T) {
+func TestCsvRead_Probe(t *testing.T) {
+	ctx := context.Background()
 	records := 0
 	csv := &CsvRead{Name: "read-file", FilePath: "test_read.csv", HasHeaderRow: true}
-	if err := csv.Init(context.TODO()); err != nil {
+	if err := csv.Init(ctx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -129,23 +176,23 @@ func TestCsvRead_OneProbe(t *testing.T) {
 		t.Fatal("No Output channel found after init()")
 	}
 
-	if err := csv.Exec(context.TODO()); err != nil {
+	if err := csv.Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
 
 	probe := &sup.Probe{
 		Name: "Probe",
-		Examine: func(item interface{}) interface{} {
+		Examine: func(exeCtx context.Context, item interface{}) interface{} {
 			records++
 			return item
 		},
 	}
 	probe.SetInput(csv.GetOutput())
-	if err := probe.Init(context.TODO()); err != nil {
+	if err := probe.Init(ctx); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := probe.Exec(context.TODO()); err != nil {
+	if err := probe.Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
 
@@ -155,71 +202,6 @@ func TestCsvRead_OneProbe(t *testing.T) {
 
 	if records != 2 {
 		t.Fatal("Probe failed to receive all items. Expecting 2, got", records)
-	}
-}
-
-func TestCsvRead_TwoProbesDeep(t *testing.T) {
-	var records int32
-	csv := &CsvRead{Name: "read-file", FilePath: "test_read.csv", HasHeaderRow: true}
-	if err := csv.Init(context.TODO()); err != nil {
-		t.Fatal(err)
-	}
-
-	if csv.GetOutput() == nil {
-		t.Fatal("No Output found after init()")
-	}
-
-	if err := csv.Exec(context.TODO()); err != nil {
-		t.Fatal(err)
-	}
-
-	probe1 := &sup.Probe{
-		Name: "Probe1",
-		Examine: func(item interface{}) interface{} {
-			atomic.AddInt32(&records, 1)
-			return item
-		},
-	}
-
-	probe1.SetInput(csv.GetOutput())
-	if err := probe1.Init(context.TODO()); err != nil {
-		t.Fatal(err)
-	}
-
-	if probe1.GetOutput() == nil {
-		t.Fatal("Probe Output not set after Init()")
-	}
-
-	if err := probe1.Exec(context.TODO()); err != nil {
-		t.Fatal(err)
-	}
-
-	probe2 := &sup.Probe{
-		Name: "Probe2",
-		Examine: func(item interface{}) interface{} {
-			atomic.AddInt32(&records, 1)
-			return item
-		},
-	}
-	probe2.SetInput(probe1.GetOutput())
-	if err := probe2.Init(context.TODO()); err != nil {
-		t.Fatal(err)
-	}
-
-	if probe2.GetOutput() == nil {
-		t.Fatal("Probe Output not set after Init()")
-	}
-
-	if err := probe2.Exec(context.TODO()); err != nil {
-		t.Fatal(err)
-	}
-
-	// drain the last step
-	for _ = range probe2.GetOutput() {
-	}
-
-	if records != 4 {
-		t.Fatal("Probe steps did not run properly, expected count 4, got", records)
 	}
 }
 
@@ -247,6 +229,128 @@ func TestCsvRead_Function(t *testing.T) {
 	}
 	if rowCounted != rowCount {
 		t.Fatalf("Expecting %d rows read from file, got %d", rowCount, rowCounted)
+	}
+
+}
+
+func BenchmarkCsvRead(b *testing.B) {
+	ctx := context.Background()
+	N := b.N
+	b.Logf("N = %d", N)
+	data := bytes.NewBufferString("col1|col2|col3\n")
+	for i := 0; i < N; i++ {
+		data.WriteString(sup.GenWord() + "|")
+		data.WriteString(sup.GenWord() + "|")
+		data.WriteString(sup.GenWord() + "\n")
+	}
+
+	var mutex sync.RWMutex
+	counter := 0
+	s := &CsvRead{
+		Name:         "S",
+		FilePath:     "test_read.csv",
+		HasHeaderRow: true,
+		Function: func(ctx context.Context, item interface{}) interface{} {
+			mutex.Lock()
+			counter++
+			mutex.Unlock()
+			return item
+		},
+	}
+	if err := s.Init(ctx); err != nil {
+		b.Fatal(err)
+	}
+
+	s.reader = csv.NewReader(data) //reset reader
+	if err := s.Exec(ctx); err != nil {
+		b.Fatal(err)
+	}
+
+	counted := 0
+	wait := make(chan struct{})
+	go func() {
+		for _ = range s.GetOutput() {
+			mutex.Lock()
+			counted++
+			mutex.Unlock()
+		}
+		close(wait)
+	}()
+
+	select {
+	case <-wait:
+	case <-time.After(60 * time.Second):
+		b.Fatal("Waited too long for benchmark completion...")
+	}
+
+	b.Logf("Counter %d, counted %d", counter, counted)
+	if counter != counted {
+		b.Fatalf("Did not process all text. Exepecting %d rows, counted %d", counter, counted)
+	}
+
+}
+
+func BenchmarkCsvRead_Cancelled(b *testing.B) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	N := b.N
+	data := bytes.NewBufferString("col1|col2|col3\n")
+	for i := 0; i < N; i++ {
+		data.WriteString(sup.GenWord() + "|")
+		data.WriteString(sup.GenWord() + "|")
+		data.WriteString(sup.GenWord() + "\n")
+	}
+
+	var mutex sync.RWMutex
+	counter := 0
+	s := &CsvRead{
+		Name:         "S",
+		FilePath:     "test_read.csv",
+		HasHeaderRow: true,
+		Function: func(exeCtx context.Context, item interface{}) interface{} {
+			mutex.Lock()
+			counter++
+			mutex.Unlock()
+			return item
+		},
+	}
+
+	if err := s.Init(ctx); err != nil {
+		b.Fatal(err)
+	}
+
+	s.reader = csv.NewReader(data)
+	if err := s.Exec(ctx); err != nil {
+		b.Fatal(err)
+	}
+
+	counted := 0
+	wait := make(chan struct{})
+	go func() {
+		for _ = range s.GetOutput() {
+			mutex.Lock()
+			counted++
+			mutex.Unlock()
+		}
+		close(wait)
+	}()
+
+	select {
+	case <-wait:
+	case <-time.After(1 * time.Millisecond):
+		b.Log("Cancelling...")
+		cancel()
+	}
+
+	b.Logf("Counter %d, counted %d", counter, counted)
+
+	if counter == counted {
+		return
+	}
+	if counted < counter {
+		return
+	} else {
+		b.Fatalf("Processed rows %d expected to be less than %d", counted, counter)
 	}
 
 }

@@ -100,7 +100,7 @@ func (c *CsvRead) Init(ctx context.Context) error {
 	log.Debug("HasHeaderRow ", c.HasHeaderRow, " Headers [", c.Headers, "]")
 
 	// init channel
-	c.output = make(chan interface{})
+	c.output = make(chan interface{}, 1024)
 
 	c.log.Info("Component initiated OK: reading from file ", c.file.Name())
 
@@ -121,6 +121,8 @@ func (c *CsvRead) GetOutput() <-chan interface{} {
 
 func (c *CsvRead) Exec(ctx context.Context) (err error) {
 	c.log.Info("Execution started")
+	exeCtx, cancel := context.WithCancel(ctx)
+
 	go func() {
 		defer func() {
 			close(c.output)
@@ -148,7 +150,7 @@ func (c *CsvRead) Exec(ctx context.Context) (err error) {
 
 			// if Function provided apply it, else submit row downstream
 			if c.Function != nil {
-				procd := c.Function(ctx, row)
+				procd := c.Function(exeCtx, row)
 				switch val := procd.(type) {
 				case nil:
 					continue
@@ -160,6 +162,13 @@ func (c *CsvRead) Exec(ctx context.Context) (err error) {
 				}
 			} else {
 				c.output <- row
+			}
+
+			select {
+			case <-ctx.Done():
+				cancel()
+				return
+			default:
 			}
 		}
 	}()
