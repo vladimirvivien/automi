@@ -12,7 +12,7 @@ import (
 	"github.com/vladimirvivien/automi/sup"
 )
 
-func TestCsvRead_Init(t *testing.T) {
+func TestCsvReadInit(t *testing.T) {
 	s1 := &CsvRead{}
 	if err := s1.Init(context.TODO()); err == nil {
 		t.Fatal("Error expected for missing Name.")
@@ -49,7 +49,7 @@ func TestCsvRead_Init(t *testing.T) {
 	}
 }
 
-func TestCsvRead_Exec(t *testing.T) {
+func TestCsvReadExec(t *testing.T) {
 	rowCount := 2
 	s := &CsvRead{Name: "S1", FilePath: "test_read.csv", HasHeaderRow: true}
 	if err := s.Init(context.TODO()); err != nil {
@@ -77,7 +77,7 @@ func TestCsvRead_Exec(t *testing.T) {
 
 }
 
-func TestCsvRead_Exec_Cancelled(t *testing.T) {
+func TestCsvReadExec_Cancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	rowCount := 2
@@ -205,7 +205,7 @@ func TestCsvRead_Probe(t *testing.T) {
 	}
 }
 
-func TestCsvRead_Function(t *testing.T) {
+func TestCsvReadExec_Function(t *testing.T) {
 	rowCount := 2
 	rowCounted := 0
 	s := &CsvRead{

@@ -154,7 +154,7 @@ func (c *CsvRead) Exec(ctx context.Context) (err error) {
 				switch val := procd.(type) {
 				case nil:
 					continue
-				case api.ProcError:
+				case error, api.ProcError:
 					c.log.Error(val)
 					continue
 				default:

@@ -15,10 +15,11 @@ import (
 // CsvWrite implements a Sink process that collects data
 // from its input channel and write it to the specified file.
 type CsvWrite struct {
-	Name          string   //Identifer name for the component
-	FilePath      string   //Path for the output file
-	DelimiterChar rune     // Delimiter character
-	Headers       []string // Header column to use
+	Name          string                                         //Identifer name for the component
+	FilePath      string                                         //Path for the output file
+	DelimiterChar rune                                           // Delimiter character
+	Headers       []string                                       // Header column to use
+	Function      func(context.Context, interface{}) interface{} // function applied to items before written to file
 
 	file   *os.File
 	writer *csv.Writer
@@ -104,8 +105,11 @@ func (c *CsvWrite) SetInput(in <-chan interface{}) {
 
 func (c *CsvWrite) Exec(ctx context.Context) (err error) {
 	c.log.Debug("Execution started")
+	exeCtx, cancel := context.WithCancel(ctx)
+
 	go func() {
 		defer func() {
+			// flush remaining bits
 			c.writer.Flush()
 			if e := c.writer.Error(); e != nil {
 				err = api.ProcError{
@@ -115,6 +119,7 @@ func (c *CsvWrite) Exec(ctx context.Context) (err error) {
 				c.log.Error(err)
 			}
 
+			// close file
 			if e := c.file.Close(); e != nil {
 				err = api.ProcError{
 					ProcName: c.GetName(),
@@ -127,7 +132,21 @@ func (c *CsvWrite) Exec(ctx context.Context) (err error) {
 		}()
 
 		for item := range c.input {
-			data, ok := item.([]string)
+			// if Function provided apply it
+			var procd interface{} = item
+			if c.Function != nil {
+				procd = c.Function(exeCtx, item)
+				switch val := procd.(type) {
+				case nil:
+					continue
+				case error, api.ProcError:
+					c.log.Error(val)
+					continue
+				}
+			}
+
+			// ensure processed data is of proper type
+			data, ok := procd.([]string)
 			if !ok { // hard-fail on bad data type`
 				panic(fmt.Sprintf("CsvWrite [%s] expects []string, got %T", c.GetName(), item))
 
@@ -150,6 +169,13 @@ func (c *CsvWrite) Exec(ctx context.Context) (err error) {
 					Err:      fmt.Errorf("IO flush error: %s", c.Name, e),
 				}
 				c.log.Error(perr)
+			}
+
+			select {
+			case <-ctx.Done():
+				cancel()
+				return
+			default:
 			}
 		}
 	}()
