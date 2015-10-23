@@ -19,9 +19,11 @@ type Item struct {
 	Function    func(context.Context, interface{}) interface{} // function to execute
 	Concurrency int                                            // Concurrency level, default 1
 
-	input  <-chan interface{}
-	output chan interface{}
-	log    *logrus.Entry
+	input     <-chan interface{}
+	output    chan interface{}
+	log       *logrus.Entry
+	cancelled bool
+	mutex     sync.RWMutex
 }
 
 func (p *Item) Init(ctx context.Context) error {
@@ -57,9 +59,9 @@ func (p *Item) Init(ctx context.Context) error {
 		p.Concurrency = 1
 	}
 
-	p.output = make(chan interface{})
+	p.output = make(chan interface{}, 1024)
 
-	p.log.Info("Component initialized")
+	p.log.Infof("Component [%s] initialized", p.Name)
 	return nil
 }
 
@@ -80,12 +82,14 @@ func (p *Item) GetOutput() <-chan interface{} {
 }
 
 func (p *Item) Exec(ctx context.Context) (err error) {
-	p.log.Info("Execution started")
+	p.log.Info("Execution started for ", p.Name)
+
+	exeCtx, cancel := context.WithCancel(ctx)
 
 	go func() {
 		defer func() {
 			close(p.output)
-			p.log.Info("Execution completed")
+			p.log.Info("Shuttingdown component ", p.Name)
 		}()
 
 		var barrier sync.WaitGroup
@@ -94,25 +98,47 @@ func (p *Item) Exec(ctx context.Context) (err error) {
 		for i := 0; i < p.Concurrency; i++ {
 			go func(wg *sync.WaitGroup) {
 				defer wg.Done()
-				p.doProc(ctx, p.input)
+				p.doProc(exeCtx, p.input)
 			}(&barrier)
 		}
 
-		barrier.Wait()
+		wait := make(chan struct{})
+		go func() {
+			defer close(wait)
+			barrier.Wait()
+		}()
+
+		select {
+		case <-wait:
+		case <-ctx.Done():
+			p.log.Infof("Component [%s] cancelling...", p.Name)
+			cancel()
+			p.mutex.Lock()
+			p.cancelled = true
+			p.mutex.Unlock()
+			return
+		}
 	}()
 	return
 }
 
-func (p *Item) doProc(ctx context.Context, input <-chan interface{}) {
+func (p *Item) doProc(exeCtx context.Context, input <-chan interface{}) {
 	for item := range input {
-		procd := p.Function(ctx, item)
+		procd := p.Function(exeCtx, item)
 		switch val := procd.(type) {
 		case nil:
 			continue
 		case api.ProcError:
 			p.log.Error(val)
-		default:
-			p.output <- val
+			continue
 		}
+
+		p.mutex.Lock()
+		if !p.cancelled {
+			p.output <- item
+		} else {
+			return
+		}
+		p.mutex.Unlock()
 	}
 }

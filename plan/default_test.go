@@ -111,19 +111,51 @@ func (p *testEndpoint) Done() <-chan struct{} {
 	return p.done
 }
 
-func TestDefaultPlan_Graph(t *testing.T) {
-	tree := []*node{
-		&node{
-			proc: &sup.NoopProc{Name: "P1"},
-			nodes: []*node{
-				&node{proc: &sup.NoopProc{Name: "P2"}},
+func TestDefaultPlan_GraphSimpleSearch(t *testing.T) {
+	tree := &node{
+		proc: &sup.NoopProc{Name: "PA"},
+		nodes: []*node{
+			&node{proc: &sup.NoopProc{Name: "PB"}},
+			&node{proc: &sup.NoopProc{Name: "P1"}},
+			&node{proc: &sup.NoopProc{Name: "P2"}},
+			&node{
+				proc: &sup.NoopProc{Name: "P3"},
+				nodes: []*node{
+					&node{proc: &sup.NoopProc{Name: "P4"}},
+				},
 			},
 		},
 	}
 
-	found := search(tree, &node{proc: &sup.NoopProc{Name: "P2"}})
+	found := search(tree, &node{proc: &sup.NoopProc{Name: "P1"}})
 	if found == nil {
 		t.Fatal("tree search failed")
+	}
+	//found = search(tree, &node{proc: &sup.NoopProc{Name: "P0"}})
+	//if found != nil {
+	//	t.Fatal("tree search failed")
+	//}
+	//found = search(tree, &node{proc: &sup.NoopProc{Name: "P4"}})
+	//if found == nil {
+	//	t.Fatal("tree search failed")
+	//}
+	//found = search(tree, &node{proc: &sup.NoopProc{Name: "P3"}})
+	//if found == nil {
+	//	t.Fatal("tree search failed")
+	//}
+
+	//found = search(tree, &node{proc: &sup.NoopProc{Name: "P1"}})
+	//if found == nil {
+	//	t.Fatal("tree search failed")
+	//}
+}
+
+func TestDefaultPlan_GraphGraph(t *testing.T) {
+	tree := &node{
+		proc: &sup.NoopProc{Name: "P1"},
+		nodes: []*node{
+			&node{proc: &sup.NoopProc{Name: "P2"}},
+		},
 	}
 
 	tree = graph(tree, &node{
@@ -134,7 +166,7 @@ func TestDefaultPlan_Graph(t *testing.T) {
 		},
 	})
 
-	found = search(tree, &node{proc: &sup.NoopProc{Name: "P1"}})
+	found := search(tree, &node{proc: &sup.NoopProc{Name: "P1"}})
 
 	if found == nil {
 		t.Fatal("Search should not have failed.")
@@ -142,28 +174,37 @@ func TestDefaultPlan_Graph(t *testing.T) {
 	if len(found.nodes) != 2 {
 		t.Fatal("Expected node with 2 children")
 	}
+}
+
+func TestDefaultPlan_GraphUpdate(t *testing.T) {
+	tree := &node{
+		proc: &sup.NoopProc{Name: "P1"},
+		nodes: []*node{
+			&node{proc: &sup.NoopProc{Name: "P2"}},
+		},
+	}
 
 	tree = update(
 		tree,
 		&node{proc: &sup.NoopProc{Name: "P4"}},
 		&node{proc: &sup.NoopProc{Name: "P5"}},
 	)
-	found = search(tree, &node{proc: &sup.NoopProc{Name: "P4"}})
+	found := search(tree, &node{proc: &sup.NoopProc{Name: "P4"}})
 
 	if len(found.nodes) != 1 {
 		t.Fatal("Expected children node not 1")
 	}
+}
 
-	tree = []*node{
-		&node{
-			proc: &sup.NoopProc{Name: "P1"},
-			nodes: []*node{
-				&node{proc: &sup.NoopProc{Name: "P2"}},
-				&node{proc: &sup.NoopProc{Name: "P3"}},
-				&node{
-					proc:  &sup.NoopProc{Name: "P4"},
-					nodes: []*node{&node{proc: &sup.NoopProc{Name: "P5"}}},
-				},
+func TestDefaultPlan_GraphWalk(t *testing.T) {
+	tree := &node{
+		proc: &sup.NoopProc{Name: "P1"},
+		nodes: []*node{
+			&node{proc: &sup.NoopProc{Name: "P2"}},
+			&node{proc: &sup.NoopProc{Name: "P3"}},
+			&node{
+				proc:  &sup.NoopProc{Name: "P4"},
+				nodes: []*node{&node{proc: &sup.NoopProc{Name: "P5"}}},
 			},
 		},
 	}

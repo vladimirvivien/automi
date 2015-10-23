@@ -20,52 +20,90 @@ func (n *node) String() string {
 	return fmt.Sprintf("%v -> %v", n.proc, n.nodes)
 }
 
-type tree []*node
-
 // search bails after first match
-func search(root tree, key *node) *node {
+func search(root *node, key *node) *node {
+	fmt.Println("root = ", root, "Key = ", key)
 	if root == nil || key == nil {
-		panic("Unable to search for nil tree or key")
+		return nil
 	}
-
+	if eq(root, key) {
+		fmt.Println("Root/Key same, returning", root)
+		return root
+	}
+	var result *node
+	// pull out key
 	kproc, ok := key.proc.(api.Process)
 	if !ok {
 		panic("Unable to search, node is not a Process")
 	}
 
-	// width search at root level first
-	for _, n := range root {
-		nproc, ok := n.proc.(api.Process)
-		if !ok {
-			panic("Unable to search, node is not a Process")
-		}
-		if kproc.GetName() == nproc.GetName() {
-			return n
-		}
+	// pull n-process
+	nproc, ok := root.proc.(api.Process)
+	if !ok {
+		panic("Unable to search, node is not a Process")
 	}
-	// depth search
-	for _, n := range root {
-		if n != nil {
-			return search(n.nodes, key)
+
+	fmt.Println("Evaluating root ", root)
+	// match is found
+	if kproc.GetName() == nproc.GetName() {
+		fmt.Println("Match found for ", root)
+		result = root
+	} else {
+		// no match, continue
+		if root.nodes != nil {
+			fmt.Println("Node has children, searching them...")
+			for _, n := range root.nodes {
+				result = search(n, key)
+			}
 		}
 	}
 
-	return nil
+	fmt.Println("Returning result... ", result)
+	return result
+}
+
+func eq(node1, node2 *node) bool {
+	// pull out key
+	proc1, ok := node1.proc.(api.Process)
+	if !ok {
+		panic("Unexpected type in equality for param node1")
+	}
+
+	// pull n-process
+	proc2, ok := node2.proc.(api.Process)
+	if !ok {
+		panic("Unexpected type in equlity for param node2")
+	}
+
+	if proc1.GetName() == proc2.GetName() {
+		return true
+	}
+	return false
 }
 
 // finds existing node and overwrites it
-func graph(t tree, n *node) tree {
+func graph(t *node, n *node) *node {
+	if t == nil {
+		*t = *n
+		return t
+	}
+
+	// overwrite
 	found := search(t, n)
 	if found != nil {
 		*found = *n
 		return t
 	}
-	t = append(t, n)
+
+	// insert as a branch
+	if t != nil && found == nil {
+		t.nodes = append(t.nodes, n)
+	}
 	return t
 }
 
 // branch inserts node branch as a child of node
-func update(t tree, node *node, branch ...*node) tree {
+func update(t *node, node *node, branch ...*node) *node {
 	found := search(t, node)
 	if found == nil {
 		panic("Update failed, node not found")
@@ -75,18 +113,20 @@ func update(t tree, node *node, branch ...*node) tree {
 }
 
 // walks the tree and exec f() for each node
-func walk(t tree, f func(*node)) {
+func walk(t *node, f func(*node)) {
 	if t == nil {
 		panic("Unable to walk nil tree")
 	}
-	for _, n := range t {
-		if f != nil {
-			f(n)
-		}
-		if n.nodes != nil {
-			walk(n.nodes, f)
+
+	if f != nil {
+		f(t)
+	}
+	if t.nodes != nil {
+		for _, n := range t.nodes {
+			walk(n, f)
 		}
 	}
+
 }
 
 // To used as part of the From().To() builder
@@ -123,7 +163,7 @@ type Conf struct {
 // fluent API.
 // Flow(From(src).To(snk))
 type DefaultPlan struct {
-	tree        tree
+	tree        *node
 	ctx         context.Context
 	auxChan     chan interface{}
 	auxPlan     *DefaultPlan
@@ -156,7 +196,6 @@ func New(conf Conf) *DefaultPlan {
 
 	return &DefaultPlan{
 		ctx:     ctx,
-		tree:    make(tree, 0),
 		auxChan: auxChan,
 	}
 }
@@ -167,13 +206,13 @@ func New(conf Conf) *DefaultPlan {
 func (p *DefaultPlan) Flow(n *node) *DefaultPlan {
 	// validate node before admitting
 	if n == nil {
-		panic("Flow() param is nil")
+		panic("Flow param is nil")
 	}
 	if n.proc == nil {
-		panic("Flow() param does not resolve to a Process")
+		panic("Flow param does not resolve to a Process")
 	}
 	if n.nodes == nil || len(n.nodes) == 0 {
-		panic("Flow must from source node to child node(s)")
+		panic("Flow must go from source node to child node(s)")
 	}
 
 	// validate types for parent node/children
@@ -213,7 +252,10 @@ func (p *DefaultPlan) WithAuxEndpoint(endpoint interface{}) *DefaultPlan {
 	} else {
 		panic("WithAuxEndpoint param must implement api.Sink")
 	}
-	p.auxEndpoint = endpoint
+
+	fmt.Println("Graphing auxendpoitn to tree", p.tree)
+	//p.tree = graph(p.tree, &node{proc: endpoint})
+	//p.auxEndpoint = endpoint
 	return p
 }
 
@@ -257,7 +299,8 @@ func (p *DefaultPlan) init() {
 }
 
 // Exec walks the node graph and calls
-// Init() and Exec() on each element
+// Init() and Exec() on each element.
+// It returns a channel to signal Done.
 func (p *DefaultPlan) Exec() <-chan struct{} {
 	defer func() {
 		if re := recover(); re != nil {
@@ -277,7 +320,7 @@ func (p *DefaultPlan) Exec() <-chan struct{} {
 			if n.nodes == nil {
 				ep, ok := n.proc.(api.Endpoint)
 				if !ok {
-					panic("Leave nodes must be of type Endpoint")
+					panic("Leaf nodes must be of type Endpoint")
 				}
 				endpoints = append(endpoints, ep)
 			}
@@ -294,7 +337,7 @@ func (p *DefaultPlan) Exec() <-chan struct{} {
 		func(n *node) {
 			nproc, ok := n.proc.(api.Process)
 			if !ok {
-				panic("Plan can only execute nodes that implement Process")
+				panic("Cannot execute component, it is not a Process")
 			}
 			if err := nproc.Exec(p.ctx); err != nil {
 				panic(fmt.Sprintf("Failed to Exec node %s: %s", nproc.GetName(), err))
@@ -319,8 +362,8 @@ func (p *DefaultPlan) Exec() <-chan struct{} {
 		wg.Wait()
 
 		// handle auxiliary chan
-		//close(p.auxChan)
-		p.processAux()
+		close(p.auxChan)
+		//p.processAux()
 	}()
 
 	return done

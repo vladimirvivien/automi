@@ -11,7 +11,7 @@ import (
 	autoctx "github.com/vladimirvivien/automi/context"
 )
 
-// Endpoint implements an endpoint processor that applies a function to each item
+// Endpoint implements a generic endpoint processor that applies a function to each item
 // received from its input. Once all items are processed, the endpoin closes Done().
 // This is a terminal component.  If you need to pass output downstream, use  the
 // Item processor.
@@ -20,9 +20,11 @@ type Endpoint struct {
 	Function    func(context.Context, interface{}) error // function to execute
 	Concurrency int                                      // Concurrency level, default 1
 
-	input <-chan interface{}
-	done  chan struct{}
-	log   *logrus.Entry
+	input     <-chan interface{}
+	done      chan struct{}
+	log       *logrus.Entry
+	cancelled bool
+	mutex     sync.RWMutex
 }
 
 func (p *Endpoint) Init(ctx context.Context) error {
@@ -82,10 +84,11 @@ func (p *Endpoint) Done() <-chan struct{} {
 
 func (p *Endpoint) Exec(ctx context.Context) (err error) {
 	p.log.Info("Execution started")
+	exeCtx, cancel := context.WithCancel(ctx)
 	go func() {
 		defer func() {
 			close(p.done)
-			p.log.Info("Execution completed")
+			p.log.Infof("Shutting down component [%s]", p.Name)
 		}()
 
 		var barrier sync.WaitGroup
@@ -94,18 +97,29 @@ func (p *Endpoint) Exec(ctx context.Context) (err error) {
 		for i := 0; i < p.Concurrency; i++ {
 			go func(wg *sync.WaitGroup) {
 				defer wg.Done()
-				p.doProc(ctx, p.input)
+				p.doProc(exeCtx, p.input)
 			}(&barrier)
 		}
+		wait := make(chan struct{})
+		go func() {
+			defer close(wait)
+			barrier.Wait()
+		}()
 
-		barrier.Wait()
+		select {
+		case <-wait:
+		case <-ctx.Done():
+			cancel()
+			p.log.Infof("Component [%s] cancelled process", p.Name)
+			return
+		}
 	}()
 	return
 }
 
-func (p *Endpoint) doProc(ctx context.Context, input <-chan interface{}) {
+func (p *Endpoint) doProc(exeCtx context.Context, input <-chan interface{}) {
 	for item := range input {
-		err := p.Function(ctx, item)
+		err := p.Function(exeCtx, item)
 		if err != nil {
 			p.log.Error(err)
 		}
