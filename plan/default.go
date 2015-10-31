@@ -11,30 +11,6 @@ import (
 	autoctx "github.com/vladimirvivien/automi/context"
 )
 
-
-
-// To used as part of the From().To() builder
-func (n *node) To(sinks ...interface{}) *node {
-	for _, sink := range sinks {
-		dest, ok := sink.(api.Sink)
-		if !ok {
-			panic("To() param must be a Sink")
-		}
-		n.nodes = append(n.nodes, &node{proc: dest})
-	}
-	return n
-}
-
-// From is a builder function used to create a node
-// of form From(proc).To(proc)
-func From(from interface{}) *node {
-	src, ok := from.(api.Source)
-	if !ok {
-		panic("From() param must be a Source")
-	}
-	return &node{proc: src}
-}
-
 // Conf is a configuration struct for creating new Plan.
 type Conf struct {
 	PlanName string
