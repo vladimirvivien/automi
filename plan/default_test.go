@@ -232,7 +232,7 @@ func TestDefaultPlan_Flow(t *testing.T) {
 	plan.Flow(flow).Flow(From(p2).To(p3, p4, p5))
 
 	if flow == nil {
-		t.Fatal("From() not building prober node")
+		t.Fatal("From() not building node tree")
 	}
 	count := 0
 	walk(

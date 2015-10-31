@@ -82,9 +82,9 @@ func graph(t *node, n *node) *node {
 	if n == nil {
 		return t
 	}
+
 	if t == nil {
-		*t = *n
-		return t
+		return n
 	}
 
 	// overwrite
@@ -104,7 +104,7 @@ func graph(t *node, n *node) *node {
 // walks the tree and exec f() for each node
 func walk(t *node, f func(*node)) {
 	if t == nil {
-		panic("Unable to walk nil tree")
+		return
 	}
 
 	if f != nil {
@@ -241,12 +241,10 @@ func (p *DefaultPlan) WithAuxEndpoint(endpoint interface{}) *DefaultPlan {
 	} else {
 		panic("WithAuxEndpoint param must implement api.Sink")
 	}
-
-	fmt.Println("Graphing auxendpoitn to tree", p.tree)
-	//p.tree = graph(p.tree, &node{proc: endpoint})
-	//p.auxEndpoint = endpoint
+	p.auxEndpoint = endpoint
 	return p
 }
+
 
 // AuxChan returns a readonly instance of the auxiliary channel
 // This channel can be used as input to a separate flow for futher processing
@@ -317,8 +315,20 @@ func (p *DefaultPlan) Exec() <-chan struct{} {
 	)
 
 	if len(endpoints) == 0 {
-		panic("Graph must be terminated with Endpoint nodes")
+		panic("Process graph must be terminated with Endpoint nodes")
 	}
+
+	// if auxEndpoint, start it
+	if p.auxEndpoint != nil {
+		ep, err := p.runAuxEndpoint()
+		if err != nil {
+			panic(err)
+		}
+		go func(){
+			<-ep.Done()
+		}()
+	}
+
 
 	// walk tree and execute each process
 	walk(
@@ -334,7 +344,7 @@ func (p *DefaultPlan) Exec() <-chan struct{} {
 		},
 	)
 
-	// wait for end points to finish
+	// wait for all endpoints to finish
 	done := make(chan struct{})
 	var wg sync.WaitGroup
 	wg.Add(len(endpoints))
@@ -349,13 +359,34 @@ func (p *DefaultPlan) Exec() <-chan struct{} {
 	go func() {
 		defer close(done)
 		wg.Wait()
-
-		// handle auxiliary chan
 		close(p.auxChan)
-		//p.processAux()
 	}()
 
 	return done
+}
+
+func (p *DefaultPlan) runAuxEndpoint() (api.Endpoint, error) {
+	if p.auxEndpoint == nil {
+		return nil, fmt.Errorf("Unable to process aux chan, endpoint nil")
+	}
+	proc, ok := p.auxEndpoint.(api.Process)
+	if !ok {
+		return nil, fmt.Errorf("Aux endpoint must be an Process")
+	}
+
+	// init and exec endpoint
+	if err := proc.Init(p.ctx); err != nil {
+		return nil, err
+	}
+	if err := proc.Exec(p.ctx); err != nil {
+		return nil, err
+	}
+	ep, ok := p.auxEndpoint.(api.Endpoint)
+	if !ok {
+		return nil, fmt.Errorf("Aux endpoint must be an api.Endpoint")
+	}
+
+	return ep, nil
 }
 
 func (p *DefaultPlan) processAux() {
@@ -369,25 +400,4 @@ func (p *DefaultPlan) processAux() {
 		}()
 		<-wait
 	}
-
-	// process auxliary endpoint if any
-	if p.auxEndpoint != nil {
-		close(p.auxChan)
-		proc, ok := p.auxEndpoint.(api.Process)
-		if !ok {
-			panic("Aux endpoint must be an api.Process")
-		}
-		if err := proc.Init(p.ctx); err != nil {
-			panic(err)
-		}
-		if err := proc.Exec(p.ctx); err != nil {
-			panic(err)
-		}
-		ep, ok := p.auxEndpoint.(api.Endpoint)
-		if !ok {
-			panic("Aux endpoint must be an api.Endpoint")
-		}
-		<-ep.Done()
-	}
-
 }
