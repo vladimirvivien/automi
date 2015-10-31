@@ -28,11 +28,13 @@ type DefaultPlan struct {
 	auxChan     chan interface{}
 	auxPlan     *DefaultPlan
 	auxEndpoint interface{}
+	conf *Conf
+	log *logrus.Entry
 }
 
 // New creates a default plan that can be used
 // to assemble process nodes and execute them.
-func New(conf Conf) *DefaultPlan {
+func New(conf *Conf) *DefaultPlan {
 	log := func() *logrus.Entry {
 		if conf.Log == nil {
 			entry := logrus.WithField("Plan", "Default")
@@ -47,7 +49,7 @@ func New(conf Conf) *DefaultPlan {
 	auxChan := make(chan interface{}, 1024)
 	ctx := func() context.Context {
 		if conf.Ctx == nil {
-			ctx := autoctx.WithLogEntry(context.TODO(), log)
+			ctx := autoctx.WithLogEntry(context.Background(), log)
 			ctx = autoctx.WithAuxChan(ctx, auxChan)
 			return ctx
 		}
@@ -55,6 +57,8 @@ func New(conf Conf) *DefaultPlan {
 	}()
 
 	return &DefaultPlan{
+		conf: conf,
+		log : conf.Log,
 		ctx:     ctx,
 		auxChan: auxChan,
 	}
@@ -81,6 +85,7 @@ func (p *DefaultPlan) Flow(n *node) *DefaultPlan {
 		panic("Flow must start with a Source node")
 	}
 
+	// verify children type
 	for _, sink := range n.nodes {
 		_, ok := sink.proc.(api.Sink)
 		if !ok {
@@ -125,9 +130,13 @@ func (p *DefaultPlan) AuxChan() <-chan interface{} {
 }
 
 func (p *DefaultPlan) init() {
-	if p == nil {
+	if p.tree == nil {
 		panic("Internal node tree is nil")
 	}
+
+	p.log.Info("Initializing plan...")
+
+	// walk and bind components
 	walk(
 		p.tree,
 		func(n *node) {
@@ -149,6 +158,7 @@ func (p *DefaultPlan) init() {
 					if !ok {
 						panic("Children nodes are expected to be Sink nodes")
 					}
+					p.log.Infof("Proc [%v] ==link to=> [%v]", srcproc, sinkproc)
 					sinkproc.SetInput(srcproc.GetOutput())
 				}
 			}
@@ -171,6 +181,7 @@ func (p *DefaultPlan) Exec() <-chan struct{} {
 	// walk and look for leaves
 	// ensure they are of type api.Endpoint
 	// if so, collect them
+	p.log.Info("Preparing endpoints")
 	endpoints := make([]api.Endpoint, 0)
 	walk(
 		p.tree,
@@ -188,9 +199,11 @@ func (p *DefaultPlan) Exec() <-chan struct{} {
 	if len(endpoints) == 0 {
 		panic("Process graph must be terminated with Endpoint nodes")
 	}
+	p.log.Infof("Calculated %d endpoints from process graph", len(endpoints))
 
 	// if auxEndpoint, start it
 	if p.auxEndpoint != nil {
+		p.log.Info("Auxiliary Endpoint component found, preparing...")
 		ep, err := p.runAuxEndpoint()
 		if err != nil {
 			panic(err)
@@ -202,6 +215,7 @@ func (p *DefaultPlan) Exec() <-chan struct{} {
 
 
 	// walk tree and execute each process
+	p.log.Info("Plan is executing processes...")
 	walk(
 		p.tree,
 		func(n *node) {
@@ -229,7 +243,9 @@ func (p *DefaultPlan) Exec() <-chan struct{} {
 	// go and complete plan
 	go func() {
 		defer close(done)
+		p.log.Info("Plan waiting for endpoints to finish")
 		wg.Wait()
+		p.log.Info("Plan done with processe execution")
 		close(p.auxChan)
 	}()
 

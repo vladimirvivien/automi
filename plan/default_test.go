@@ -119,7 +119,7 @@ func TestDefaultPlan_Flow(t *testing.T) {
 	p4 := &sup.NoopProc{Name: "P4"}
 	p5 := &sup.NoopProc{Name: "P5"}
 
-	plan := New(Conf{})
+	plan := New(&Conf{})
 	flow := From(p1).To(p2)
 	plan.Flow(flow).Flow(From(p2).To(p3, p4, p5))
 
@@ -136,8 +136,8 @@ func TestDefaultPlan_Flow(t *testing.T) {
 	if count != 5 {
 		t.Fatal("Unexpected node count of ", count)
 	}
-
 }
+
 
 func TestDefaultPlan_Exec(t *testing.T) {
 	in := make(chan interface{})
@@ -168,7 +168,7 @@ func TestDefaultPlan_Exec(t *testing.T) {
 			callCount++
 		},
 	}
-	plan := New(Conf{})
+	plan := New(&Conf{})
 	plan.Flow(From(p1).To(p2))
 
 	select {
@@ -180,6 +180,72 @@ func TestDefaultPlan_Exec(t *testing.T) {
 		t.Fatal("Waited too long, something is broken")
 	}
 }
+
+func BenchmarkDefaultPlan_Exec(b *testing.B) {
+	ctx := context.Background()
+	N := b.N
+	chanSize := func() int {
+		if N == 1 {
+			return N
+		}
+		return int(float64(0.5) * float64(N))
+	}()
+
+	in := make(chan interface{}, chanSize)
+	go func() {
+		for i := 0; i < N; i++ {
+			in <- sup.GenWord()
+		}
+		close(in)
+	}()
+
+	//exeCount := 0
+	counter := 0
+	var m sync.RWMutex
+
+	p1 := &sup.NoopProc{Name: "P1"}
+	p1.SetInput(in)
+	
+	// p2 := &proc.Item{
+	// 	Name: "P2",
+	// 	Concurrency: 4,
+	// 	Function: func(ctx context.Context, i interface{}) interface{} {
+	// 		//m.Lock()
+	// 		///counter++
+	// 		//m.Unlock()
+	// 		return i
+	// 	},
+	// }
+
+	p3 := &proc.Endpoint{
+			Name: "P3",
+			Function: func(ctx context.Context, item interface{}) error {
+				m.Lock()
+				counter++
+				m.Unlock()
+				return nil
+			},
+		}
+
+	// setup plan
+	plan := New(&Conf{Ctx:ctx})
+	plan.Flow(From(p1).To(p3))
+	//plan.Flow(From(p2).To(p3))
+
+	
+	select {
+	case <-plan.Exec():
+	case <-time.After(60 * time.Second):
+		b.Fatal("Waited too long, something is broken")
+	}	
+
+	b.Logf("Input %d, processed %d", N, counter)
+	if counter != N {
+		b.Fatalf("Expected %d processed items, got %d", N, counter)
+	}
+
+}
+
 
 func TestDefaultPlan_WithAuxEndpoint(t *testing.T) {
 	in := make(chan interface{})
@@ -210,7 +276,7 @@ func TestDefaultPlan_WithAuxEndpoint(t *testing.T) {
 			}
 		},
 	}
-	plan := New(Conf{})
+	plan := New(&Conf{})
 	plan.Flow(From(p1).To(p2))
 
 	var m sync.RWMutex
@@ -268,10 +334,10 @@ func TestDefaultPlan_WithAuxPlan(t *testing.T) {
 			}
 		},
 	}
-	plan := New(Conf{})
+	plan := New(&Conf{})
 	plan.Flow(From(p1).To(p2))
 
-	auxPlan := New(Conf{})
+	auxPlan := New(&Conf{})
 	auxOp := &sup.NoopProc{Name: "auxOp"}
 	auxOp.SetInput(plan.AuxChan())
 
