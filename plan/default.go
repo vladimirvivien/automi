@@ -16,80 +16,79 @@ type node struct {
 	nodes []*node
 }
 
+func (n *node) procName() string{
+	proc, ok := n.proc.(api.Process)
+	if !ok {
+		return ""
+	}
+	return proc.GetName()
+}
+
 func (n *node) String() string {
 	return fmt.Sprintf("%v -> %v", n.proc, n.nodes)
 }
 
-// search bails after first match
-func search(root *node, key *node) *node {
-	fmt.Println("root = ", root, "Key = ", key)
-	if root == nil || key == nil {
-		return nil
-	}
-	if eq(root, key) {
-		fmt.Println("Root/Key same, returning", root)
-		return root
-	}
-	var result *node
-	// pull out key
-	kproc, ok := key.proc.(api.Process)
-	if !ok {
-		panic("Unable to search, node is not a Process")
-	}
+func (n *node) eq(other *node) bool {
+	// pull out process for node
+	proc1, isProcType1 := n.proc.(api.Process)
 
-	// pull n-process
-	nproc, ok := root.proc.(api.Process)
-	if !ok {
-		panic("Unable to search, node is not a Process")
-	}
+	// pull other process
+	proc2, isProcType2 := other.proc.(api.Process)
 
-	fmt.Println("Evaluating root ", root)
-	// match is found
-	if kproc.GetName() == nproc.GetName() {
-		fmt.Println("Match found for ", root)
-		result = root
-	} else {
-		// no match, continue
-		if root.nodes != nil {
-			fmt.Println("Node has children, searching them...")
-			for _, n := range root.nodes {
-				result = search(n, key)
-			}
-		}
-	}
-
-	fmt.Println("Returning result... ", result)
-	return result
-}
-
-func eq(node1, node2 *node) bool {
-	// pull out key
-	proc1, ok := node1.proc.(api.Process)
-	if !ok {
-		panic("Unexpected type in equality for param node1")
-	}
-
-	// pull n-process
-	proc2, ok := node2.proc.(api.Process)
-	if !ok {
-		panic("Unexpected type in equlity for param node2")
-	}
-
-	if proc1.GetName() == proc2.GetName() {
+	// if proc type and name are equal
+	if isProcType1 && isProcType2 && proc1.GetName() == proc2.GetName() {
 		return true
 	}
 	return false
 }
 
+// search bails after first match
+func search(root *node, key string) *node {
+	if root == nil || key == "" {
+		return nil
+	}
+
+	// pull n-process
+	nproc, ok := root.proc.(api.Process)
+	if !ok {
+		return nil
+	}
+
+	if root.procName() == key{
+		return root
+	}	
+
+	
+	// match is found
+	if nproc.GetName()  == key {
+		return root
+	} else {
+		// no match, continue
+		if root.nodes != nil {
+			for _, n := range root.nodes {
+				result := search(n, key)
+				if result != nil && result.procName() == key {
+					return result
+				}
+			}
+		}
+	}
+	return nil
+}
+
+
 // finds existing node and overwrites it
 func graph(t *node, n *node) *node {
+	if n == nil {
+		return t
+	}
 	if t == nil {
 		*t = *n
 		return t
 	}
 
 	// overwrite
-	found := search(t, n)
+	found := search(t, n.procName())
 	if found != nil {
 		*found = *n
 		return t
@@ -99,16 +98,6 @@ func graph(t *node, n *node) *node {
 	if t != nil && found == nil {
 		t.nodes = append(t.nodes, n)
 	}
-	return t
-}
-
-// branch inserts node branch as a child of node
-func update(t *node, node *node, branch ...*node) *node {
-	found := search(t, node)
-	if found == nil {
-		panic("Update failed, node not found")
-	}
-	found.nodes = append(found.nodes, branch...)
 	return t
 }
 

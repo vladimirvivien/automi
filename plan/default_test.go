@@ -127,27 +127,30 @@ func TestDefaultPlan_GraphSimpleSearch(t *testing.T) {
 		},
 	}
 
-	found := search(tree, &node{proc: &sup.NoopProc{Name: "P1"}})
+	found := search(tree, "PA")
 	if found == nil {
 		t.Fatal("tree search failed")
 	}
-	//found = search(tree, &node{proc: &sup.NoopProc{Name: "P0"}})
-	//if found != nil {
-	//	t.Fatal("tree search failed")
-	//}
-	//found = search(tree, &node{proc: &sup.NoopProc{Name: "P4"}})
-	//if found == nil {
-	//	t.Fatal("tree search failed")
-	//}
-	//found = search(tree, &node{proc: &sup.NoopProc{Name: "P3"}})
-	//if found == nil {
-	//	t.Fatal("tree search failed")
-	//}
 
-	//found = search(tree, &node{proc: &sup.NoopProc{Name: "P1"}})
-	//if found == nil {
-	//	t.Fatal("tree search failed")
-	//}
+	found = search(tree, "P1")
+	if found == nil {
+		t.Fatal("tree search failed")
+	}
+
+	found = search(tree, "PB")
+	if found == nil {
+		t.Fatal("tree search failed")
+	}
+	found = search(tree, "P4")
+	if found == nil {
+		t.Fatal("tree search failed")
+	}
+
+	found = search(tree, "PZ")
+	if found != nil {
+		t.Fatal("tree search failed, no match should be found")
+	}
+
 }
 
 func TestDefaultPlan_GraphGraph(t *testing.T) {
@@ -166,7 +169,7 @@ func TestDefaultPlan_GraphGraph(t *testing.T) {
 		},
 	})
 
-	found := search(tree, &node{proc: &sup.NoopProc{Name: "P1"}})
+	found := search(tree, "P1")
 
 	if found == nil {
 		t.Fatal("Search should not have failed.")
@@ -174,25 +177,16 @@ func TestDefaultPlan_GraphGraph(t *testing.T) {
 	if len(found.nodes) != 2 {
 		t.Fatal("Expected node with 2 children")
 	}
-}
 
-func TestDefaultPlan_GraphUpdate(t *testing.T) {
-	tree := &node{
-		proc: &sup.NoopProc{Name: "P1"},
-		nodes: []*node{
-			&node{proc: &sup.NoopProc{Name: "P2"}},
-		},
+    found = search(tree, "P4")
+ 	if found == nil {
+		t.Fatal("tree search failed")
 	}
 
-	tree = update(
-		tree,
-		&node{proc: &sup.NoopProc{Name: "P4"}},
-		&node{proc: &sup.NoopProc{Name: "P5"}},
-	)
-	found := search(tree, &node{proc: &sup.NoopProc{Name: "P4"}})
-
-	if len(found.nodes) != 1 {
-		t.Fatal("Expected children node not 1")
+	tree = graph(tree, &node{proc: &sup.NoopProc{Name: "P2"}})	
+	found = search(tree, "P2")
+ 	if found == nil {
+		t.Fatal("tree search failed")
 	}
 }
 
