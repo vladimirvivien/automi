@@ -17,8 +17,21 @@ type Source interface {
 	GetOutput() <-chan interface{}
 }
 
+// StreamSource Represents a source of data stream
+type StreamSource interface {
+	Source
+	Open() error
+}
+
 type Sink interface {
 	SetInput(<-chan interface{})
+}
+
+// SteamSink  represents a final sink for a stream
+type StreamSink interface {
+	Sink
+	Open() error
+	Endpoint
 }
 
 type Processor interface {
