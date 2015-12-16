@@ -93,7 +93,10 @@ func TestStream_BuilderMethods(t *testing.T) {
 func TestStream_Linkops(t *testing.T) {
 	src := newStrSrc([]string{"Hello", "World"})
 	snk := newStrSink()
-	op := api.OpFunc(func(ctx context.Context, data interface{}) interface{} {
+	op1 := api.OpFunc(func(ctx context.Context, data interface{}) interface{} {
+		return nil
+	})
+	op2 := api.OpFunc(func(ctx context.Context, data interface{}) interface{} {
 		return nil
 	})
 
@@ -104,12 +107,17 @@ func TestStream_Linkops(t *testing.T) {
 		t.Fatal("Source not link to sink when no ops are present")
 	}
 
-	strm = New().From(src).Do(op).To(snk)
+	strm = New().From(src).Do(op1).Do(op2).To(snk)
 	strm.linkOps()
+	if len(strm.ops) != 2 {
+		t.Fatal("Not adding operations to stream")
+	}
+
 	if src.GetOutput() == snk.input {
 		t.Fatal("Graph invalid, source skipping ops, linked to sink!")
 	}
-	if strm.ops[0].GetOutput() != snk.input {
+
+	if strm.ops[1].GetOutput() != snk.input {
 		t.Fatal("Sink not linked to last element in graph")
 	}
 
