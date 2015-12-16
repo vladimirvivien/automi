@@ -1,9 +1,11 @@
 package api
 
 import (
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/vladimirvivien/automi/testutil"
 	"github.com/vladimirvivien/automi/api/tuple"
 
 	"golang.org/x/net/context"
@@ -95,4 +97,61 @@ func TestOperator_Exec(t *testing.T) {
 	case <-time.After(50 * time.Millisecond):
 		t.Fatal("Took too long...")
 	}
+}
+
+func BenchmarkOperator_Exec(b *testing.B) {
+	ctx := context.Background()
+	o := NewOperator(ctx)
+	N := b.N
+
+	chanSize := func() int {
+		if N == 1 {
+			return N
+		}
+		return int(float64(0.5) * float64(N))
+	}()
+
+	in := make(chan interface{}, chanSize)
+	o.SetInput(in)
+	go func() {
+		for i := 0; i < N; i++ {
+			in <- tuple.New(testutil.GenWord())
+		}
+		close(in)
+	}()
+
+	counter := 0
+	var m sync.RWMutex
+
+	op := OpFunc(func(ctx context.Context, data interface{}) interface{} {
+		m.Lock()
+		counter++
+		m.Unlock()
+		return data
+	})
+	o.SetOperation(op)
+
+	// process output
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for _ = range o.GetOutput() {
+		}
+	}()
+
+	if err := o.Exec(ctx); err != nil {
+		b.Fatal("Error during execution:", err)
+	}
+
+	select {
+	case <-done:
+	case <-time.After(time.Second * 60):
+		b.Fatal("Took too long")
+	}
+	m.RLock()
+	b.Logf("Input %d, counted %d", N, counter)
+	if counter != N {
+		b.Fatalf("Expected %d items processed,  got %d", N, counter)
+	}
+	m.RUnlock()
 }

@@ -119,15 +119,11 @@ func (o *Operator) doProc(ctx context.Context) {
 	}
 	exeCtx, cancel := context.WithCancel(ctx)
 
-	o.log.Info("About to start processing....")
 	for {
-		o.log.Info("Processing data ...")
 		select {
 		// process incoming item
 		case item, opened := <-o.input:
-			o.log.Info("About to process ", item)
 			if !opened {
-				o.log.Info("Channel closed, bailing")
 				return
 			}
 
@@ -153,5 +149,4 @@ func (o *Operator) doProc(ctx context.Context) {
 			return
 		}
 	}
-	o.log.Info("Nothing to do, exiting")
 }

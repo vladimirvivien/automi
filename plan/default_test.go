@@ -111,7 +111,6 @@ func (p *testEndpoint) Done() <-chan struct{} {
 	return p.done
 }
 
-
 func TestDefaultPlan_Flow(t *testing.T) {
 	p1 := &sup.NoopProc{Name: "P1"}
 	p2 := &sup.NoopProc{Name: "P2"}
@@ -137,7 +136,6 @@ func TestDefaultPlan_Flow(t *testing.T) {
 		t.Fatal("Unexpected node count of ", count)
 	}
 }
-
 
 func TestDefaultPlan_Exec(t *testing.T) {
 	in := make(chan interface{})
@@ -205,7 +203,7 @@ func BenchmarkDefaultPlan_Exec(b *testing.B) {
 
 	p1 := &sup.NoopProc{Name: "P1"}
 	p1.SetInput(in)
-	
+
 	// p2 := &proc.Item{
 	// 	Name: "P2",
 	// 	Concurrency: 4,
@@ -218,26 +216,25 @@ func BenchmarkDefaultPlan_Exec(b *testing.B) {
 	// }
 
 	p3 := &proc.Endpoint{
-			Name: "P3",
-			Function: func(ctx context.Context, item interface{}) error {
-				m.Lock()
-				counter++
-				m.Unlock()
-				return nil
-			},
-		}
+		Name: "P3",
+		Function: func(ctx context.Context, item interface{}) error {
+			m.Lock()
+			counter++
+			m.Unlock()
+			return nil
+		},
+	}
 
 	// setup plan
-	plan := New(&Conf{Ctx:ctx})
+	plan := New(&Conf{Ctx: ctx})
 	plan.Flow(From(p1).To(p3))
 	//plan.Flow(From(p2).To(p3))
 
-	
 	select {
 	case <-plan.Exec():
 	case <-time.After(60 * time.Second):
 		b.Fatal("Waited too long, something is broken")
-	}	
+	}
 
 	b.Logf("Input %d, processed %d", N, counter)
 	if counter != N {
@@ -245,7 +242,6 @@ func BenchmarkDefaultPlan_Exec(b *testing.B) {
 	}
 
 }
-
 
 func TestDefaultPlan_WithAuxEndpoint(t *testing.T) {
 	in := make(chan interface{})
