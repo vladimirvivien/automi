@@ -1,6 +1,12 @@
 package stream
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/vladimirvivien/automi/api"
+
+	"golang.org/x/net/context"
+)
 
 type strSrc struct {
 	src    []string
@@ -63,10 +69,15 @@ func TestStream_New(t *testing.T) {
 }
 
 func TestStream_BuilderMethods(t *testing.T) {
+	op := api.OpFunc(func(ctx context.Context, data interface{}) interface{} {
+		return nil
+	})
+
 	st := New()
 	st.
 		From(newStrSrc([]string{"Hello", "World", "!!"})).
-		To(newStrSink())
+		To(newStrSink()).
+		Do(op)
 
 	if st.source == nil {
 		t.Fatal("From() not setting source")
@@ -74,15 +85,32 @@ func TestStream_BuilderMethods(t *testing.T) {
 	if st.sink == nil {
 		t.Fatal("To() not setting sink")
 	}
+	if len(st.ops) != 1 {
+		t.Fatal("Operation not added to ops slice")
+	}
 }
 
 func TestStream_Linkops(t *testing.T) {
 	src := newStrSrc([]string{"Hello", "World"})
 	snk := newStrSink()
-	st := New().From(src).To(snk)
+	op := api.OpFunc(func(ctx context.Context, data interface{}) interface{} {
+		return nil
+	})
 
-	st.linkOps() // should link source to sink
+	strm := New().From(src).To(snk)
+
+	strm.linkOps() // should link source to sink
 	if src.GetOutput() != snk.input {
 		t.Fatal("Source not link to sink when no ops are present")
 	}
+
+	strm = New().From(src).Do(op).To(snk)
+	strm.linkOps()
+	if src.GetOutput() == snk.input {
+		t.Fatal("Graph invalid, source skipping ops, linked to sink!")
+	}
+	if strm.ops[0].GetOutput() != snk.input {
+		t.Fatal("Sink not linked to last element in graph")
+	}
+
 }

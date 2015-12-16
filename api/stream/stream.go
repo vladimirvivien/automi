@@ -1,17 +1,30 @@
 package stream
 
-import "github.com/vladimirvivien/automi/api"
+import (
+	"github.com/Sirupsen/logrus"
+	"github.com/vladimirvivien/automi/api"
+	"golang.org/x/net/context"
+)
 
 type Stream struct {
 	source api.StreamSource
 	sink   api.StreamSink
 	ops    []*api.Operator
+	ctx    context.Context
+	log    *logrus.Entry
 }
 
 func New() *Stream {
 	s := &Stream{
 		ops: make([]*api.Operator, 0),
+		log: logrus.WithField("Stream", "Default"),
+		ctx: context.Background(),
 	}
+	return s
+}
+
+func (s *Stream) WithContext(ctx context.Context) *Stream {
+	s.ctx = ctx
 	return s
 }
 
@@ -25,7 +38,15 @@ func (s *Stream) To(sink api.StreamSink) *Stream {
 	return s
 }
 
+func (s *Stream) Do(op api.Operation) *Stream {
+	operator := api.NewOperator(s.ctx)
+	operator.SetOperation(op)
+	s.ops = append(s.ops, operator)
+	return s
+}
+
 func (s *Stream) Open() <-chan struct{} {
+	s.linkOps() // link nodes
 	return nil
 }
 
