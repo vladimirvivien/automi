@@ -20,7 +20,7 @@ type Source interface {
 // StreamSource Represents a source of data stream
 type StreamSource interface {
 	Source
-	Open() error
+	Open(context.Context) error
 }
 
 type Sink interface {
@@ -30,8 +30,7 @@ type Sink interface {
 // SteamSink  represents a final sink for a stream
 type StreamSink interface {
 	Sink
-	Open() error
-	Endpoint
+	Open(context.Context) <-chan error
 }
 
 type Processor interface {

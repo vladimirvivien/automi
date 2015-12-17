@@ -45,20 +45,43 @@ func (s *Stream) Do(op api.Operation) *Stream {
 	return s
 }
 
-func (s *Stream) Open() <-chan struct{} {
+func (s *Stream) Open() <-chan error {
+	result := make(chan error)
 	s.linkOps() // link nodes
-	return nil
+
+	// open stream
+	go func() {
+		// open source, if err bail
+		if err := s.source.Open(s.ctx); err != nil {
+			result <- err
+			return
+		}
+		//apply operators, if err bail
+		for _, op := range s.ops {
+			if err := op.Exec(); err != nil {
+				result <- err
+				return
+			}
+		}
+		// open sink, pipe result out
+		err := <-s.sink.Open(s.ctx)
+		result <- err
+	}()
+
+	return result
 }
 
 func (s *Stream) linkOps() {
-
+	s.log.Infoln("Binding stream nodes")
 	// if there are no ops, link source to sink
 	if len(s.ops) == 0 {
+		s.log.Warnln("No operator nodes found, linking source and sink")
 		s.sink.SetInput(s.source.GetOutput())
 		return
 	}
 
 	// link ops
+	s.log.Debug("Binding operators")
 	for i, op := range s.ops {
 		if i == 0 { // link 1st to source
 			op.SetInput(s.source.GetOutput())

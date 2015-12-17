@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vladimirvivien/automi/testutil"
 	"github.com/vladimirvivien/automi/api/tuple"
+	"github.com/vladimirvivien/automi/testutil"
 
 	"golang.org/x/net/context"
 )
@@ -88,7 +88,7 @@ func TestOperator_Exec(t *testing.T) {
 		}
 	}()
 
-	if err := o.Exec(context.Background()); err != nil {
+	if err := o.Exec(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -139,7 +139,7 @@ func BenchmarkOperator_Exec(b *testing.B) {
 		}
 	}()
 
-	if err := o.Exec(ctx); err != nil {
+	if err := o.Exec(); err != nil {
 		b.Fatal("Error during execution:", err)
 	}
 

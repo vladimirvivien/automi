@@ -12,6 +12,7 @@ import (
 
 // Operator lauches an operation.
 type Operator struct {
+	ctx         context.Context
 	op          Operation
 	concurrency int
 	input       <-chan interface{}
@@ -30,7 +31,7 @@ func NewOperator(ctx context.Context) *Operator {
 	}
 
 	o := new(Operator)
-
+	o.ctx = ctx
 	o.log = log.WithFields(logrus.Fields{
 		"Component": "Operator",
 		"Type":      fmt.Sprintf("%T", o),
@@ -62,7 +63,7 @@ func (o *Operator) GetOutput() <-chan interface{} {
 	return o.output
 }
 
-func (o *Operator) Exec(ctx context.Context) (err error) {
+func (o *Operator) Exec() (err error) {
 	if o.input == nil {
 		err = fmt.Errorf("No input channel found")
 		return
@@ -88,7 +89,7 @@ func (o *Operator) Exec(ctx context.Context) (err error) {
 		for i := 0; i < o.concurrency; i++ { // workers
 			go func(wg *sync.WaitGroup) {
 				defer wg.Done()
-				o.doProc(ctx)
+				o.doProc(o.ctx)
 			}(&barrier)
 		}
 
@@ -104,7 +105,7 @@ func (o *Operator) Exec(ctx context.Context) (err error) {
 				o.log.Infof("Component [%s] cancelling...")
 				return
 			}
-		case <-ctx.Done():
+		case <-o.ctx.Done():
 			o.log.Info("Operator done.")
 			return
 		}

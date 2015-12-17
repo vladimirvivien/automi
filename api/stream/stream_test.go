@@ -2,7 +2,9 @@ package stream
 
 import (
 	"testing"
+	"time"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/vladimirvivien/automi/api"
 
 	"golang.org/x/net/context"
@@ -11,15 +13,21 @@ import (
 type strSrc struct {
 	src    []string
 	output chan interface{}
+	log    *logrus.Entry
 }
 
 func newStrSrc(s []string) *strSrc {
-	return &strSrc{src: s, output: make(chan interface{}, 1024)}
+	return &strSrc{
+		src:    s,
+		output: make(chan interface{}, 1024),
+		log:    logrus.WithField("Component", "StrSrc"),
+	}
 }
 func (s *strSrc) GetOutput() <-chan interface{} {
 	return s.output
 }
-func (s *strSrc) Open() error {
+func (s *strSrc) Open(ctx context.Context) error {
+	s.log.Infoln("Opening stream source")
 	go func() {
 		defer close(s.output)
 		for _, str := range s.src {
@@ -34,30 +42,31 @@ type strSink struct {
 	sink  []string
 	input <-chan interface{}
 	done  chan struct{}
+	log   *logrus.Entry
 }
 
 func newStrSink() *strSink {
 	return &strSink{
 		sink: make([]string, 0),
 		done: make(chan struct{}),
+		log:  logrus.WithField("Component", "StrSink"),
 	}
 }
 func (s *strSink) SetInput(in <-chan interface{}) {
 	s.input = in
 }
 
-func (s *strSink) Open() error {
+func (s *strSink) Open(ctx context.Context) <-chan error {
+	s.log.Infoln("Opening stream sink")
+	result := make(chan error)
 	go func() {
 		defer close(s.done)
 		for str := range s.input {
 			s.sink = append(s.sink, str.(string))
 		}
+		close(result)
 	}()
-	return nil
-}
-
-func (s *strSink) Done() <-chan struct{} {
-	return s.done
+	return result
 }
 
 // *** Tests *** //
@@ -121,4 +130,22 @@ func TestStream_Linkops(t *testing.T) {
 		t.Fatal("Sink not linked to last element in graph")
 	}
 
+}
+
+func TestStream_Open_NoOp(t *testing.T) {
+	src := newStrSrc([]string{"Hello", "World"})
+	snk := newStrSink()
+	st := New()
+	st.From(src).To(snk)
+	select {
+	case err := <-st.Open():
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(50 * time.Millisecond):
+		t.Fatal("Waited too long ...")
+	}
+	if len(snk.sink) != 2 {
+		t.Fatal("Data not streaming, expected 2 elements, got ", len(snk.sink))
+	}
 }
