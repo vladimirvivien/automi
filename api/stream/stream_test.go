@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -186,5 +187,24 @@ func TestStream_Open_WithOp(t *testing.T) {
 }
 
 func TestStream_Filter(t *testing.T) {
+	src := newStrSrc([]string{"HELLO", "WORLD", "HOW", "ARE", "YOU"})
+	snk := newStrSink()
+	strm := New().From(src).Filter(func(data interface{}) bool {
+		str := data.(string)
+		return !strings.Contains(str, "O")
+	})
+	strm.To(snk)
+
+	select {
+	case err := <-strm.Open():
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(50 * time.Millisecond):
+		t.Fatal("Waited too long ...")
+	}
+	if len(snk.sink) != 1 {
+		t.Fatal("Filter failed, expected 1 element, got ", len(snk.sink))
+	}
 
 }
