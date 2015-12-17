@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -148,4 +149,38 @@ func TestStream_Open_NoOp(t *testing.T) {
 	if len(snk.sink) != 2 {
 		t.Fatal("Data not streaming, expected 2 elements, got ", len(snk.sink))
 	}
+}
+
+func TestStream_Open_WithOp(t *testing.T) {
+	src := newStrSrc([]string{"HELLO", "WORLD", "HOW", "ARE", "YOU"})
+	snk := newStrSink()
+	op1 := api.OpFunc(func(ctx context.Context, data interface{}) interface{} {
+		str := data.(string)
+		return len(str)
+	})
+
+	var m sync.RWMutex
+	runeCount := 0
+	op2 := api.OpFunc(func(ctx context.Context, data interface{}) interface{} {
+		length := data.(int)
+		m.Lock()
+		runeCount += length
+		m.Unlock()
+		return nil
+	})
+
+	strm := New().From(src).Do(op1).Do(op2).To(snk)
+	select {
+	case err := <-strm.Open():
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(50 * time.Millisecond):
+		t.Fatal("Waited too long ...")
+	}
+	m.RLock()
+	if runeCount != 19 {
+		t.Fatal("Data not streaming, runeCount 19, got ", runeCount)
+	}
+	m.RUnlock()
 }
