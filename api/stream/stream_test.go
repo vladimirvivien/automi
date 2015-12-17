@@ -184,3 +184,7 @@ func TestStream_Open_WithOp(t *testing.T) {
 	}
 	m.RUnlock()
 }
+
+func TestStream_Filter(t *testing.T) {
+
+}

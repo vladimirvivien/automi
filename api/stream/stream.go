@@ -45,6 +45,22 @@ func (s *Stream) Do(op api.Operation) *Stream {
 	return s
 }
 
+type FilterFunc func(interface{}) bool
+
+func (s *Stream) Filter(f FilterFunc) *Stream {
+	op := api.OpFunc(func(ctx context.Context, data interface{}) interface{} {
+		predicate := f(data)
+		if !predicate {
+			return nil
+		}
+		return data
+	})
+	operator := api.NewOperator(s.ctx)
+	operator.SetOperation(op)
+	s.ops = append(s.ops, operator)
+	return s
+}
+
 func (s *Stream) Open() <-chan error {
 	result := make(chan error)
 	s.linkOps() // link nodes
