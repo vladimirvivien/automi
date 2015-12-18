@@ -5,6 +5,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/vladimirvivien/automi/api"
+	"github.com/vladimirvivien/automi/api/tuple"
 	"golang.org/x/net/context"
 )
 
@@ -58,10 +59,7 @@ func (s *Stream) Filter(f FilterFunc) *Stream {
 		}
 		return data
 	})
-	operator := api.NewOperator(s.ctx)
-	operator.SetOperation(op)
-	s.ops = append(s.ops, operator)
-	return s
+	return s.Do(op)
 }
 
 type MapFunc func(interface{}) interface{}
@@ -71,10 +69,18 @@ func (s *Stream) Map(f MapFunc) *Stream {
 		result := f(data)
 		return result
 	})
-	operator := api.NewOperator(s.ctx)
-	operator.SetOperation(op)
-	s.ops = append(s.ops, operator)
-	return s
+	return s.Do(op)
+}
+
+type FlatMapFunc func(interface{}) tuple.Tuple
+
+func (s *Stream) FlatMap(f FlatMapFunc) *Stream {
+	op := api.OpFunc(func(ctx context.Context, data interface{}) interface{} {
+		result := f(data)
+		return result
+	})
+	return s.Do(op)
+
 }
 
 func (s *Stream) Open() <-chan error {

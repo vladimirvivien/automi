@@ -8,6 +8,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/vladimirvivien/automi/api"
+	"github.com/vladimirvivien/automi/api/tuple"
 
 	"golang.org/x/net/context"
 )
@@ -244,6 +245,48 @@ func TestStream_Map(t *testing.T) {
 
 	m.RLock()
 	if count != 19 {
-		t.Fatal("Map failed, expected 5 elements, got ", count)
+		t.Fatal("Map failed, expected count 19, got ", count)
+	}
+	m.RUnlock()
+}
+
+func TestStream_FlatMap(t *testing.T) {
+	src := newStrSrc([]string{"HELLO", "WORLD", "HOW", "ARE", "YOU"})
+	snk := NewDrain()
+	strm := New().From(src).Map(func(data interface{}) interface{} {
+		str := data.(string)
+		return tuple.New(str, len(str))
+	}).To(snk)
+
+	var m sync.RWMutex
+	count := 0
+	wordsVal := "HELLOWORLDHOWAREYOU"
+	var words string
+	go func() {
+		for data := range snk.GetOutput() {
+			val := data.(tuple.Tuple)
+			str, length := val.AsString(0), val.AsInt(1)
+			m.Lock()
+			count += length
+			words += str
+			m.Unlock()
+		}
+	}()
+
+	select {
+	case err := <-strm.Open():
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(50 * time.Millisecond):
+		t.Fatal("Waited too long ...")
+	}
+
+	m.RLock()
+	if count != 19 && words != wordsVal {
+		t.Fatalf(
+			"FlatMap failed, expected count %d wrods string %s, got %d, %s",
+			19, wordsVal, count, words,
+		)
 	}
 }

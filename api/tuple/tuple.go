@@ -22,18 +22,34 @@ func (t Tuple) WithFields(fds ...string) Tuple {
 	return t
 }
 
+func (t Tuple) Get(i int) interface{} {
+	return t.values[i]
+}
+
+func (t Tuple) GetAt(pos ...int) []interface{} {
+	result := make([]interface{}, len(pos))
+	for _, i := range pos {
+		result = append(result, t.values[i])
+	}
+	return result
+}
+
+func (t Tuple) AsInt(i int) int {
+	return t.values[i].(int)
+}
+
+func (t Tuple) AsString(i int) string {
+	return t.values[i].(string)
+}
+
 func (t Tuple) Values() []interface{} {
-	return t.values
-}
-
-func (t Tuple) ValuesByKeys(keys ...string) []interface{} {
-	return nil
-}
-
-func (t Tuple) ValuesByPos(pos ...int) []interface{} {
-	return nil
+	result := make([]interface{}, len(t.values))
+	copy(result, t.values)
+	return result
 }
 
 func (t Tuple) Fields() []string {
-	return t.fields
+	result := make([]string, len(t.fields))
+	copy(result, t.fields)
+	return result
 }
