@@ -31,6 +31,7 @@ func (s *Drain) Open(ctx context.Context) <-chan error {
 	result := make(chan error)
 	go func() {
 		defer func() {
+			s.log.Infoln("Closing component")
 			close(s.output)
 			close(result)
 		}()

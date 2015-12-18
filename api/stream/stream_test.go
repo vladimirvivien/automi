@@ -221,6 +221,18 @@ func TestStream_Map(t *testing.T) {
 		str := data.(string)
 		return len(str)
 	}).To(snk)
+
+	var m sync.RWMutex
+	count := 0
+	go func() {
+		for data := range snk.GetOutput() {
+			val := data.(int)
+			m.Lock()
+			count += val
+			m.Unlock()
+		}
+	}()
+
 	select {
 	case err := <-strm.Open():
 		if err != nil {
@@ -230,4 +242,8 @@ func TestStream_Map(t *testing.T) {
 		t.Fatal("Waited too long ...")
 	}
 
+	m.RLock()
+	if count != 19 {
+		t.Fatal("Map failed, expected 5 elements, got ", count)
+	}
 }
