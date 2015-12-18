@@ -1,0 +1,46 @@
+package stream
+
+import (
+	"sync"
+	"testing"
+	"time"
+
+	"golang.org/x/net/context"
+)
+
+func TestDrain_Open(t *testing.T) {
+	in := make(chan interface{})
+	go func() {
+		in <- []string{"A", "B", "C"}
+		in <- []string{"D", "E"}
+		in <- []string{"G"}
+		close(in)
+	}()
+	d := NewDrain()
+	d.SetInput(in)
+
+	var m sync.RWMutex
+	count := 0
+	go func() {
+		for _ = range d.GetOutput() {
+			m.Lock()
+			count++
+			m.Unlock()
+		}
+	}()
+
+	select {
+	case err := <-d.Open(context.Background()):
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(50 * time.Millisecond):
+		t.Fatal("Drain took too long to open")
+	}
+
+	m.RLock()
+	if count != 3 {
+		t.Fatal("Expected 3 elements, got ", count)
+	}
+	m.RUnlock()
+}

@@ -101,7 +101,7 @@ func TestStream_BuilderMethods(t *testing.T) {
 	}
 }
 
-func TestStream_Linkops(t *testing.T) {
+func TestStream_InitGraph(t *testing.T) {
 	src := newStrSrc([]string{"Hello", "World"})
 	snk := newStrSink()
 	op1 := api.OpFunc(func(ctx context.Context, data interface{}) interface{} {
@@ -113,13 +113,19 @@ func TestStream_Linkops(t *testing.T) {
 
 	strm := New().From(src).To(snk)
 
-	strm.linkOps() // should link source to sink
+	if err := strm.initGraph(); err != nil {
+		t.Fatal(err)
+	}
+
 	if src.GetOutput() != snk.input {
 		t.Fatal("Source not link to sink when no ops are present")
 	}
 
 	strm = New().From(src).Do(op1).Do(op2).To(snk)
-	strm.linkOps()
+	if err := strm.initGraph(); err != nil {
+		t.Fatal(err)
+	}
+
 	if len(strm.ops) != 2 {
 		t.Fatal("Not adding operations to stream")
 	}
@@ -205,6 +211,23 @@ func TestStream_Filter(t *testing.T) {
 	}
 	if len(snk.sink) != 1 {
 		t.Fatal("Filter failed, expected 1 element, got ", len(snk.sink))
+	}
+}
+
+func TestStream_Map(t *testing.T) {
+	src := newStrSrc([]string{"HELLO", "WORLD", "HOW", "ARE", "YOU"})
+	snk := NewDrain()
+	strm := New().From(src).Map(func(data interface{}) interface{} {
+		str := data.(string)
+		return len(str)
+	}).To(snk)
+	select {
+	case err := <-strm.Open():
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(50 * time.Millisecond):
+		t.Fatal("Waited too long ...")
 	}
 
 }

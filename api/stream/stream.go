@@ -1,6 +1,8 @@
 package stream
 
 import (
+	"fmt"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/vladimirvivien/automi/api"
 	"golang.org/x/net/context"
@@ -9,6 +11,7 @@ import (
 type Stream struct {
 	source api.StreamSource
 	sink   api.StreamSink
+	drain  <-chan interface{}
 	ops    []*api.Operator
 	ctx    context.Context
 	log    *logrus.Entry
@@ -61,9 +64,27 @@ func (s *Stream) Filter(f FilterFunc) *Stream {
 	return s
 }
 
+type MapFunc func(interface{}) interface{}
+
+func (s *Stream) Map(f MapFunc) *Stream {
+	op := api.OpFunc(func(ctx context.Context, data interface{}) interface{} {
+		result := f(data)
+		return result
+	})
+	operator := api.NewOperator(s.ctx)
+	operator.SetOperation(op)
+	s.ops = append(s.ops, operator)
+	return s
+}
+
 func (s *Stream) Open() <-chan error {
 	result := make(chan error)
-	s.linkOps() // link nodes
+	if err := s.initGraph(); err != nil {
+		go func() {
+			result <- err
+		}()
+		return result
+	}
 
 	// open stream
 	go func() {
@@ -87,17 +108,12 @@ func (s *Stream) Open() <-chan error {
 	return result
 }
 
-func (s *Stream) linkOps() {
-	s.log.Infoln("Binding stream nodes")
-	// if there are no ops, link source to sink
-	if len(s.ops) == 0 {
-		s.log.Warnln("No operator nodes found, linking source and sink")
-		s.sink.SetInput(s.source.GetOutput())
+// bindOps binds operator channels
+func (s *Stream) bindOps() {
+	s.log.Debug("Binding operators")
+	if s.ops == nil {
 		return
 	}
-
-	// link ops
-	s.log.Debug("Binding operators")
 	for i, op := range s.ops {
 		if i == 0 { // link 1st to source
 			op.SetInput(s.source.GetOutput())
@@ -105,7 +121,29 @@ func (s *Stream) linkOps() {
 			op.SetInput(s.ops[i-1].GetOutput())
 		}
 	}
+}
+
+// initGraph initialize stream graph source + ops +
+func (s *Stream) initGraph() error {
+	s.log.Infoln("Preparing stream operator graph")
+	if s.source == nil {
+		return fmt.Errorf("Operator graph failed, missing source")
+	}
+
+	// if there are no ops, link source to sink
+	if len(s.ops) == 0 && s.sink != nil {
+		s.log.Warnln("No operator nodes found, binding source to sink directly")
+		s.sink.SetInput(s.source.GetOutput())
+		return nil
+	}
+
+	// link ops
+	s.bindOps()
 
 	// link last op to sink
-	s.sink.SetInput(s.ops[len(s.ops)-1].GetOutput())
+	if s.sink != nil {
+		s.sink.SetInput(s.ops[len(s.ops)-1].GetOutput())
+	}
+
+	return nil
 }
