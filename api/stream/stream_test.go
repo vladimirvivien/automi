@@ -225,7 +225,9 @@ func TestStream_Map(t *testing.T) {
 
 	var m sync.RWMutex
 	count := 0
+	wait := make(chan struct{})
 	go func() {
+		defer close(wait)
 		for data := range snk.GetOutput() {
 			val := data.(int)
 			m.Lock()
@@ -239,8 +241,14 @@ func TestStream_Map(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		select {
+		case <-wait:
+		case <-time.After(50 * time.Millisecond):
+			t.Fatal("Waited too long for sink output to process")
+		}
+
 	case <-time.After(50 * time.Millisecond):
-		t.Fatal("Waited too long ...")
+		t.Fatal("Waited too long for stream to Open...")
 	}
 
 	m.RLock()
@@ -253,7 +261,7 @@ func TestStream_Map(t *testing.T) {
 func TestStream_FlatMap(t *testing.T) {
 	src := newStrSrc([]string{"HELLO", "WORLD", "HOW", "ARE", "YOU"})
 	snk := NewDrain()
-	strm := New().From(src).Map(func(data interface{}) interface{} {
+	strm := New().From(src).FlatMap(func(data interface{}) tuple.Tuple {
 		str := data.(string)
 		return tuple.New(str, len(str))
 	}).To(snk)
@@ -262,7 +270,10 @@ func TestStream_FlatMap(t *testing.T) {
 	count := 0
 	wordsVal := "HELLOWORLDHOWAREYOU"
 	var words string
+
+	wait := make(chan struct{})
 	go func() {
+		defer close(wait)
 		for data := range snk.GetOutput() {
 			val := data.(tuple.Tuple)
 			str, length := val.AsString(0), val.AsInt(1)
@@ -277,6 +288,11 @@ func TestStream_FlatMap(t *testing.T) {
 	case err := <-strm.Open():
 		if err != nil {
 			t.Fatal(err)
+		}
+		select {
+		case <-wait:
+		case <-time.After(50 * time.Millisecond):
+			t.Fatal("Took too long to process sink output")
 		}
 	case <-time.After(50 * time.Millisecond):
 		t.Fatal("Waited too long ...")

@@ -12,7 +12,7 @@ import (
 
 type Accumulator struct {
 	ctx         context.Context
-	op          Operation
+	op          UnaryOp
 	concurrency int
 	input       <-chan interface{}
 	output      chan interface{}

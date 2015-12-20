@@ -42,7 +42,7 @@ func (s *Stream) To(sink api.StreamSink) *Stream {
 	return s
 }
 
-func (s *Stream) Do(op api.Operation) *Stream {
+func (s *Stream) Do(op api.UnaryOp) *Stream {
 	operator := api.NewOperator(s.ctx)
 	operator.SetOperation(op)
 	s.ops = append(s.ops, operator)

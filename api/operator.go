@@ -13,7 +13,7 @@ import (
 // Operator lauches an operation.
 type Operator struct {
 	ctx         context.Context
-	op          Operation
+	op          UnaryOp
 	concurrency int
 	input       <-chan interface{}
 	output      chan interface{}
@@ -44,7 +44,7 @@ func NewOperator(ctx context.Context) *Operator {
 	return o
 }
 
-func (o *Operator) SetOperation(op Operation) {
+func (o *Operator) SetOperation(op UnaryOp) {
 	o.op = op
 }
 
