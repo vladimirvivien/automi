@@ -42,7 +42,7 @@ strm.Do(func(ctx context.Context, item interface{}) interface{} {
 })
 
 // Terminal step, sinks data into a csv flat file
-strm.To(db.CsvSink("./local/resp-forms.txt"))
+strm.To(file.CsvSink("./local/resp-forms.txt"))
 
 // open stream and wait for execution
 err := <-strm.Open()
