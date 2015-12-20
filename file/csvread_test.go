@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/net/context"
-
 	"github.com/vladimirvivien/automi/sup"
+	"github.com/vladimirvivien/automi/testutil"
+
+	"golang.org/x/net/context"
 )
 
 func TestCsvReadInit(t *testing.T) {
@@ -239,9 +240,9 @@ func BenchmarkCsvRead(b *testing.B) {
 	b.Logf("N = %d", N)
 	data := bytes.NewBufferString("col1|col2|col3\n")
 	for i := 0; i < N; i++ {
-		data.WriteString(sup.GenWord() + "|")
-		data.WriteString(sup.GenWord() + "|")
-		data.WriteString(sup.GenWord() + "\n")
+		data.WriteString(testutil.GenWord() + "|")
+		data.WriteString(testutil.GenWord() + "|")
+		data.WriteString(testutil.GenWord() + "\n")
 	}
 
 	var mutex sync.RWMutex
@@ -296,9 +297,9 @@ func BenchmarkCsvRead_Cancelled(b *testing.B) {
 	N := b.N
 	data := bytes.NewBufferString("col1|col2|col3\n")
 	for i := 0; i < N; i++ {
-		data.WriteString(sup.GenWord() + "|")
-		data.WriteString(sup.GenWord() + "|")
-		data.WriteString(sup.GenWord() + "\n")
+		data.WriteString(testutil.GenWord() + "|")
+		data.WriteString(testutil.GenWord() + "|")
+		data.WriteString(testutil.GenWord() + "\n")
 	}
 
 	var mutex sync.RWMutex

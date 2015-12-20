@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vladimirvivien/automi/sup"
+	"github.com/vladimirvivien/automi/testutil"
 
 	"golang.org/x/net/context"
 )
@@ -73,7 +73,7 @@ func TestItemExec(t *testing.T) {
 		for item := range i.GetOutput() {
 			r, ok := item.(rune)
 			if !ok {
-				t.Fatalf("Error, expecting rune type, got %T", item)
+				t.Fatalf("Error, expecting rune type, got %T, %v", item, item)
 			}
 			if r != 65 && r != 66 && r != 67 {
 				t.Fatal("Unexpected data from process output", r)
@@ -101,7 +101,7 @@ func TestItemExec_Cancel(t *testing.T) {
 		defer close(in)
 		rand.Seed(time.Now().Unix())
 		for i := 0; i < dataCount; i++ {
-			in <- sup.GenWord()
+			in <- testutil.GenWord()
 			if rand.Intn(dataCount) > 70 {
 				cancel()
 				return
@@ -169,7 +169,7 @@ func BenchmarkItem(b *testing.B) {
 	in := make(chan interface{}, chanSize)
 	go func() {
 		for i := 0; i < N; i++ {
-			in <- sup.GenWord()
+			in <- testutil.GenWord()
 		}
 		close(in)
 	}()

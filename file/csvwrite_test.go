@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vladimirvivien/automi/sup"
+	"github.com/vladimirvivien/automi/testutil"
 
 	"golang.org/x/net/context"
 )
@@ -246,7 +246,7 @@ func BenchmarkCsvWrite(b *testing.B) {
 	go func() {
 		in <- []string{"col1", "col2", "col3"}
 		for i := 0; i < N; i++ {
-			in <- []string{sup.GenWord(), sup.GenWord(), sup.GenWord()}
+			in <- []string{testutil.GenWord(), testutil.GenWord(), testutil.GenWord()}
 		}
 		close(in)
 	}()
@@ -339,7 +339,7 @@ func BenchmarkCsvWrite_Cancelled(b *testing.B) {
 	go func() {
 		in <- []string{"col1", "col2", "col3"}
 		for i := 0; i < N; i++ {
-			in <- []string{sup.GenWord(), sup.GenWord(), sup.GenWord()}
+			in <- []string{testutil.GenWord(), testutil.GenWord(), testutil.GenWord()}
 		}
 		close(in)
 	}()

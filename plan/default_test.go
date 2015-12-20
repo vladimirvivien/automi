@@ -10,6 +10,7 @@ import (
 	autoctx "github.com/vladimirvivien/automi/context"
 	"github.com/vladimirvivien/automi/proc"
 	"github.com/vladimirvivien/automi/sup"
+	"github.com/vladimirvivien/automi/testutil"
 )
 
 type testProc struct {
@@ -192,7 +193,7 @@ func BenchmarkDefaultPlan_Exec(b *testing.B) {
 	in := make(chan interface{}, chanSize)
 	go func() {
 		for i := 0; i < N; i++ {
-			in <- sup.GenWord()
+			in <- testutil.GenWord()
 		}
 		close(in)
 	}()

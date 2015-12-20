@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vladimirvivien/automi/sup"
+	"github.com/vladimirvivien/automi/testutil"
 
 	"golang.org/x/net/context"
 )
@@ -149,7 +149,7 @@ func BenchmarkEndpoint(b *testing.B) {
 	in := make(chan interface{}, chanSize)
 	go func() {
 		for i := 0; i < N; i++ {
-			in <- sup.GenWord()
+			in <- testutil.GenWord()
 		}
 		close(in)
 	}()
