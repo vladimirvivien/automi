@@ -1,111 +1,96 @@
 Automi
 ======
-Compose data streams into pipelined processes on top of Go channels!
+Composable Stream Processing on top of Go Channels!
 
 [![GoDoc](https://godoc.org/github.com/vladimirvivien/automi?status.svg)](https://godoc.org/github.com/vladimirvivien/automi)
 [![Build Status](https://travis-ci.org/vladimirvivien/automi.svg)](https://travis-ci.org/vladimirvivien/automi)
 
-Automi abstracts away (not too far away) the gnarly details of using Go channels to create pipelined and staged processes.  It exposes higher-level modules to compose and integrate sstream of data over Go channels.  This is alpha work. The API is still taking shape (though more stable lately).  Nevertheless, the following example shows how create powerful assemblies of components to stream and process data from many sources (see component lists).
+Automi abstracts away (not too far away) the gnarly details of using Go channels to create pipelined and staged processes.  It exposes higher-level API to compose and integrate stream of data over Go channels for processing.  This is `still alpha work`. The API is still evolving and changing rapidly with each commit (beware).  Nevertheless, the core concepts are have been bolted onto the API.  The following example shows how Automi could be used to compose a multi-stage pipeline to process stream of data from a csv file.
 
-###Example
-The following illustrates how Automi can be used to stream data from a csv file to a remote service with some data type transformation in between.
+#### Example
+Automi, at the moment, is being developed as a pure API to create stream processors in Go.  The following code snippet shows how the Automi API could be used to stream and process the content of a file using multiple stages.
 
 ```Go
-reader := &file.CsvRead{
-    Name:"LogReader",
-    FilePath : "./loca/file.txt",
-    SeparaterChar:',',
-    HasHeaderRow:true,
-    Function:func(ctx context.Context, item interface{}) interface{}{
-		row, _ := item.([]string)
-        return LogData{ID:row[0], Path:row[1], Asset:row[2]}
-	},
+svc := someDataService.Create(context.Background())  // illustration, stand-in for some service
+
+strm := stream.New()
+
+// set stream source as csv file, emits []string
+strm.From(file.CsvSource("./local/in-forms.csv"))
+
+// Only allows record where col 0 starts with "CLEAR_"
+strm.Filter(func(item interface{}) bool{
+    row := item.([]string)
+    return strings.HasPrefix(row[0], "CLEAR_")
+})
+
+// maps stream item from []string to struct Form
+strm.Map(func(item interface{}) interface{} {
+    row := item.([]string)
+    return Form{Status:row[0], Id:row[1], Data:row[5]}
+})
+
+// Func to invoke some service call on data item
+// Emits a []string for downstream
+strm.Do(func(ctx context.Context, item interface{}) interface{} {
+    form := item.(Form)
+    resp, err := svc.Validate(form)
+    if err != nil {
+        return nil 
+    }
+    return []string{resp.Id, resp.Code, resp.Content}
+})
+
+// Terminal step, sinks data into a csv flat file
+strm.To(db.CsvSink("./local/resp-forms.txt"))
+
+// open stream and wait for execution
+err := <-strm.Open()
+if err != nil {
+    fmt.Println("Processing failed!")
 }
-
-procItem := &proc.Item {
-    Name:"procItem",
-	Concurrency: 4,
-    Function: func(ctx context.Context, item interface{}) interface{}{
-	    data, _ := item.(LogData)
-		if data.ID == "" {
-		    return fmt.Errorf("Missing ID in log")
-		}
-        if err := somePersistance.Save(data); err != nil{
-			return err
-		}
-		return data
-	},
-}
-
-remote,_ := someRemoteSvc.New("http://svc.internal:8544")
-
-sendRemote := &proc.Endpoint{
-    Name: "sendRemote",
-    Function: func(ctx context.Context, item interface{}) error {
-		data, _ := item.(LogData)
-		err := remote.Submit(data)
-		if err != nil {
-			return err
-		}
-		return nil
-	},
-}
-
-// build process graph
-p := plan.Plan(Config{})
-p.Flow(plan.From(reader).To(procItem))
-p.Flow(plan.From(procItem).To(sendRemote))
-
-// lauch/wait for plan completion
-<-p.Exec()
 ```
-This simple example replaces hundreds of lines of code.  What you don't see is the intricate details required to pipeline streams of data into multiple synchronized stages.  What you do get, however, is an easy API to create complex cohegraphies to process data from any source.
+The previous code sample creates a new stream to process data ingested from a csv file using several steps (see code comment).  In the code, each method call on the stream (`From()`, `Filter()`, `Map()`, `Do()`, and `To()`) represents a stage in the pipeline as illustrated in the following.  
 
-#Features
-The API is still taking shape into something that is enjoyable and easy to use.  The following components are available:
+	From(source) -> Filter(item) -> Map(item) -> Do(item) -> To(sink)
 
- - **CsvRead**: Source component that emits records from a csv file
- - **CsvWrite**: Sink component that writes channel items to a csv file
- - **HttpReq**: Allows Http requests/responses for each item sent to its input channel
- - **Item**: A component for item processing items and push result downstream
- - **Endpoint**: A generic sink component useful to mark the end of a flow
- - **ItemCollector**: Merges collected channel items from other components
- - **DBUpdate**: A sink component that saves channel items to a database
+The `From()` method, for instance, starts the stream by ingesting the content of a csv file and emits a `[]string` for each row.  `Filter()` does what you would expect, it filters out csv rows from the stream based on record content.  `Map()` takes the `[]string` from the previous stage and emits struct `Form{}` for downstream consumption.  The `Do()` function provides a place for arbitrary logic to be applied to the stream.  It makes a call to a service (here for illustrative purpose), then returns [] for the next processing element.  Lastly, the stream is terminated with csv sink (with the `To()` function) that writes the result to a file.
 
-###Other Features
- - Ability to build complex process graph
- - Uses Go channels for synchronization
- - Available auxiliary channel for non-data events
- - Logging support with Logrus
- - More features to come
+The code implements stream processing based on the pipeline patterns.  What is clearly absent, however, is the low level channel communication code to coordinate and synchronize goroutines.  The programmer is provided a clean surface to express business code without the noisy infrastructure code.  Underneath the cover however, Automi is using patterns similar to the pipeline patterns discussed earlier to create safe and concurrent structures to execute the processing of the data stream.
 
-###Coming Later (Eventually)
+# What it wants to be when it grows up
+The API is still taking shape into something that, hopefully will be enjoyable and practical code to create stream processors.  The project is a moving target right now, but hopefully some of the following features will find their way into the code base.
 
-**Timout and Cancellation**
- - Support for cancellation of executing flow
- - Ability to specify per-process timeouts
+#### Functions
+ - **Transformation** Filter, Maps, Join
+ - **Accumulation** Reduce, Aggregation, Grouping, etc
+ - **Action** Count, min/max,  
+ - **Etc** 
+
+#### Core Sources/Sinks
+ - **SocketSource** Network socket stream source
+ - **SocketSink** Network socket stream sink
+ - **CsvSource**: Source for CSV files
+ - **CsvSink**: Sink component 
+ - **HttpSource**: Sources stream data from http
+ - **HttpSink**: Sink for posting data via http
+ - **DbSource**: Database source for streaming data items
+ - **DbSink**: A sink component for streaming data
  
-**Metrics**
- - Comprehensive metrics capture/report
-   
-**System Integration**
- - File system source/sink
- - Ftp source/sink
-
-**More Data Itegration**
- - Kafka Consumer
- - Kafka Producer
- - Etcd component
+#### More Source/Sink Ideas
+ - Kafka Source
+ - Kafka Sink
  - Hdfs source/sink
  - Cassandra
- - Gluster
+ - Sources/sinks for messaging systems
+ - Sources/sinks for logging systems
+ - Whatever source/sink users find useful
  - Etc
 
-**Routing/Topology**
- - Data Filters
- - Broadcasters
- - Balancers
- - Etc
+#### Other ideas/features being considered
+ - **Functions/support for continuous streams**
+ - **Parallelism and Concurrency support**
+ - **Timout and Cancellation Policies**
+ - **Metrics**
+ - **Streaming service** 
 
-# Motivation
-This work was highly-motivated by Sameer Ajmani's blog entry on Pipelining data over Go channels https://blog.golang.org/pipelines.
