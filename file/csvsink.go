@@ -24,8 +24,9 @@ type CsvSnk struct {
 	log       *logrus.Entry
 }
 
-func CsvSink(w io.Writer) *CsvSnk {
+func CsvSink(writer io.Writer) *CsvSnk {
 	csv := &CsvSnk{
+		snkWriter: writer,
 		delimChar: ',',
 	}
 	return csv
@@ -115,11 +116,13 @@ func (c *CsvSnk) Open(ctx context.Context) <-chan error {
 			}
 
 			// close file
-			if e := c.file.Close(); e != nil {
-				go func() {
-					result <- fmt.Errorf("Unable to close file %s: %s", c.file.Name(), e)
-				}()
-				return
+			if c.file != nil {
+				if e := c.file.Close(); e != nil {
+					go func() {
+						result <- fmt.Errorf("Unable to close file %s: %s", c.file.Name(), e)
+					}()
+					return
+				}
 			}
 			close(result)
 			c.log.Info("Execution completed")
