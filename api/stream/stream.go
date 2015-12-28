@@ -13,14 +13,14 @@ type Stream struct {
 	source api.StreamSource
 	sink   api.StreamSink
 	drain  <-chan interface{}
-	ops    []*api.Operator
+	ops    []*api.UnaryOp
 	ctx    context.Context
 	log    *logrus.Entry
 }
 
 func New() *Stream {
 	s := &Stream{
-		ops: make([]*api.Operator, 0),
+		ops: make([]*api.UnaryOp, 0),
 		log: logrus.WithField("Stream", "Default"),
 		ctx: context.Background(),
 	}
@@ -42,8 +42,8 @@ func (s *Stream) To(sink api.StreamSink) *Stream {
 	return s
 }
 
-func (s *Stream) Do(op api.UnaryOp) *Stream {
-	operator := api.NewOperator(s.ctx)
+func (s *Stream) Do(op api.UnOperation) *Stream {
+	operator := api.NewUnaryOp(s.ctx)
 	operator.SetOperation(op)
 	s.ops = append(s.ops, operator)
 	return s
@@ -52,7 +52,7 @@ func (s *Stream) Do(op api.UnaryOp) *Stream {
 type FilterFunc func(interface{}) bool
 
 func (s *Stream) Filter(f FilterFunc) *Stream {
-	op := api.OpFunc(func(ctx context.Context, data interface{}) interface{} {
+	op := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
 		predicate := f(data)
 		if !predicate {
 			return nil
@@ -65,7 +65,7 @@ func (s *Stream) Filter(f FilterFunc) *Stream {
 type MapFunc func(interface{}) interface{}
 
 func (s *Stream) Map(f MapFunc) *Stream {
-	op := api.OpFunc(func(ctx context.Context, data interface{}) interface{} {
+	op := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
 		result := f(data)
 		return result
 	})
@@ -75,7 +75,7 @@ func (s *Stream) Map(f MapFunc) *Stream {
 type FlatMapFunc func(interface{}) tuple.Tuple
 
 func (s *Stream) FlatMap(f FlatMapFunc) *Stream {
-	op := api.OpFunc(func(ctx context.Context, data interface{}) interface{} {
+	op := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
 		result := f(data)
 		return result
 	})

@@ -81,7 +81,7 @@ func TestStream_New(t *testing.T) {
 }
 
 func TestStream_BuilderMethods(t *testing.T) {
-	op := api.OpFunc(func(ctx context.Context, data interface{}) interface{} {
+	op := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
 		return nil
 	})
 
@@ -105,10 +105,10 @@ func TestStream_BuilderMethods(t *testing.T) {
 func TestStream_InitGraph(t *testing.T) {
 	src := newStrSrc([]string{"Hello", "World"})
 	snk := newStrSink()
-	op1 := api.OpFunc(func(ctx context.Context, data interface{}) interface{} {
+	op1 := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
 		return nil
 	})
-	op2 := api.OpFunc(func(ctx context.Context, data interface{}) interface{} {
+	op2 := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
 		return nil
 	})
 
@@ -162,14 +162,14 @@ func TestStream_Open_NoOp(t *testing.T) {
 func TestStream_Open_WithOp(t *testing.T) {
 	src := newStrSrc([]string{"HELLO", "WORLD", "HOW", "ARE", "YOU"})
 	snk := newStrSink()
-	op1 := api.OpFunc(func(ctx context.Context, data interface{}) interface{} {
+	op1 := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
 		str := data.(string)
 		return len(str)
 	})
 
 	var m sync.RWMutex
 	runeCount := 0
-	op2 := api.OpFunc(func(ctx context.Context, data interface{}) interface{} {
+	op2 := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
 		length := data.(int)
 		m.Lock()
 		runeCount += length

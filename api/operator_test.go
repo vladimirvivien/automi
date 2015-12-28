@@ -11,8 +11,8 @@ import (
 	"golang.org/x/net/context"
 )
 
-func TestOperator_New(t *testing.T) {
-	o := NewOperator(context.Background())
+func TestUnaryOp_New(t *testing.T) {
+	o := NewUnaryOp(context.Background())
 
 	if o.output == nil {
 		t.Fatal("Missing output")
@@ -26,9 +26,9 @@ func TestOperator_New(t *testing.T) {
 		t.Fatal("Concurrency should be initialized to 1.")
 	}
 }
-func TestOperator_Params(t *testing.T) {
-	o := NewOperator(context.Background())
-	op := OpFunc(func(ctx context.Context, data interface{}) interface{} {
+func TestUnaryOp_Params(t *testing.T) {
+	o := NewUnaryOp(context.Background())
+	op := UnFunc(func(ctx context.Context, data interface{}) interface{} {
 		return nil
 	})
 	in := make(chan interface{})
@@ -53,11 +53,11 @@ func TestOperator_Params(t *testing.T) {
 	}
 }
 
-func TestOperator_Exec(t *testing.T) {
+func TestUnaryOp_Exec(t *testing.T) {
 	ctx, _ := context.WithCancel(context.Background())
-	o := NewOperator(ctx)
+	o := NewUnaryOp(ctx)
 
-	op := OpFunc(func(ctx context.Context, data interface{}) interface{} {
+	op := UnFunc(func(ctx context.Context, data interface{}) interface{} {
 		values := data.(tuple.Tuple).Values()
 		t.Logf("Processing data %v, sending %d", values, len(values))
 		return len(values)
@@ -99,9 +99,9 @@ func TestOperator_Exec(t *testing.T) {
 	}
 }
 
-func BenchmarkOperator_Exec(b *testing.B) {
+func BenchmarkUnaryOp_Exec(b *testing.B) {
 	ctx := context.Background()
-	o := NewOperator(ctx)
+	o := NewUnaryOp(ctx)
 	N := b.N
 
 	chanSize := func() int {
@@ -123,7 +123,7 @@ func BenchmarkOperator_Exec(b *testing.B) {
 	counter := 0
 	var m sync.RWMutex
 
-	op := OpFunc(func(ctx context.Context, data interface{}) interface{} {
+	op := UnFunc(func(ctx context.Context, data interface{}) interface{} {
 		m.Lock()
 		counter++
 		m.Unlock()

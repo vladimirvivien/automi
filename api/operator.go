@@ -10,10 +10,10 @@ import (
 	autoctx "github.com/vladimirvivien/automi/context"
 )
 
-// Operator lauches an operation.
-type Operator struct {
+// UnaryOp represents a unary operation (i.e. transformation, etc)
+type UnaryOp struct {
 	ctx         context.Context
-	op          UnaryOp
+	op          UnOperation
 	concurrency int
 	input       <-chan interface{}
 	output      chan interface{}
@@ -22,48 +22,48 @@ type Operator struct {
 	mutex       sync.RWMutex
 }
 
-func NewOperator(ctx context.Context) *Operator {
+func NewUnaryOp(ctx context.Context) *UnaryOp {
 	// extract logger
 	log, ok := autoctx.GetLogEntry(ctx)
 	if !ok {
-		log = logrus.WithField("Component", "Operator")
+		log = logrus.WithField("Component", "UnaryOp")
 		log.Error("Logger not found in context")
 	}
 
-	o := new(Operator)
+	o := new(UnaryOp)
 	o.ctx = ctx
 	o.log = log.WithFields(logrus.Fields{
-		"Component": "Operator",
+		"Component": "UnaryOp",
 		"Type":      fmt.Sprintf("%T", o),
 	})
 
 	o.concurrency = 1
 	o.output = make(chan interface{}, 1024)
 
-	o.log.Infof("Component [%s] initialized", "Operator")
+	o.log.Infof("Component [%s] initialized", "UnaryOp")
 	return o
 }
 
-func (o *Operator) SetOperation(op UnaryOp) {
+func (o *UnaryOp) SetOperation(op UnOperation) {
 	o.op = op
 }
 
-func (o *Operator) SetConcurrency(concurr int) {
+func (o *UnaryOp) SetConcurrency(concurr int) {
 	o.concurrency = concurr
 	if o.concurrency < 1 {
 		o.concurrency = 1
 	}
 }
 
-func (o *Operator) SetInput(in <-chan interface{}) {
+func (o *UnaryOp) SetInput(in <-chan interface{}) {
 	o.input = in
 }
 
-func (o *Operator) GetOutput() <-chan interface{} {
+func (o *UnaryOp) GetOutput() <-chan interface{} {
 	return o.output
 }
 
-func (o *Operator) Exec() (err error) {
+func (o *UnaryOp) Exec() (err error) {
 	if o.input == nil {
 		err = fmt.Errorf("No input channel found")
 		return
@@ -74,7 +74,7 @@ func (o *Operator) Exec() (err error) {
 		o.concurrency = 1
 	}
 
-	o.log.Info("Execution started for component Operator")
+	o.log.Info("Execution started for component UnaryOp")
 
 	go func() {
 		defer func() {
@@ -106,16 +106,16 @@ func (o *Operator) Exec() (err error) {
 				return
 			}
 		case <-o.ctx.Done():
-			o.log.Info("Operator done.")
+			o.log.Info("UnaryOp done.")
 			return
 		}
 	}()
 	return nil
 }
 
-func (o *Operator) doProc(ctx context.Context) {
+func (o *UnaryOp) doProc(ctx context.Context) {
 	if o.op == nil {
-		o.log.Error("No operation defined for Operator")
+		o.log.Error("No operation defined for UnaryOp")
 		return
 	}
 	exeCtx, cancel := context.WithCancel(ctx)
