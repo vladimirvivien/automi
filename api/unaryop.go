@@ -26,21 +26,21 @@ func NewUnaryOp(ctx context.Context) *UnaryOp {
 	// extract logger
 	log, ok := autoctx.GetLogEntry(ctx)
 	if !ok {
-		log = logrus.WithField("Component", "UnaryOp")
+		log = logrus.WithField("Component", "UnaryOperator")
 		log.Error("Logger not found in context")
 	}
 
 	o := new(UnaryOp)
 	o.ctx = ctx
 	o.log = log.WithFields(logrus.Fields{
-		"Component": "UnaryOp",
+		"Component": "UnaryOperator",
 		"Type":      fmt.Sprintf("%T", o),
 	})
 
 	o.concurrency = 1
 	o.output = make(chan interface{}, 1024)
 
-	o.log.Infof("Component [%s] initialized", "UnaryOp")
+	o.log.Infof("Component initialized")
 	return o
 }
 
@@ -74,7 +74,7 @@ func (o *UnaryOp) Exec() (err error) {
 		o.concurrency = 1
 	}
 
-	o.log.Info("Execution started for component UnaryOp")
+	o.log.Info("Execution started")
 
 	go func() {
 		defer func() {
@@ -102,7 +102,7 @@ func (o *UnaryOp) Exec() (err error) {
 		select {
 		case <-wait:
 			if o.cancelled {
-				o.log.Infof("Component [%s] cancelling...")
+				o.log.Infof("Component cancelling...")
 				return
 			}
 		case <-o.ctx.Done():

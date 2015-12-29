@@ -12,6 +12,12 @@ func (f UnFunc) Apply(ctx context.Context, data interface{}) interface{} {
 	return f(ctx, data)
 }
 
-type BiOperation interface {
+type BinOperation interface {
 	Apply(ctx context.Context, op1, op2 interface{}) interface{}
+}
+
+type BinFunc func(context.Context, interface{}, interface{}) interface{}
+
+func (f BinFunc) Apply(ctx context.Context, op1, op2 interface{}) interface{} {
+	return f(ctx, op1, op2)
 }

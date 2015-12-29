@@ -33,6 +33,14 @@ type StreamSink interface {
 	Open(context.Context) <-chan error
 }
 
+type Operator interface {
+	Sink
+	Source
+	Exec() error
+}
+
+//TODO - Delete the old interfaces
+
 type Processor interface {
 	Process
 	Source

@@ -13,14 +13,14 @@ type Stream struct {
 	source api.StreamSource
 	sink   api.StreamSink
 	drain  <-chan interface{}
-	ops    []*api.UnaryOp
+	ops    []api.Operator
 	ctx    context.Context
 	log    *logrus.Entry
 }
 
 func New() *Stream {
 	s := &Stream{
-		ops: make([]*api.UnaryOp, 0),
+		ops: make([]api.Operator, 0),
 		log: logrus.WithField("Stream", "Default"),
 		ctx: context.Background(),
 	}
@@ -84,11 +84,9 @@ func (s *Stream) FlatMap(f FlatMapFunc) *Stream {
 }
 
 func (s *Stream) Open() <-chan error {
-	result := make(chan error)
+	result := make(chan error, 1)
 	if err := s.initGraph(); err != nil {
-		go func() {
-			result <- err
-		}()
+		result <- err
 		return result
 	}
 
