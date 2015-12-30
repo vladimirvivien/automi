@@ -5,7 +5,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/vladimirvivien/automi/api"
-	"github.com/vladimirvivien/automi/api/tuple"
 	"golang.org/x/net/context"
 )
 
@@ -62,8 +61,11 @@ func (s *Stream) Filter(f FilterFunc) *Stream {
 	return s.Do(op)
 }
 
+// MapFunc type represents the Map operation
+// A map operation takes one value and maps to another value
 type MapFunc func(interface{}) interface{}
 
+// Map takes one value and maps it to another value.
 func (s *Stream) Map(f MapFunc) *Stream {
 	op := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
 		result := f(data)
@@ -72,8 +74,12 @@ func (s *Stream) Map(f MapFunc) *Stream {
 	return s.Do(op)
 }
 
-type FlatMapFunc func(interface{}) tuple.Tuple
+// FlatMapFunc type represents the FlatMap operation.
+// A flat map takes one value and should return a slice of values.
+type FlatMapFunc func(interface{}) interface{}
 
+// FlatMap similar to Map, however, expected to return a slice of values
+// to downstream operator
 func (s *Stream) FlatMap(f FlatMapFunc) *Stream {
 	op := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
 		result := f(data)

@@ -49,6 +49,10 @@ func (o *BinaryOp) SetOperation(op BinOperation) {
 	o.op = op
 }
 
+func (o *BinaryOp) SetInitialState(val interface{}) {
+	o.state = val
+}
+
 func (o *BinaryOp) SetConcurrency(concurr int) {
 	o.concurrency = concurr
 	if o.concurrency < 1 {
