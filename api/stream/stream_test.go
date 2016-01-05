@@ -89,7 +89,7 @@ func TestStream_BuilderMethods(t *testing.T) {
 	st.
 		From(newStrSrc([]string{"Hello", "World", "!!"})).
 		To(newStrSink()).
-		Do(op)
+		Transform(op)
 
 	if st.source == nil {
 		t.Fatal("From() not setting source")
@@ -122,7 +122,7 @@ func TestStream_InitGraph(t *testing.T) {
 		t.Fatal("Source not link to sink when no ops are present")
 	}
 
-	strm = New().From(src).Do(op1).Do(op2).To(snk)
+	strm = New().From(src).Transform(op1).Transform(op2).To(snk)
 	if err := strm.initGraph(); err != nil {
 		t.Fatal(err)
 	}
@@ -177,7 +177,7 @@ func TestStream_Open_WithOp(t *testing.T) {
 		return nil
 	})
 
-	strm := New().From(src).Do(op1).Do(op2).To(snk)
+	strm := New().From(src).Transform(op1).Transform(op2).To(snk)
 	select {
 	case err := <-strm.Open():
 		if err != nil {
@@ -261,7 +261,7 @@ func TestStream_Map(t *testing.T) {
 func TestStream_FlatMap(t *testing.T) {
 	src := newStrSrc([]string{"HELLO", "WORLD", "HOW", "ARE", "YOU"})
 	snk := NewDrain()
-	strm := New().From(src).FlatMap(func(data interface{}) tuple.Tuple {
+	strm := New().From(src).FlatMap(func(data interface{}) interface{} {
 		str := data.(string)
 		return tuple.New(str, len(str))
 	}).To(snk)

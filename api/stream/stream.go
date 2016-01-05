@@ -41,7 +41,9 @@ func (s *Stream) To(sink api.StreamSink) *Stream {
 	return s
 }
 
-func (s *Stream) Do(op api.UnOperation) *Stream {
+// Transform is a general method used to apply transfomrmative
+// operations to stream elements (i.e. filter, map, etc)
+func (s *Stream) Transform(op api.UnOperation) *Stream {
 	operator := api.NewUnaryOp(s.ctx)
 	operator.SetOperation(op)
 	s.ops = append(s.ops, operator)
@@ -58,7 +60,7 @@ func (s *Stream) Filter(f FilterFunc) *Stream {
 		}
 		return data
 	})
-	return s.Do(op)
+	return s.Transform(op)
 }
 
 // MapFunc type represents the Map operation
@@ -71,7 +73,7 @@ func (s *Stream) Map(f MapFunc) *Stream {
 		result := f(data)
 		return result
 	})
-	return s.Do(op)
+	return s.Transform(op)
 }
 
 // FlatMapFunc type represents the FlatMap operation.
@@ -85,8 +87,7 @@ func (s *Stream) FlatMap(f FlatMapFunc) *Stream {
 		result := f(data)
 		return result
 	})
-	return s.Do(op)
-
+	return s.Transform(op)
 }
 
 func (s *Stream) Open() <-chan error {
