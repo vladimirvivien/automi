@@ -306,3 +306,43 @@ func TestStream_FlatMap(t *testing.T) {
 		)
 	}
 }
+
+func TestStream_Reduce(t *testing.T) {
+	src := NewSliceSource(1, 2, 3, 4, 5)
+	snk := NewDrain()
+	strm := New().From(src).Reduce(func(op1, op2 interface{}) interface{} {
+		prev, ok := op1.(int)
+		if !ok {
+			prev = 0
+		}
+		return prev + op2.(int)
+	}).To(snk)
+
+	actual := 15
+	wait := make(chan struct{})
+	go func() {
+		defer close(wait)
+		select {
+		case result := <-snk.GetOutput():
+			if result.(int) != actual {
+				t.Fatal("Expecting ", actual, " got ", result)
+			}
+		case <-time.After(5 * time.Millisecond):
+			t.Fatal("Sink took too long to get result")
+		}
+	}()
+
+	select {
+	case err := <-strm.Open():
+		if err != nil {
+			t.Fatal(err)
+		}
+		select {
+		case <-wait:
+		case <-time.After(10 * time.Millisecond):
+			t.Fatal("Stream took too long to complete")
+		}
+	case <-time.After(10 * time.Millisecond):
+		t.Fatal("Took too long")
+	}
+}

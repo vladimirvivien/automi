@@ -92,7 +92,7 @@ func (s *Stream) FlatMap(f FlatMapFunc) *Stream {
 
 // Accumulate is a general method used to apply transfornative reduction
 // operations to stream elements (i.e. reduce, collect, etc)
-func (s *Stream) Accumulate(op api.BiOperation) *Stream {
+func (s *Stream) Accumulate(op api.BinOperation) *Stream {
 	operator := api.NewBinaryOp(s.ctx)
 	operator.SetOperation(op)
 	s.ops = append(s.ops, operator)
@@ -103,7 +103,7 @@ func (s *Stream) Accumulate(op api.BiOperation) *Stream {
 type ReduceFunc func(interface{}, interface{}) interface{}
 
 // Reduce accumulates and reduce a stream of elements into a single value
-func (s *stream) Reduce(f ReduceFunc) *Stream {
+func (s *Stream) Reduce(f ReduceFunc) *Stream {
 	op := api.BinFunc(func(ctx context.Context, op1, op2 interface{}) interface{} {
 		return f(op1, op2)
 	})
