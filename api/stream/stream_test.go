@@ -311,12 +311,9 @@ func TestStream_Reduce(t *testing.T) {
 	src := NewSliceSource(1, 2, 3, 4, 5)
 	snk := NewDrain()
 	strm := New().From(src).Reduce(func(op1, op2 interface{}) interface{} {
-		prev, ok := op1.(int)
-		if !ok {
-			prev = 0
-		}
+		prev := op1.(int)
 		return prev + op2.(int)
-	}).To(snk)
+	}).SetInitialState(0).To(snk)
 
 	actual := 15
 	wait := make(chan struct{})

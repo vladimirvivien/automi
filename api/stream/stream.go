@@ -99,6 +99,16 @@ func (s *Stream) Accumulate(op api.BinOperation) *Stream {
 	return s
 }
 
+func (s *Stream) SetInitialState(val interface{}) *Stream {
+	lastOp := s.ops[len(s.ops)-1]
+	binOp, ok := lastOp.(*api.BinaryOp)
+	if !ok {
+		panic("Unable to SetInitialState on last operator, wrong type")
+	}
+	binOp.SetInitialState(val)
+	return s
+}
+
 // ReduceFunc represents a reduce operation where values are folded into a value
 type ReduceFunc func(interface{}, interface{}) interface{}
 
