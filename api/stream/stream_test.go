@@ -8,7 +8,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/vladimirvivien/automi/api"
-	"github.com/vladimirvivien/automi/api/tuple"
 
 	"golang.org/x/net/context"
 )
@@ -193,12 +192,44 @@ func TestStream_Open_WithOp(t *testing.T) {
 	m.RUnlock()
 }
 
+func TestStream_Process(t *testing.T) {
+	src := NewSliceSource("hello", "world")
+	snk := NewDrain()
+	strm := New().From(src).Process(func(s string) string {
+		return strings.ToUpper(s)
+	}).To(snk)
+
+	wait := make(chan struct{})
+	go func() {
+		defer close(wait)
+		for data := range snk.GetOutput() {
+			val := data.(string)
+			if val != "HELLO" && val != "WORLD" {
+				t.Fatalf("Got %v of type %T", val, val)
+			}
+		}
+	}()
+
+	select {
+	case err := <-strm.Open():
+		if err != nil {
+			t.Fatal(err)
+		}
+		select {
+		case <-wait:
+		case <-time.After(100 * time.Microsecond):
+			t.Fatal("Draining took too long")
+		}
+	case <-time.After(50 * time.Millisecond):
+		t.Fatal("Waited too long ...")
+	}
+}
+
 func TestStream_Filter(t *testing.T) {
 	src := newStrSrc([]string{"HELLO", "WORLD", "HOW", "ARE", "YOU"})
 	snk := newStrSink()
-	strm := New().From(src).Filter(func(data interface{}) bool {
-		str := data.(string)
-		return !strings.Contains(str, "O")
+	strm := New().From(src).Filter(func(data string) bool {
+		return !strings.Contains(data, "O")
 	})
 	strm.To(snk)
 
@@ -218,9 +249,8 @@ func TestStream_Filter(t *testing.T) {
 func TestStream_Map(t *testing.T) {
 	src := newStrSrc([]string{"HELLO", "WORLD", "HOW", "ARE", "YOU"})
 	snk := NewDrain()
-	strm := New().From(src).Map(func(data interface{}) interface{} {
-		str := data.(string)
-		return len(str)
+	strm := New().From(src).Map(func(data string) int {
+		return len(data)
 	}).To(snk)
 
 	var m sync.RWMutex
@@ -259,27 +289,22 @@ func TestStream_Map(t *testing.T) {
 }
 
 func TestStream_FlatMap(t *testing.T) {
-	src := newStrSrc([]string{"HELLO", "WORLD", "HOW", "ARE", "YOU"})
+	src := newStrSrc([]string{"HELLO WORLD", "HOW ARE YOU?"})
 	snk := NewDrain()
-	strm := New().From(src).FlatMap(func(data interface{}) interface{} {
-		str := data.(string)
-		return tuple.New(str, len(str))
+	strm := New().From(src).FlatMap(func(data string) []string {
+		return strings.Split(data, " ")
 	}).To(snk)
 
 	var m sync.RWMutex
 	count := 0
-	wordsVal := "HELLOWORLDHOWAREYOU"
-	var words string
-
+	expected := 5
 	wait := make(chan struct{})
 	go func() {
 		defer close(wait)
 		for data := range snk.GetOutput() {
-			val := data.(tuple.Tuple)
-			str, length := val.AsString(0), val.AsInt(1)
+			vals := data.([]string)
 			m.Lock()
-			count += length
-			words += str
+			count += len(vals)
 			m.Unlock()
 		}
 	}()
@@ -291,22 +316,16 @@ func TestStream_FlatMap(t *testing.T) {
 		}
 		select {
 		case <-wait:
+			if count != expected {
+				t.Fatalf("Expecting %d words, got %d", expected, count)
+			}
 		case <-time.After(50 * time.Millisecond):
 			t.Fatal("Took too long to process sink output")
 		}
 	case <-time.After(50 * time.Millisecond):
 		t.Fatal("Waited too long ...")
 	}
-
-	m.RLock()
-	if count != 19 && words != wordsVal {
-		t.Fatalf(
-			"FlatMap failed, expected count %d wrods string %s, got %d, %s",
-			19, wordsVal, count, words,
-		)
-	}
 }
-
 func TestStream_Reduce(t *testing.T) {
 	src := NewSliceSource(1, 2, 3, 4, 5)
 	snk := NewDrain()

@@ -41,55 +41,6 @@ func (s *Stream) To(sink api.StreamSink) *Stream {
 	return s
 }
 
-// Transform is a general method used to apply transfomrmative
-// operations to stream elements (i.e. filter, map, etc)
-func (s *Stream) Transform(op api.UnOperation) *Stream {
-	operator := api.NewUnaryOp(s.ctx)
-	operator.SetOperation(op)
-	s.ops = append(s.ops, operator)
-	return s
-}
-
-type FilterFunc func(interface{}) bool
-
-func (s *Stream) Filter(f FilterFunc) *Stream {
-	op := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
-		predicate := f(data)
-		if !predicate {
-			return nil
-		}
-		return data
-	})
-	return s.Transform(op)
-}
-
-// MapFunc type represents the Map operation
-// A map operation takes one value and maps to another value
-type MapFunc func(interface{}) interface{}
-
-// Map takes one value and maps it to another value.
-func (s *Stream) Map(f MapFunc) *Stream {
-	op := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
-		result := f(data)
-		return result
-	})
-	return s.Transform(op)
-}
-
-// FlatMapFunc type represents the FlatMap operation.
-// A flat map takes one value and should return a slice of values.
-type FlatMapFunc func(interface{}) interface{}
-
-// FlatMap similar to Map, however, expected to return a slice of values
-// to downstream operator
-func (s *Stream) FlatMap(f FlatMapFunc) *Stream {
-	op := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
-		result := f(data)
-		return result
-	})
-	return s.Transform(op)
-}
-
 // Accumulate is a general method used to apply transfornative reduction
 // operations to stream elements (i.e. reduce, collect, etc)
 func (s *Stream) Accumulate(op api.BinOperation) *Stream {
