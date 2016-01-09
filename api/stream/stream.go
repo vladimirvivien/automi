@@ -41,36 +41,6 @@ func (s *Stream) To(sink api.StreamSink) *Stream {
 	return s
 }
 
-// Accumulate is a general method used to apply transfornative reduction
-// operations to stream elements (i.e. reduce, collect, etc)
-func (s *Stream) Accumulate(op api.BinOperation) *Stream {
-	operator := api.NewBinaryOp(s.ctx)
-	operator.SetOperation(op)
-	s.ops = append(s.ops, operator)
-	return s
-}
-
-func (s *Stream) SetInitialState(val interface{}) *Stream {
-	lastOp := s.ops[len(s.ops)-1]
-	binOp, ok := lastOp.(*api.BinaryOp)
-	if !ok {
-		panic("Unable to SetInitialState on last operator, wrong type")
-	}
-	binOp.SetInitialState(val)
-	return s
-}
-
-// ReduceFunc represents a reduce operation where values are folded into a value
-type ReduceFunc func(interface{}, interface{}) interface{}
-
-// Reduce accumulates and reduce a stream of elements into a single value
-func (s *Stream) Reduce(f ReduceFunc) *Stream {
-	op := api.BinFunc(func(ctx context.Context, op1, op2 interface{}) interface{} {
-		return f(op1, op2)
-	})
-	return s.Accumulate(op)
-}
-
 func (s *Stream) Open() <-chan error {
 	result := make(chan error, 1)
 	if err := s.initGraph(); err != nil {

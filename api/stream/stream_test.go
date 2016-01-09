@@ -329,10 +329,9 @@ func TestStream_FlatMap(t *testing.T) {
 func TestStream_Reduce(t *testing.T) {
 	src := NewSliceSource(1, 2, 3, 4, 5)
 	snk := NewDrain()
-	strm := New().From(src).Reduce(func(op1, op2 interface{}) interface{} {
-		prev := op1.(int)
-		return prev + op2.(int)
-	}).SetInitialState(0).To(snk)
+	strm := New().From(src).Reduce(func(op1, op2 int) int {
+		return op1 + op2
+	}).To(snk)
 
 	actual := 15
 	wait := make(chan struct{})

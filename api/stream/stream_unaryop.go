@@ -8,6 +8,7 @@ import (
 	"golang.org/x/net/context"
 )
 
+// isUnaryFuncForm ensures type is a function of form func(in)out.
 func (s *Stream) isUnaryFuncForm(ftype reflect.Type) error {
 	// enforce f with sig fn(in)out
 	switch ftype.Kind() {
