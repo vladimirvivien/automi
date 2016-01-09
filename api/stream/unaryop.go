@@ -1,4 +1,4 @@
-package api
+package stream
 
 import (
 	"fmt"
@@ -7,14 +7,14 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/vladimirvivien/automi/api"
 	autoctx "github.com/vladimirvivien/automi/context"
 )
 
-// BinaryOp represents a binary operation (i.e. aggregation, reduction, etc)
-type BinaryOp struct {
+// UnaryOp represents a unary operation (i.e. transformation, etc)
+type UnaryOp struct {
 	ctx         context.Context
-	op          BinOperation
-	state       interface{}
+	op          UnOperation
 	concurrency int
 	input       <-chan interface{}
 	output      chan interface{}
@@ -23,18 +23,18 @@ type BinaryOp struct {
 	mutex       sync.RWMutex
 }
 
-func NewBinaryOp(ctx context.Context) *BinaryOp {
+func NewUnaryOp(ctx context.Context) *UnaryOp {
 	// extract logger
 	log, ok := autoctx.GetLogEntry(ctx)
 	if !ok {
-		log = logrus.WithField("Component", "BinaryOperator")
+		log = logrus.WithField("Component", "UnaryOperator")
 		log.Error("Logger not found in context")
 	}
 
-	o := new(BinaryOp)
+	o := new(UnaryOp)
 	o.ctx = ctx
 	o.log = log.WithFields(logrus.Fields{
-		"Component": "BinaryOperator",
+		"Component": "UnaryOperator",
 		"Type":      fmt.Sprintf("%T", o),
 	})
 
@@ -45,30 +45,26 @@ func NewBinaryOp(ctx context.Context) *BinaryOp {
 	return o
 }
 
-func (o *BinaryOp) SetOperation(op BinOperation) {
+func (o *UnaryOp) SetOperation(op UnOperation) {
 	o.op = op
 }
 
-func (o *BinaryOp) SetInitialState(val interface{}) {
-	o.state = val
-}
-
-func (o *BinaryOp) SetConcurrency(concurr int) {
+func (o *UnaryOp) SetConcurrency(concurr int) {
 	o.concurrency = concurr
 	if o.concurrency < 1 {
 		o.concurrency = 1
 	}
 }
 
-func (o *BinaryOp) SetInput(in <-chan interface{}) {
+func (o *UnaryOp) SetInput(in <-chan interface{}) {
 	o.input = in
 }
 
-func (o *BinaryOp) GetOutput() <-chan interface{} {
+func (o *UnaryOp) GetOutput() <-chan interface{} {
 	return o.output
 }
 
-func (o *BinaryOp) Exec() (err error) {
+func (o *UnaryOp) Exec() (err error) {
 	if o.input == nil {
 		err = fmt.Errorf("No input channel found")
 		return
@@ -83,7 +79,6 @@ func (o *BinaryOp) Exec() (err error) {
 
 	go func() {
 		defer func() {
-			o.output <- o.state
 			close(o.output)
 			o.log.Info("Shuttingdown component")
 		}()
@@ -112,16 +107,16 @@ func (o *BinaryOp) Exec() (err error) {
 				return
 			}
 		case <-o.ctx.Done():
-			o.log.Info("BinaryOp done.")
+			o.log.Info("UnaryOp done.")
 			return
 		}
 	}()
 	return nil
 }
 
-func (o *BinaryOp) doProc(ctx context.Context) {
+func (o *UnaryOp) doProc(ctx context.Context) {
 	if o.op == nil {
-		o.log.Error("No operation defined for BinaryOp")
+		o.log.Error("No operation defined for UnaryOp")
 		return
 	}
 	exeCtx, cancel := context.WithCancel(ctx)
@@ -134,14 +129,16 @@ func (o *BinaryOp) doProc(ctx context.Context) {
 				return
 			}
 
-			o.state = o.op.Apply(exeCtx, o.state, item)
+			result := o.op.Apply(exeCtx, item)
 
-			switch val := o.state.(type) {
+			switch val := result.(type) {
 			case nil:
 				continue
-			case error, ProcError:
+			case error, api.ProcError:
 				o.log.Error(val)
 				continue
+			default:
+				o.output <- val
 			}
 
 		// is cancelling
