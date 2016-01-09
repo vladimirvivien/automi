@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vladimirvivien/automi/api/tuple"
 	"github.com/vladimirvivien/automi/testutil"
 
 	"golang.org/x/net/context"
@@ -58,7 +57,7 @@ func TestUnaryOp_Exec(t *testing.T) {
 	o := NewUnaryOp(ctx)
 
 	op := UnFunc(func(ctx context.Context, data interface{}) interface{} {
-		values := data.(tuple.Tuple).Values()
+		values := data.([]string)
 		t.Logf("Processing data %v, sending %d", values, len(values))
 		return len(values)
 	})
@@ -66,9 +65,9 @@ func TestUnaryOp_Exec(t *testing.T) {
 
 	in := make(chan interface{})
 	go func() {
-		in <- tuple.New("A", "B", "C")
-		in <- tuple.New("D", "E")
-		in <- tuple.New("G")
+		in <- []string{"A", "B", "C"}
+		in <- []string{"D", "E"}
+		in <- []string{"G"}
 		close(in)
 	}()
 	o.SetInput(in)
@@ -115,7 +114,7 @@ func BenchmarkUnaryOp_Exec(b *testing.B) {
 	o.SetInput(in)
 	go func() {
 		for i := 0; i < N; i++ {
-			in <- tuple.New(testutil.GenWord())
+			in <- testutil.GenWord()
 		}
 		close(in)
 	}()
