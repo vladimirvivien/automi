@@ -13,9 +13,9 @@ func TestStream_GroupByInt(t *testing.T) {
 	snk := NewDrain()
 	strm := New().From(src).FlatMap(func(line string) []string {
 		return strings.Split(line, " ")
-	}).Map(func(data []string) tuple.KV {
-		return tuple.KV{data[0], data[1]}
-	}).GroupBy(0).SetInitialState(make(map[string]int)).To(snk)
+	}).Map(func(data string) tuple.KV {
+		return tuple.KV{data, 1}
+	}).GroupBy(0).SetInitialState(make(map[interface{}]interface{})).To(snk)
 
 	wait := make(chan struct{})
 	go func() {
