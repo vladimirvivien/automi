@@ -89,7 +89,8 @@ func (s *Stream) Map(f interface{}) *Stream {
 }
 
 // FlatMap similar to Map, however, expected to return a slice of values
-// to downstream operators.  The FlatMap function must have the form
+// to downstream operators.  The operator will flatten the slice and emit
+// individually onto the stream. The FlatMap function must have the form
 // "func(intput)[]output", anything else will be rejected
 func (s *Stream) FlatMap(f interface{}) *Stream {
 	fntype := reflect.TypeOf(f)
@@ -105,7 +106,15 @@ func (s *Stream) FlatMap(f interface{}) *Stream {
 	op := UnFunc(func(ctx context.Context, data interface{}) interface{} {
 		arg0 := reflect.ValueOf(data)
 		result := fnval.Call([]reflect.Value{arg0})[0]
-		return result.Interface()
+
+		// wrap result in marker type "packed" so that
+		// value is steram individually in operator.
+		// TODO - possibly unecessary copies going on, find better way.
+		slice := make([]interface{}, result.Len())
+		for i := 0; i < result.Len(); i++ {
+			slice[i] = result.Index(i).Interface()
+		}
+		return pack(slice...)
 	})
 
 	return s.Transform(op)

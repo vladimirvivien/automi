@@ -11,6 +11,14 @@ import (
 	autoctx "github.com/vladimirvivien/automi/context"
 )
 
+type packed struct {
+	vals []interface{}
+}
+
+func pack(vals ...interface{}) packed {
+	return packed{vals}
+}
+
 // UnaryOp represents a unary operation (i.e. transformation, etc)
 type UnaryOp struct {
 	ctx         context.Context
@@ -137,6 +145,10 @@ func (o *UnaryOp) doProc(ctx context.Context) {
 			case error, api.ProcError:
 				o.log.Error(val)
 				continue
+			case packed: // unpack
+				for _, i := range val.vals {
+					o.output <- i
+				}
 			default:
 				o.output <- val
 			}

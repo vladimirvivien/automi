@@ -296,12 +296,12 @@ func TestStream_FlatMap(t *testing.T) {
 
 	var m sync.RWMutex
 	count := 0
-	expected := 5
+	expected := 20
 	wait := make(chan struct{})
 	go func() {
 		defer close(wait)
 		for data := range snk.GetOutput() {
-			vals := data.([]string)
+			vals := data.(string)
 			m.Lock()
 			count += len(vals)
 			m.Unlock()
