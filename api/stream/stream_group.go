@@ -3,7 +3,8 @@ package stream
 import (
 	"fmt"
 	"reflect"
-	"strings"
+
+	"github.com/vladimirvivien/automi/api/tuple"
 
 	"golang.org/x/net/context"
 )
@@ -57,12 +58,12 @@ func (s *Stream) groupByInt(i int64) BinFunc {
 		idxVal := dataVal.Index(int(i)) //key
 		switch dataType.Kind() {
 		case reflect.Slice, reflect.Array:
-			if strings.HasSuffix(dataType.Name(), "KV") {
-				// build stateMap[key]value dynamically where value is a slice.
+			if _, ok := dataVal.Interface().(tuple.KV); ok {
+				// build stateMap[key][]slice dynamically. Add item to slice.
 				key := dataVal.Index(0)
 				slice := stateMap.MapIndex(key)
 				if !slice.IsValid() {
-					slice = reflect.MakeSlice(stateType.Elem(), 1, 1)
+					slice = reflect.MakeSlice(stateType.Elem(), 0, 0)
 					stateMap.SetMapIndex(key, slice)
 				}
 				slice = reflect.Append(slice, dataVal.Index(1))

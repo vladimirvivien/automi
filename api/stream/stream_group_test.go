@@ -1,7 +1,6 @@
 package stream
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -21,9 +20,12 @@ func TestStream_GroupByInt(t *testing.T) {
 	wait := make(chan struct{})
 	go func() {
 		defer close(wait)
-		for result := range snk.GetOutput() {
-			t.Log(fmt.Sprintf("%v", result))
+		result := <-snk.GetOutput()
+		m := result.(map[interface{}][]interface{})
+		if len(m["Hello"]) != 3 {
+			t.Fatal("Items not grouped properly")
 		}
+
 	}()
 
 	select {
