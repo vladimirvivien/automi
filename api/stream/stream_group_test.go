@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -15,13 +16,13 @@ func TestStream_GroupByInt(t *testing.T) {
 		return strings.Split(line, " ")
 	}).Map(func(data string) tuple.KV {
 		return tuple.KV{data, 1}
-	}).GroupBy(0).SetInitialState(make(map[interface{}]interface{})).To(snk)
+	}).GroupBy(0).To(snk)
 
 	wait := make(chan struct{})
 	go func() {
 		defer close(wait)
 		for result := range snk.GetOutput() {
-			t.Log(result)
+			t.Log(fmt.Sprintf("%v", result))
 		}
 	}()
 
