@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/vladimirvivien/automi/api/tuple"
-
 	"golang.org/x/net/context"
 )
 
@@ -55,22 +53,23 @@ func (s *Stream) groupByInt(i int64) BinFunc {
 		// save data according to type
 		dataType := reflect.TypeOf(op1)
 		dataVal := reflect.ValueOf(op1)
-		idxVal := dataVal.Index(int(i)) //key
 		switch dataType.Kind() {
 		case reflect.Slice, reflect.Array:
-			if _, ok := dataVal.Interface().(tuple.KV); ok {
-				// build stateMap[key][]slice dynamically. Add item to slice.
-				key := dataVal.Index(0)
-				slice := stateMap.MapIndex(key)
-				if !slice.IsValid() {
-					slice = reflect.MakeSlice(stateType.Elem(), 0, 0)
-					stateMap.SetMapIndex(key, slice)
-				}
-				slice = reflect.Append(slice, dataVal.Index(1))
+			// build stateMap[key][]slice dynamically. Add item to slice.
+			key := dataVal.Index(int(i))
+			slice := stateMap.MapIndex(key)
+			if !slice.IsValid() {
+				slice = reflect.MakeSlice(stateType.Elem(), 0, 0)
 				stateMap.SetMapIndex(key, slice)
-			} else {
-				stateMap.SetMapIndex(idxVal, dataVal)
 			}
+
+			// copy value to group in new slice
+			for j := 0; j < dataVal.Len(); j++ {
+				if j != int(i) {
+					slice = reflect.Append(slice, dataVal.Index(j))
+				}
+			}
+			stateMap.SetMapIndex(key, slice)
 		default: // ignore anything else
 		}
 

@@ -22,6 +22,7 @@ func TestStream_GroupByInt(t *testing.T) {
 		defer close(wait)
 		result := <-snk.GetOutput()
 		m := result.(map[interface{}][]interface{})
+		t.Log(m)
 		if len(m["Hello"]) != 3 {
 			t.Fatal("Items not grouped properly")
 		}
