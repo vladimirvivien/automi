@@ -3,53 +3,50 @@ package stream
 import (
 	"fmt"
 	"reflect"
-	"sync"
 
 	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/vladimirvivien/automi/api/tuple"
+	autoctx "github.com/vladimirvivien/automi/context"
 )
 
-type RestreamOp struct {
-	ctx       contex.Context
-	input     <-chan interface{}
-	output    chan interface{}
-	log       *logrus.Entry
-	cancelled bool
-	mutex     sync.RWMutex
+type StreamOp struct {
+	ctx    context.Context
+	input  <-chan interface{}
+	output chan interface{}
+	log    *logrus.Entry
 }
 
-func NewRestreamOp(ctx context.Context) *RestreamOp {
+func NewStreamOp(ctx context.Context) *StreamOp {
 	log, ok := autoctx.GetLogEntry(ctx)
 	if !ok {
-		log = logrus.WithField("Component", "UnaryOperator")
+		log = logrus.WithField("Component", "StreamOperator")
 		log.Error("Logger not found in context")
 	}
 
-	r := new(RestreamOp)
+	r := new(StreamOp)
 	r.ctx = ctx
 	r.log = log.WithFields(logrus.Fields{
-		"Component": "RestreamOperator",
-		"Type":      fmt.Sprintf("%T", o),
+		"Component": "StreamOperator",
+		"Type":      fmt.Sprintf("%T", r),
 	})
 
-	r.concurrency = 1
 	r.output = make(chan interface{}, 1024)
 
 	r.log.Infof("Component initialized")
 	return r
 }
 
-func (r *RestreamOp) SetInput(in <-chan interface{}) {
+func (r *StreamOp) SetInput(in <-chan interface{}) {
 	r.input = in
 }
 
-func (r *RestreamOp) GetOutput() <-chan interface{} {
+func (r *StreamOp) GetOutput() <-chan interface{} {
 	return r.output
 }
 
-func (r *RestreamOp) Exec() {
+func (r *StreamOp) Exec() (err error) {
 	if r.input == nil {
 		err = fmt.Errorf("No input channel found")
 		return
@@ -58,6 +55,7 @@ func (r *RestreamOp) Exec() {
 	go func() {
 		defer func() {
 			close(r.output)
+			r.log.Info("Component shutting down")
 		}()
 		for {
 			select {
@@ -73,7 +71,7 @@ func (r *RestreamOp) Exec() {
 				case reflect.Array, reflect.Slice:
 					for i := 0; i < itemVal.Len(); i++ {
 						j := itemVal.Index(i)
-						r.output <- j.Interface{}
+						r.output <- j.Interface()
 					}
 				// unpack map as tuple.KV{key, value}
 				case reflect.Map:
@@ -87,4 +85,5 @@ func (r *RestreamOp) Exec() {
 			}
 		}
 	}()
+	return nil
 }
