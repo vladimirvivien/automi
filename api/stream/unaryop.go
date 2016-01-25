@@ -145,10 +145,6 @@ func (o *UnaryOp) doProc(ctx context.Context) {
 			case error, api.ProcError:
 				o.log.Error(val)
 				continue
-			case packed: // unpack
-				for _, i := range val.vals {
-					o.output <- i
-				}
 			default:
 				o.output <- val
 			}

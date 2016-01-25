@@ -41,6 +41,15 @@ func (s *Stream) To(sink api.StreamSink) *Stream {
 	return s
 }
 
+// ReStream takes upstream items of types []slice []array, map[T]
+// and emmit them individually to downstream operations.  Items of
+// other types are ignored.
+func (s *Stream) ReStream() *Stream {
+	sop := NewStreamOp(s.ctx)
+	s.ops = append(s.ops, sop)
+	return s
+}
+
 func (s *Stream) Open() <-chan error {
 	result := make(chan error, 1)
 	if err := s.initGraph(); err != nil {

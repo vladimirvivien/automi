@@ -106,16 +106,10 @@ func (s *Stream) FlatMap(f interface{}) *Stream {
 	op := UnFunc(func(ctx context.Context, data interface{}) interface{} {
 		arg0 := reflect.ValueOf(data)
 		result := fnval.Call([]reflect.Value{arg0})[0]
-
-		// wrap result in marker type "packed" so that
-		// value is steram individually in operator.
-		// TODO - possibly unecessary copies going on, find better way.
-		slice := make([]interface{}, result.Len())
-		for i := 0; i < result.Len(); i++ {
-			slice[i] = result.Index(i).Interface()
-		}
-		return pack(slice...)
+		return result.Interface()
 	})
 
-	return s.Transform(op)
+	s.Transform(op) // add flatmap as unary op
+	s.ReStream()    // add streamop to unpack flatmap result
+	return s
 }
