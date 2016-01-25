@@ -78,3 +78,37 @@ func (s *Stream) groupByInt(i int64) BinFunc {
 
 	return op
 }
+
+// SumBy is a convenient aggregation method that will add up
+// numeric values stored in stream items.  SumBy expects specific
+// type of data, from upstream, for it to work properly as outlined below.
+//   * map[K]numeric - a map where the values are numeric elements
+//   * tuple.KV - where kv[1] are numeric elements
+//   * []slice, [n]array - where slice[i] or array[i] are
+//     slices or arrays of numeric values
+//   * struct{} - where the specified element is a slice or array of ints
+// SumBy parameter can be of the following type:
+//   * int - used as index when stream is slice or array, or tuple.KV
+//   * "string" - the name of a map key with where the value is a slice or array
+// SumBy emmits its result as map[key]int
+func (s *Stream) SumBy(g interface{}) *Stream {
+	gType := reflect.TypeOf(g)
+	gVal := reflect.ValueOf(g)
+
+	var op BinFunc
+	switch gType.Kind() {
+	case reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64:
+		idx := gVal.Int()
+		op = s.groupByInt(idx)
+	case reflect.String:
+	case reflect.Func:
+	default:
+		panic(fmt.Sprintf("GroupBy failed, type %T is not a supported classifier", g))
+	}
+
+	operator := NewBinaryOp(s.ctx)
+	operator.SetOperation(op)
+	operator.SetInitialState(make(map[interface{}][]interface{}))
+	s.ops = append(s.ops, operator)
+	return s
+}
