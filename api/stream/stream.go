@@ -42,8 +42,8 @@ func (s *Stream) To(sink api.StreamSink) *Stream {
 }
 
 // ReStream takes upstream items of types []slice []array, map[T]
-// and emmit them individually to downstream operations.  Items of
-// other types are ignored.
+// and emmits their elements as individual channel items to downstream
+// operations.  Items of other types are ignored.
 func (s *Stream) ReStream() *Stream {
 	sop := NewStreamOp(s.ctx)
 	s.ops = append(s.ops, sop)
