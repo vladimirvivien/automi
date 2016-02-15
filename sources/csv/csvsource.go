@@ -12,10 +12,10 @@ import (
 	autoctx "github.com/vladimirvivien/automi/api/context"
 )
 
-// CsvSrc implements an Source process that reads the content of a
-// specified file and emits its record via its Output Channel
+// CsvSource implements an Source process that reads the content of a
+// specified io.Reader or a os.File and emits its record via its Output Channel
 // and serializes each row as a slice []string.
-type CsvSrc struct {
+type CsvSource struct {
 	filepath    string   // path for the file
 	delimChar   rune     // Delimiter charater, defaults to comma
 	commentChar rune     // Charater indicating line is a cg.org/omment
@@ -30,52 +30,49 @@ type CsvSrc struct {
 	output    chan interface{}
 }
 
-func CsvSource(reader io.Reader) *CsvSrc {
-	csv := &CsvSrc{
-		srcReader:   reader,
+func New() *CsvSource {
+	csv := &CsvSource{
 		delimChar:   ',',
 		commentChar: '#',
 		output:      make(chan interface{}, 1024),
 	}
-
 	return csv
 }
 
-func CsvSourceFile(path string) *CsvSrc {
-	csv := &CsvSrc{
-		filepath:    path,
-		delimChar:   ',',
-		commentChar: '#',
-		output:      make(chan interface{}, 1024),
-	}
-
-	return csv
+func (c *CsvSource) WithReader(reader io.Reader) *CsvSource {
+	c.srcReader = reader
+	return c
 }
 
-func (c *CsvSrc) DelimChar(char rune) *CsvSrc {
+func (c *CsvSource) WithFile(path string) *CsvSource {
+	c.filepath = path
+	return c
+}
+
+func (c *CsvSource) DelimChar(char rune) *CsvSource {
 	c.delimChar = char
 	return c
 }
 
-func (c *CsvSrc) CommentChar(char rune) *CsvSrc {
+func (c *CsvSource) CommentChar(char rune) *CsvSource {
 	c.commentChar = char
 	return c
 }
 
-func (c *CsvSrc) HasHeaders() *CsvSrc {
+func (c *CsvSource) HasHeaders() *CsvSource {
 	c.hasHeaders = true
 	return c
 }
 
-func (c *CsvSrc) init(ctx context.Context) error {
+func (c *CsvSource) init(ctx context.Context) error {
 	// extract logger
 	log, ok := autoctx.GetLogEntry(ctx)
 	if !ok {
-		log = logrus.WithField("Component", "CsvSrc")
+		log = logrus.WithField("Component", "CsvSource")
 		log.Error("No logger found incontext")
 	}
 	c.log = log.WithFields(logrus.Fields{
-		"Component": "CsvSrc",
+		"Component": "CsvSource",
 		"Type":      fmt.Sprintf("%T", c),
 	})
 
@@ -127,11 +124,11 @@ func (c *CsvSrc) init(ctx context.Context) error {
 	return nil
 }
 
-func (c *CsvSrc) GetOutput() <-chan interface{} {
+func (c *CsvSource) GetOutput() <-chan interface{} {
 	return c.output
 }
 
-func (c *CsvSrc) Open(ctx context.Context) (err error) {
+func (c *CsvSource) Open(ctx context.Context) (err error) {
 	if err = c.init(ctx); err != nil {
 		return
 	}

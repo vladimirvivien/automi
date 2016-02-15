@@ -12,7 +12,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-type CsvSnk struct {
+type CsvSink struct {
 	filepath  string
 	delimChar rune
 	headers   []string
@@ -24,27 +24,28 @@ type CsvSnk struct {
 	log       *logrus.Entry
 }
 
-func CsvSink(writer io.Writer) *CsvSnk {
-	csv := &CsvSnk{
-		snkWriter: writer,
+func New() *CsvSink {
+	csv := &CsvSink{
 		delimChar: ',',
 	}
 	return csv
 }
 
-func CsvSinkFile(path string) *CsvSnk {
-	csv := &CsvSnk{
-		filepath:  path,
-		delimChar: ',',
-	}
-	return csv
+func (c *CsvSink) WithWriter(writer io.Writer) *CsvSink {
+	c.snkWriter = writer
+	return c
 }
 
-func (c *CsvSnk) SetInput(in <-chan interface{}) {
+func (c *CsvSink) WithFile(path string) *CsvSink {
+	c.filepath = path
+	return c
+}
+
+func (c *CsvSink) SetInput(in <-chan interface{}) {
 	c.input = in
 }
 
-func (c *CsvSnk) init(ctx context.Context) error {
+func (c *CsvSink) init(ctx context.Context) error {
 	//extract log entry
 	log, ok := autoctx.GetLogEntry(ctx)
 	if !ok {
@@ -95,7 +96,7 @@ func (c *CsvSnk) init(ctx context.Context) error {
 	return nil
 }
 
-func (c *CsvSnk) Open(ctx context.Context) <-chan error {
+func (c *CsvSink) Open(ctx context.Context) <-chan error {
 	result := make(chan error)
 	if err := c.init(ctx); err != nil {
 		go func() {

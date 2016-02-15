@@ -13,7 +13,7 @@ import (
 
 func TestCsvSink_New(t *testing.T) {
 	data := bytes.NewBufferString("")
-	csv := CsvSink(data)
+	csv := New().WithWriter(data)
 	if csv.snkWriter == nil {
 		t.Fatal("CsvSnk not setting input writer")
 	}
@@ -30,7 +30,7 @@ func TestCsvSink_Open(t *testing.T) {
 		close(in)
 	}()
 	data := bytes.NewBufferString("")
-	csv := CsvSink(data)
+	csv := New().WithWriter(data)
 	csv.SetInput(in)
 
 	// process
@@ -71,7 +71,7 @@ func BenchmarkCsvSink(b *testing.B) {
 	}()
 
 	data := bytes.NewBufferString("")
-	csv := CsvSink(data)
+	csv := New().WithWriter(data)
 	csv.SetInput(in)
 
 	// process
