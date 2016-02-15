@@ -8,13 +8,13 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/vladimirvivien/automi/api"
-	autoctx "github.com/vladimirvivien/automi/context"
+	autoctx "github.com/vladimirvivien/automi/api/context"
 )
 
 // BinaryOp represents a binary operation (i.e. aggregation, reduction, etc)
 type BinaryOp struct {
 	ctx         context.Context
-	op          BinOperation
+	op          api.BinOperation
 	state       interface{}
 	concurrency int
 	input       <-chan interface{}
@@ -46,7 +46,7 @@ func NewBinaryOp(ctx context.Context) *BinaryOp {
 	return o
 }
 
-func (o *BinaryOp) SetOperation(op BinOperation) {
+func (o *BinaryOp) SetOperation(op api.BinOperation) {
 	o.op = op
 }
 

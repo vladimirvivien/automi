@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/vladimirvivien/automi/api"
+
 	"golang.org/x/net/context"
 )
 
-// GroupBy groups elements based on classification method specified
+// GroupBy groups elements- based on classification method specified
 // by param g which can be one of the followings:
 // * int - indicates positional element in a tuple, slice, or array,
 //         other types are ignored.
@@ -22,7 +24,7 @@ func (s *Stream) GroupBy(g interface{}) *Stream {
 	gType := reflect.TypeOf(g)
 	gVal := reflect.ValueOf(g)
 
-	var op BinFunc
+	var op api.BinFunc
 	switch gType.Kind() {
 	case reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64:
 		idx := gVal.Int()
@@ -42,8 +44,8 @@ func (s *Stream) GroupBy(g interface{}) *Stream {
 
 // groupByInt expects incoming data as Pair, []slice, or [n]array.
 // It creates the reduction operation and stores incoming data in a map.
-func (s *Stream) groupByInt(i int64) BinFunc {
-	op := BinFunc(func(ctx context.Context, op0, op1 interface{}) interface{} {
+func (s *Stream) groupByInt(i int64) api.BinFunc {
+	op := api.BinFunc(func(ctx context.Context, op0, op1 interface{}) interface{} {
 		stateType := reflect.TypeOf(op0)
 		if stateType.Kind() != reflect.Map {
 			panic("GroupBy expects a map[keytype][]slice for internal storage")
@@ -95,7 +97,7 @@ func (s *Stream) SumBy(g interface{}) *Stream {
 	gType := reflect.TypeOf(g)
 	gVal := reflect.ValueOf(g)
 
-	var op BinFunc
+	var op api.BinFunc
 	switch gType.Kind() {
 	case reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64:
 		idx := gVal.Int()

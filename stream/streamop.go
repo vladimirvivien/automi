@@ -7,8 +7,8 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
+	autoctx "github.com/vladimirvivien/automi/api/context"
 	"github.com/vladimirvivien/automi/api/tuple"
-	autoctx "github.com/vladimirvivien/automi/context"
 )
 
 type StreamOp struct {

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/vladimirvivien/automi/api"
+
 	"golang.org/x/net/context"
 )
 
@@ -27,7 +29,7 @@ func (s *Stream) isUnaryFuncForm(ftype reflect.Type) error {
 // Transform is the raw  method used to apply transfomrmative
 // unary operations to stream elements (i.e. filter, map, etc)
 // It is exposed for completeness, use the other more specific methods.
-func (s *Stream) Transform(op UnOperation) *Stream {
+func (s *Stream) Transform(op api.UnOperation) *Stream {
 	operator := NewUnaryOp(s.ctx)
 	operator.SetOperation(op)
 	s.ops = append(s.ops, operator)
@@ -45,7 +47,7 @@ func (s *Stream) Process(f interface{}) *Stream {
 
 	fnval := reflect.ValueOf(f)
 
-	op := UnFunc(func(ctx context.Context, data interface{}) interface{} {
+	op := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
 		arg0 := reflect.ValueOf(data)
 		result := fnval.Call([]reflect.Value{arg0})[0]
 		return result.Interface()
@@ -69,7 +71,7 @@ func (s *Stream) Filter(f interface{}) *Stream {
 
 	fnval := reflect.ValueOf(f)
 
-	op := UnFunc(func(ctx context.Context, data interface{}) interface{} {
+	op := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
 		arg0 := reflect.ValueOf(data)
 		result := fnval.Call([]reflect.Value{arg0})[0]
 		predicate := result.Bool()
@@ -103,7 +105,7 @@ func (s *Stream) FlatMap(f interface{}) *Stream {
 
 	fnval := reflect.ValueOf(f)
 
-	op := UnFunc(func(ctx context.Context, data interface{}) interface{} {
+	op := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
 		arg0 := reflect.ValueOf(data)
 		result := fnval.Call([]reflect.Value{arg0})[0]
 		return result.Interface()

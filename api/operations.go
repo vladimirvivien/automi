@@ -1,4 +1,4 @@
-package stream
+package api
 
 import "golang.org/x/net/context"
 

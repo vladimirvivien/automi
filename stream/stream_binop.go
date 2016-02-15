@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/vladimirvivien/automi/api"
+
 	"golang.org/x/net/context"
 )
 
@@ -27,7 +29,7 @@ func (s *Stream) isBinaryFuncForm(ftype reflect.Type) error {
 // Accumulate is the raw base  method used to apply  reductive
 // operations to stream elements (i.e. reduce, collect, etc).
 // Use the other more specific methods instead.
-func (s *Stream) Accumulate(op BinOperation) *Stream {
+func (s *Stream) Accumulate(op api.BinOperation) *Stream {
 	operator := NewBinaryOp(s.ctx)
 	operator.SetOperation(op)
 	s.ops = append(s.ops, operator)
@@ -59,7 +61,7 @@ func (s *Stream) Reduce(f interface{}) *Stream {
 
 	fnval := reflect.ValueOf(f)
 
-	op := BinFunc(func(ctx context.Context, op1, op2 interface{}) interface{} {
+	op := api.BinFunc(func(ctx context.Context, op1, op2 interface{}) interface{} {
 		arg0 := reflect.ValueOf(op1)
 		arg1, arg1Type := reflect.ValueOf(op2), reflect.TypeOf(op2)
 		if op1 == nil {

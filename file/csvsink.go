@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/Sirupsen/logrus"
-	autoctx "github.com/vladimirvivien/automi/context"
+	autoctx "github.com/vladimirvivien/automi/api/context"
 
 	"golang.org/x/net/context"
 )

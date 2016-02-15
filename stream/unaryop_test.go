@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vladimirvivien/automi/api"
 	"github.com/vladimirvivien/automi/testutil"
 
 	"golang.org/x/net/context"
@@ -27,7 +28,7 @@ func TestUnaryOp_New(t *testing.T) {
 }
 func TestUnaryOp_Params(t *testing.T) {
 	o := NewUnaryOp(context.Background())
-	op := UnFunc(func(ctx context.Context, data interface{}) interface{} {
+	op := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
 		return nil
 	})
 	in := make(chan interface{})
@@ -56,7 +57,7 @@ func TestUnaryOp_Exec(t *testing.T) {
 	ctx, _ := context.WithCancel(context.Background())
 	o := NewUnaryOp(ctx)
 
-	op := UnFunc(func(ctx context.Context, data interface{}) interface{} {
+	op := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
 		values := data.([]string)
 		t.Logf("Processing data %v, sending %d", values, len(values))
 		return len(values)
@@ -122,7 +123,7 @@ func BenchmarkUnaryOp_Exec(b *testing.B) {
 	counter := 0
 	var m sync.RWMutex
 
-	op := UnFunc(func(ctx context.Context, data interface{}) interface{} {
+	op := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
 		m.Lock()
 		counter++
 		m.Unlock()

@@ -9,7 +9,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/Sirupsen/logrus"
-	autoctx "github.com/vladimirvivien/automi/context"
+	autoctx "github.com/vladimirvivien/automi/api/context"
 )
 
 // CsvSrc implements an Source process that reads the content of a

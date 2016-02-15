@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vladimirvivien/automi/api"
 	"github.com/vladimirvivien/automi/testutil"
 
 	"golang.org/x/net/context"
@@ -26,7 +27,7 @@ func TestBinaryOp_New(t *testing.T) {
 }
 func TestBinaryOp_Params(t *testing.T) {
 	o := NewBinaryOp(context.Background())
-	op := BinFunc(func(ctx context.Context, op1, op2 interface{}) interface{} {
+	op := api.BinFunc(func(ctx context.Context, op1, op2 interface{}) interface{} {
 		return nil
 	})
 	in := make(chan interface{})
@@ -56,7 +57,7 @@ func TestBinaryOp_Exec(t *testing.T) {
 	o := NewBinaryOp(ctx)
 
 	o.SetInitialState(0)
-	op := BinFunc(func(ctx context.Context, op1, op2 interface{}) interface{} {
+	op := api.BinFunc(func(ctx context.Context, op1, op2 interface{}) interface{} {
 		init := op1.(int)
 		items := op2.([]int)
 		for _, item := range items {
@@ -112,7 +113,7 @@ func BenchmarkBinaryOp_Exec(b *testing.B) {
 		close(in)
 	}()
 
-	op := BinFunc(func(ctx context.Context, op1, op2 interface{}) interface{} {
+	op := api.BinFunc(func(ctx context.Context, op1, op2 interface{}) interface{} {
 		val0 := op1.(int)
 		val1 := op2.(int)
 		return val0 + val1

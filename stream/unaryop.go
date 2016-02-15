@@ -8,7 +8,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/vladimirvivien/automi/api"
-	autoctx "github.com/vladimirvivien/automi/context"
+	autoctx "github.com/vladimirvivien/automi/api/context"
 )
 
 type packed struct {
@@ -22,7 +22,7 @@ func pack(vals ...interface{}) packed {
 // UnaryOp represents a unary operation (i.e. transformation, etc)
 type UnaryOp struct {
 	ctx         context.Context
-	op          UnOperation
+	op          api.UnOperation
 	concurrency int
 	input       <-chan interface{}
 	output      chan interface{}
@@ -53,7 +53,7 @@ func NewUnaryOp(ctx context.Context) *UnaryOp {
 	return o
 }
 
-func (o *UnaryOp) SetOperation(op UnOperation) {
+func (o *UnaryOp) SetOperation(op api.UnOperation) {
 	o.op = op
 }
 
