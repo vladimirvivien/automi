@@ -15,9 +15,17 @@ type scientist struct {
 	BornYear  int
 }
 
-// Example of multi-step stream processing.
-// 1. Read a csv file
-// 2. Filter
+// Example of stream processing with multi operators applied
+// src - CsvSource to load data file, emits each record as []string
+// out - CsvSink to write result file, expects each entry as []string
+// Operations applied to stream:
+// 0. stream.From() - reads stream from CsvSource
+// 1. stream.Map() - maps []string to to scientist type
+// 2. stream.Filter() - filters out scientist.BornYear > 1938
+// 3. stream.Map() - maps scientist value to []string
+// 4. stram.To() - writes sream values to a CsvSink
+// 5. stream.Open() - opens and executes stream operator and wait for
+// completion.
 func main() {
 	in := src.New().WithFile("./data.txt")
 	out := snk.New().WithFile("./result.txt")
@@ -43,5 +51,5 @@ func main() {
 	})
 	stream.To(out)
 
-	<-stream.Open()
+	<-stream.Open() // wait for completion
 }
