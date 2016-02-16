@@ -1,0 +1,6 @@
+Donald,Knuth,Mathematician
+Tim,Berners-Lee,Computer Scientist
+Dennis,Ritchie,Computer Scientist
+Ken,Thompson,Computer Scientist
+Biran,Kernighan,Computer Scientist
+Adele,Goldberg,Computer Scientist

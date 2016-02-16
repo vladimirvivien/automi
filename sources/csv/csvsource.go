@@ -104,6 +104,8 @@ func (c *CsvSource) init(ctx context.Context) error {
 	c.csvReader = csv.NewReader(reader)
 	c.csvReader.Comment = c.commentChar
 	c.csvReader.Comma = c.delimChar
+	c.csvReader.TrimLeadingSpace = true
+	c.csvReader.LazyQuotes = true
 
 	// resolve header and field count
 	if c.hasHeaders {
