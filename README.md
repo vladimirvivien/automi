@@ -8,60 +8,65 @@ Composable Stream Processing on top of Go Channels!
 Automi abstracts away (not too far away) the gnarly details of using Go channels to create pipelined and staged processes.  It exposes higher-level API to compose and integrate stream of data over Go channels for processing.  This is `still alpha work`. The API is still evolving and changing rapidly with each commit (beware).  Nevertheless, the core concepts are have been bolted onto the API.  The following example shows how Automi could be used to compose a multi-stage pipeline to process stream of data from a csv file.
 
 #### Example
-Automi, at the moment, is being developed as a pure API to create stream processors in Go.  The following code snippet shows how the Automi API could be used to stream and process the content of a file using multiple stages.
+Automi is being developed as a pure API to create stream processors in Go.  The following code snippet shows how the Automi API could be used to apply multiple operators to data items as they are streamed.
 
 ```Go
-svc := someDataService.Create(context.Background())  // illustration, stand-in for some service
+type scientist struct {
+	FirstName string
+	LastName  string
+	Title     string
+	BornYear  int
+}
+// Example of stream processing with multi operators applied
+// src - CsvSource to load data file, emits each record as []string
+// out - CsvSink to write result file, expects each entry as []string
+func main() {
+	in := src.New().WithFile("./data.txt")
+	out := snk.New().WithFile("./result.txt")
 
-strm := stream.New()
+	stream := stream.New().From(in)
+	stream.Map(func(cs []string) scientist {
+		yr, _ := strconv.Atoi(cs[3])
+		return scientist{
+			FirstName: cs[1],
+			LastName:  cs[0],
+			Title:     cs[2],
+			BornYear:  yr,
+		}
+	})
+	stream.Filter(func(cs scientist) bool {
+		if cs.BornYear > 1930 {
+			return true
+		}
+		return false
+	})
+	stream.Map(func(cs scientist) []string {
+		return []string{cs.FirstName, cs.LastName, cs.Title}
+	})
+	stream.To(out)
 
-// set stream source as csv file, emits []string
-strm.From(file.CsvSource("./local/in-forms.csv"))
-
-// Only allows record where col 0 starts with "CLEAR_"
-strm.Filter(func(item interface{}) bool{
-    row := item.([]string)
-    return strings.HasPrefix(row[0], "CLEAR_")
-})
-
-// maps stream item from []string to struct Form
-strm.Map(func(item interface{}) interface{} {
-    row := item.([]string)
-    return Form{Status:row[0], Id:row[1], Data:row[5]}
-})
-
-// Func to invoke some service call on data item
-// Emits a []string for downstream
-strm.Do(func(ctx context.Context, item interface{}) interface{} {
-    form := item.(Form)
-    resp, err := svc.Validate(form)
-    if err != nil {
-        return nil 
-    }
-    return []string{resp.Id, resp.Code, resp.Content}
-})
-
-// Terminal step, sinks data into a csv flat file
-strm.To(file.CsvSink("./local/resp-forms.txt"))
-
-// open stream and wait for execution
-err := <-strm.Open()
-if err != nil {
-    fmt.Println("Processing failed!")
+	<-stream.Open() // wait for completion
 }
 ```
-The previous code sample creates a new stream to process data ingested from a csv file using several steps (see code comment).  In the code, each method call on the stream (`From()`, `Filter()`, `Map()`, `Do()`, and `To()`) represents a stage in the pipeline as illustrated in the following.  
+The previous code sample creates a new stream to process data ingested from a csv file using several.  In the code, each method call on the stream (`From()`, `Filter()`, `Map()`,, and `To()`) represents a stage in the pipeline as illustrated in the following:
 
-	From(source) -> Filter(item) -> Map(item) -> Do(item) -> To(sink)
+	From(source) -> Map(item) -> Filter(item) -> Map(item) -> To(sink)
 
-The `From()` method, for instance, starts the stream by ingesting the content of a csv file and emits a `[]string` for each row.  `Filter()` does what you would expect, it filters out csv rows from the stream based on record content.  `Map()` takes the `[]string` from the previous stage and emits struct `Form{}` for downstream consumption.  The `Do()` function provides a place for arbitrary logic to be applied to the stream.  It makes a call to a service (here for illustrative purpose), then returns [] for the next processing element.  Lastly, the stream is terminated with csv sink (with the `To()` function) that writes the result to a file.
+The stream operators that are applied to the stream as follows:
 
-The code implements stream processing based on the pipeline patterns.  What is clearly absent, however, is the low level channel communication code to coordinate and synchronize goroutines.  The programmer is provided a clean surface to express business code without the noisy infrastructure code.  Underneath the cover however, Automi is using patterns similar to the pipeline patterns discussed earlier to create safe and concurrent structures to execute the processing of the data stream.
+ - `stream.From()` - reads stream from CsvSource
+ - `stream.Map()` - maps []string to to scientist type
+ - `stream.Filter()` - filters out scientist.BornYear > 1938
+ - `stream.Map()` - maps scientist value to []string
+ - `stram.To()` - writes sream values to a CsvSink
+ - `stream.Open()` - opens and executes stream operator and wait for completion.
 
-# What it wants to be when it grows up
-The API is still taking shape into something that, hopefully will be enjoyable and practical code to create stream processors.  The project is a moving target right now, but hopefully some of the following features will find their way into the code base.
+The code implements stream processing based on the pipeline patterns.  What is clearly absent, however, is the low level channel communication code to coordinate and synchronize goroutines.  The programmer is provided a clean surface to express business code without the noisy channel infrastructure code.  Underneath the cover however, Automi is using patterns similar to the pipeline patterns to create safe and concurrent structures to execute the processing of the data stream.
 
-#### Functions
+# Roadmap
+The API is still taking shape into something that, hopefully will be enjoyable and practical code to create stream processors.  The project is a moving target right now, however the code will focus stabilizing the core API, additional operators, and sources/sinks connectors.  In the near future, there's plan to add functionalities to support execution windows to control stream growth and pressure on reductive operators.
+
+#### Operators
  - **Transformation** Filter, Maps, Join
  - **Accumulation** Reduce, Aggregation, Grouping, etc
  - **Action** Count, min/max,  
@@ -92,5 +97,3 @@ The API is still taking shape into something that, hopefully will be enjoyable a
  - **Parallelism and Concurrency support**
  - **Timout and Cancellation Policies**
  - **Metrics**
- - **Streaming service** 
-

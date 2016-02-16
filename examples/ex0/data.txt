@@ -1,0 +1,10 @@
+Lovelace, Ada, Mathematician, 1815
+Turing, Alan, Computer Scientist, 1912
+Knuth, Donald, Mathematician, 1938
+Berners-Lee, Tim, Computer Scientist, 1955
+Von Neumann, John, Mathematician, 1903
+Dijkstra, Edsger, Computer Scientist, 1930
+Ritchie, Dennis, Computer Scientist, 1941
+Thompson, Ken, Computer Scientist, 1943
+Kernighan, Biran, Computer Scientist, 1942
+Goldberg, Adele, Computer Scientist, 1945
