@@ -1,14 +1,14 @@
 Automi
 ======
-Composable Stream Processing on top of Go Channels!
+Composable Stream Processing over Go Channels!
 
 [![GoDoc](https://godoc.org/github.com/vladimirvivien/automi?status.svg)](https://godoc.org/github.com/vladimirvivien/automi)
 [![Build Status](https://travis-ci.org/vladimirvivien/automi.svg)](https://travis-ci.org/vladimirvivien/automi)
 
 Automi abstracts away (not too far away) the gnarly details of using Go channels to create pipelined and staged processes.  It exposes higher-level API to compose and integrate stream of data over Go channels for processing.  This is `still alpha work`. The API is still evolving and changing rapidly with each commit (beware).  Nevertheless, the core concepts are have been bolted onto the API.  The following example shows how Automi could be used to compose a multi-stage pipeline to process stream of data from a csv file.
 
-#### Example
-Automi is being developed as a pure API to create stream processors in Go.  The following code snippet shows how the Automi API could be used to apply multiple operators to data items as they are streamed.
+### Example
+The following abbreviated code snippet shows how the Automi API could be used to apply multiple operators to data items as they are streamed. [See full example here.](example https://github.com/vladimirvivien/automi/blob/master/examples/ex0/procdata.go)
 
 ```Go
 type scientist struct {
@@ -66,34 +66,38 @@ The code implements stream processing based on the pipeline patterns.  What is c
 # Roadmap
 The API is still taking shape into something that, hopefully will be enjoyable and practical code to create stream processors.  The project is a moving target right now, however the code will focus stabilizing the core API, additional operators, and sources/sinks connectors.  In the near future, there's plan to add functionalities to support execution windows to control stream growth and pressure on reductive operators.
 
-#### Operators
+### Operators
+The focus of the project will be to continue to implement pre-built operators
+to help stream processor creators. 
  - **Transformation** Filter, Maps, Join
- - **Accumulation** Reduce, Aggregation, Grouping, etc
- - **Action** Count, min/max,  
+ - **Accumulation** Reduce, Aggregation, Grouping
  - **Etc** 
 
-#### Core Sources/Sinks
- - **SocketSource** Network socket stream source
- - **SocketSink** Network socket stream sink
- - **CsvSource**: Source for CSV files
- - **CsvSink**: Sink component 
- - **HttpSource**: Sources stream data from http
- - **HttpSink**: Sink for posting data via http
- - **DbSource**: Database source for streaming data items
- - **DbSink**: A sink component for streaming data
+### Features
+Automi will strive to implement more features to make it more useful as the
+project matures including some of the followings.
+ - **Continuous streams**  Better control of non-ending streams
+ - **Concurrency** Control of concurrently running operators
+ - **Timout and Cancellation Policies** Establish constraints for running
+   processes
+ - **Metrics** Expose metrics of running processes
+
+### Core Sources/Sinks
+The followings are potential sources and sink components that will be part of
+the core API.
+ - **io.Reader** Stream from io.Reader sources
+ - **io.Writer** Write stream data to io.Writer sinks
+ - **Csv**: Stream from/to value-separated files
+ - **Socket** Stream from/to network sockets
+ - **Http**: Source from http end-point, stream from/to http sinks
+ - **Database**: Source from DB tables, stream to DB sinks
  
-#### More Source/Sink Ideas
- - Kafka Source
- - Kafka Sink
- - Hdfs source/sink
- - Cassandra
- - Sources/sinks for messaging systems
- - Sources/sinks for logging systems
+### External Source/Sink Ideas
+The following is a list of sources and sinks ideas that should be implemented as
+externals projects to avoid unwanted dependencies.
+ - **Messaging** Kafka, NATs, Etc
+ - **Distributed FS** HDFS, S3, etc
+ - **Distributed DB** Cassandra, Mongo, etc
+ - **Logging** Flume, statsd, syslog, etc
  - Whatever source/sink users find useful
  - Etc
-
-#### Other ideas/features being considered
- - **Functions/support for continuous streams**
- - **Parallelism and Concurrency support**
- - **Timout and Cancellation Policies**
- - **Metrics**
