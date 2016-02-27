@@ -30,6 +30,8 @@ func (s *Stream) GroupBy(g interface{}) *Stream {
 		idx := gVal.Int()
 		op = s.groupByInt(idx)
 	case reflect.String:
+		name := gVal.String()
+		op = s.groupByName(name)
 	case reflect.Func:
 	default:
 		panic(fmt.Sprintf("GroupBy failed, type %T is not a supported classifier", g))
@@ -37,7 +39,7 @@ func (s *Stream) GroupBy(g interface{}) *Stream {
 
 	operator := NewBinaryOp(s.ctx)
 	operator.SetOperation(op)
-	operator.SetInitialState(make(map[interface{}][]interface{}))
+	operator.SetInitialState(make(map[interface{}][]interface{})) // op0 used as accumulator
 	s.ops = append(s.ops, operator)
 	return s
 }
@@ -76,6 +78,49 @@ func (s *Stream) groupByInt(i int64) api.BinFunc {
 		}
 
 		return stateMap.Interface()
+	})
+
+	return op
+}
+
+// groupByName returns a binary function that groups streaming item
+// by a struct.name or a map[name].  If the item is not a struct or map,
+// it is ignored.
+func (s *Stream) groupByName(name string) api.BinFunc {
+	op := api.BinFunc(func(ctx context.Context, op0, op1 interface{}) interface{} {
+		stateType := reflect.TypeOf(op0)
+		if stateType.Kind() != reflect.Map {
+			panic("GroupBy expects a map[keytype][]slice for internal storage")
+		}
+		stateMap := reflect.ValueOf(op0)
+
+		// stream item data type and value
+		dataType := reflect.TypeOf(op1)
+		dataVal := reflect.ValueOf(op1)
+		key := reflect.ValueOf(name)
+
+		// ensure state map[K][]slice is ready
+		slice := stateMap.MapIndex(key)
+		if !slice.IsValid() {
+			slice = reflect.MakeSlice(stateType.Elem(), 0, 0)
+			stateMap.SetMapIndex(key, slice)
+		}
+
+		switch dataType.Kind() {
+		// append value map[name] = V to state map[name][]slice{V}
+		case reflect.Map:
+			slice = reflect.Append(slice, dataVal.MapIndex(key))
+			stateMap.SetMapIndex(key, slice)
+
+		// append struct.name = V to state map[name][]slice{V}
+		case reflect.Struct:
+			slice = reflect.Append(slice, dataVal.FieldByName(name))
+			stateMap.SetMapIndex(key, slice)
+		default:
+		}
+
+		return stateMap.Interface()
+
 	})
 
 	return op
