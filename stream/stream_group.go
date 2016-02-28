@@ -61,19 +61,21 @@ func (s *Stream) groupByInt(i int64) api.BinFunc {
 		case reflect.Slice, reflect.Array:
 			// build stateMap[key][]slice dynamically. Add item to slice.
 			key := dataVal.Index(int(i))
-			slice := stateMap.MapIndex(key)
-			if !slice.IsValid() {
-				slice = reflect.MakeSlice(stateType.Elem(), 0, 0)
+			if key.IsValid() {
+				slice := stateMap.MapIndex(key)
+				if !slice.IsValid() {
+					slice = reflect.MakeSlice(stateType.Elem(), 0, 0)
+					stateMap.SetMapIndex(key, slice)
+				}
+
+				// copy value to group in new slice
+				for j := 0; j < dataVal.Len(); j++ {
+					if j != int(i) {
+						slice = reflect.Append(slice, dataVal.Index(j))
+					}
+				}
 				stateMap.SetMapIndex(key, slice)
 			}
-
-			// copy value to group in new slice
-			for j := 0; j < dataVal.Len(); j++ {
-				if j != int(i) {
-					slice = reflect.Append(slice, dataVal.Index(j))
-				}
-			}
-			stateMap.SetMapIndex(key, slice)
 		default: // ignore anything else
 		}
 
@@ -97,26 +99,23 @@ func (s *Stream) groupByName(name string) api.BinFunc {
 		// stream item data type and value
 		dataType := reflect.TypeOf(op1)
 		dataVal := reflect.ValueOf(op1)
-		key := reflect.ValueOf(name)
+		key := dataVal.FieldByName(name)
 
-		// ensure state map[K][]slice is ready
-		slice := stateMap.MapIndex(key)
-		if !slice.IsValid() {
-			slice = reflect.MakeSlice(stateType.Elem(), 0, 0)
-			stateMap.SetMapIndex(key, slice)
-		}
+		if key.IsValid() {
+			// ensure state map[K][]slice is ready
+			slice := stateMap.MapIndex(key)
+			if !slice.IsValid() {
+				slice = reflect.MakeSlice(stateType.Elem(), 0, 0)
+				stateMap.SetMapIndex(key, slice)
+			}
 
-		switch dataType.Kind() {
-		// append value map[name] = V to state map[name][]slice{V}
-		case reflect.Map:
-			slice = reflect.Append(slice, dataVal.MapIndex(key))
-			stateMap.SetMapIndex(key, slice)
-
-		// append struct.name = V to state map[name][]slice{V}
-		case reflect.Struct:
-			slice = reflect.Append(slice, dataVal.FieldByName(name))
-			stateMap.SetMapIndex(key, slice)
-		default:
+			switch dataType.Kind() {
+			// append struct.name = V to state map[name][]slice{V}
+			case reflect.Struct:
+				slice = reflect.Append(slice, dataVal)
+				stateMap.SetMapIndex(key, slice)
+			default:
+			}
 		}
 
 		return stateMap.Interface()
