@@ -1,11 +1,9 @@
 package db
 
 import (
+	"context"
 	"fmt"
-
-	"golang.org/x/net/context"
-
-	"github.com/Sirupsen/logrus"
+	"log"
 
 	"github.com/vladimirvivien/automi/api"
 	autoctx "github.com/vladimirvivien/automi/api/context"
@@ -14,7 +12,7 @@ import (
 type DbSink struct {
 	input  <-chan interface{}
 	db     api.Database
-	log    *logrus.Entry
+	log    *log.Logger
 	sql    string
 	prepFn func(interface{}) []interface{}
 }
@@ -43,16 +41,8 @@ func (s *DbSink) SetInput(in <-chan interface{}) {
 }
 
 func (s *DbSink) init(ctx context.Context) error {
-	log, ok := autoctx.GetLogEntry(ctx)
-	if !ok {
-		log = logrus.WithField("Component", "CsvSink")
-		log.Error("No logger found in context")
-	}
-
-	s.log = log.WithFields(logrus.Fields{
-		"Component": "DbSink",
-		"Type":      fmt.Sprintf("%T", s),
-	})
+	log := autoctx.GetLogger(ctx)
+	s.log = log
 
 	if s.input == nil {
 		return fmt.Errorf("Input attribute not set")
@@ -66,7 +56,7 @@ func (s *DbSink) init(ctx context.Context) error {
 		return fmt.Errorf("Prepare function is missing")
 	}
 
-	s.log.Info("Component initialized")
+	s.log.Print("Component initialized")
 
 	return nil
 
@@ -85,7 +75,7 @@ func (s *DbSink) Open(ctx context.Context) <-chan error {
 		defer func() {
 			close(result)
 			s.db.Close()
-			s.log.Info("Component closed")
+			s.log.Print("Component closed")
 		}()
 		stmt, err := s.db.Prepare(s.sql)
 		if err != nil {
@@ -105,10 +95,10 @@ func (s *DbSink) Open(ctx context.Context) <-chan error {
 			// exec sql within tx
 			_, err = tx.Stmt(stmt).Exec(args)
 			if err != nil {
-				s.log.Error(err) // log sql error, continue
+				s.log.Print(err) // log sql error, continue
 				if rberr := tx.Rollback(); rberr != nil {
 					// something maybe wrong, stop
-					s.log.Error(rberr)
+					s.log.Print(rberr)
 					result <- rberr
 					return
 				}
@@ -117,9 +107,9 @@ func (s *DbSink) Open(ctx context.Context) <-chan error {
 
 			// commit tx
 			if err := tx.Commit(); err != nil {
-				s.log.Error(err)
+				s.log.Print(err)
 				if rberr := tx.Rollback(); rberr != nil {
-					s.log.Errorf("Rollback failed %v", err)
+					s.log.Printf("Rollback failed %v", err)
 					result <- err
 					return
 				}

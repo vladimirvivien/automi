@@ -1,6 +1,6 @@
 package api
 
-import "golang.org/x/net/context"
+import "context"
 
 type UnOperation interface {
 	Apply(ctx context.Context, data interface{}) interface{}

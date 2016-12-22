@@ -1,13 +1,12 @@
 package stream
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/vladimirvivien/automi/api"
 	"github.com/vladimirvivien/automi/testutil"
-
-	"golang.org/x/net/context"
 )
 
 func TestBinaryOp_New(t *testing.T) {

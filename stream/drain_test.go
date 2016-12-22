@@ -1,11 +1,10 @@
 package stream
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
-
-	"golang.org/x/net/context"
 )
 
 func TestDrain_Open(t *testing.T) {

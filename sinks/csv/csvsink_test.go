@@ -2,13 +2,12 @@ package csv
 
 import (
 	"bytes"
+	"context"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/vladimirvivien/automi/testutil"
-
-	"golang.org/x/net/context"
 )
 
 func TestCsvSink_New(t *testing.T) {

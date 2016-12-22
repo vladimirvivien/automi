@@ -1,12 +1,11 @@
 package stream
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
 	"github.com/vladimirvivien/automi/api"
-
-	"golang.org/x/net/context"
 )
 
 // isBinaryFuncForm ensures type is a function of form func(op1,op2)out.
@@ -45,7 +44,7 @@ func (s *Stream) SetInitialState(val interface{}) *Stream {
 	lastOp := s.ops[len(s.ops)-1]
 	binOp, ok := lastOp.(*BinaryOp)
 	if !ok {
-		s.log.Error("Unable to SetInitialState on last operator, wrong type. Value not set.")
+		s.log.Print("Unable to SetInitialState on last operator, wrong type. Value not set.")
 		return s
 	}
 	binOp.SetInitialState(val)

@@ -1,14 +1,13 @@
 package file
 
 import (
+	"context"
 	"encoding/csv"
 	"fmt"
 	"io"
+	"log"
 	"os"
 
-	"golang.org/x/net/context"
-
-	"github.com/Sirupsen/logrus"
 	autoctx "github.com/vladimirvivien/automi/api/context"
 )
 
@@ -26,7 +25,7 @@ type CsvSource struct {
 	file      *os.File
 	srcReader io.Reader
 	csvReader *csv.Reader
-	log       *logrus.Entry
+	log       *log.Logger
 	output    chan interface{}
 }
 
@@ -66,15 +65,8 @@ func (c *CsvSource) HasHeaders() *CsvSource {
 
 func (c *CsvSource) init(ctx context.Context) error {
 	// extract logger
-	log, ok := autoctx.GetLogEntry(ctx)
-	if !ok {
-		log = logrus.WithField("Component", "CsvSource")
-		log.Error("No logger found incontext")
-	}
-	c.log = log.WithFields(logrus.Fields{
-		"Component": "CsvSource",
-		"Type":      fmt.Sprintf("%T", c),
-	})
+	log := autoctx.GetLogger(ctx)
+	c.log = log
 
 	// establish defaults
 	if c.delimChar == 0 {
@@ -89,7 +81,7 @@ func (c *CsvSource) init(ctx context.Context) error {
 
 	if c.srcReader != nil {
 		reader = c.srcReader
-		c.log.Info("Using IO Reader")
+		c.log.Print("using csv source IO Reader")
 	} else {
 		// open file
 		file, err := os.Open(c.filepath)
@@ -98,7 +90,7 @@ func (c *CsvSource) init(ctx context.Context) error {
 		}
 		reader = file
 		c.file = file
-		c.log.Info("Using source file ", file.Name())
+		c.log.Print("using csv source file ", file.Name())
 	}
 
 	c.csvReader = csv.NewReader(reader)
@@ -120,8 +112,7 @@ func (c *CsvSource) init(ctx context.Context) error {
 			c.fieldCount = len(c.headers)
 		}
 	}
-	log.Debug("hasHeaders ", c.hasHeaders, " headers [", c.headers, "]")
-	c.log.Info("Source initializede")
+	c.log.Print("csv source initializede")
 
 	return nil
 }
@@ -135,7 +126,7 @@ func (c *CsvSource) Open(ctx context.Context) (err error) {
 		return
 	}
 
-	c.log.Info("Source opened")
+	c.log.Print("source opened")
 
 	go func() {
 		defer func() {
@@ -143,10 +134,10 @@ func (c *CsvSource) Open(ctx context.Context) (err error) {
 			if c.file != nil {
 				err = c.file.Close()
 				if err != nil {
-					c.log.Error(err)
+					c.log.Print(err)
 				}
 			}
-			c.log.Info("Source closed")
+			c.log.Print("source closed")
 		}()
 
 		for {
@@ -155,7 +146,7 @@ func (c *CsvSource) Open(ctx context.Context) (err error) {
 				if err == io.EOF {
 					return
 				}
-				c.log.Error(fmt.Errorf("Error reading row: %s", err))
+				c.log.Print(fmt.Errorf("Error reading row: %s", err))
 				continue
 			}
 

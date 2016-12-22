@@ -1,11 +1,12 @@
 package stream
 
 import (
+	"context"
 	"fmt"
+	"log"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/vladimirvivien/automi/api"
-	"golang.org/x/net/context"
+	autoctx "github.com/vladimirvivien/automi/api/context"
 )
 
 type Stream struct {
@@ -14,15 +15,15 @@ type Stream struct {
 	drain  <-chan interface{}
 	ops    []api.Operator
 	ctx    context.Context
-	log    *logrus.Entry
+	log    *log.Logger
 }
 
 func New() *Stream {
 	s := &Stream{
 		ops: make([]api.Operator, 0),
-		log: logrus.WithField("Stream", "Default"),
 		ctx: context.Background(),
 	}
+	s.log = autoctx.GetLogger(s.ctx)
 	return s
 }
 
@@ -81,7 +82,7 @@ func (s *Stream) Open() <-chan error {
 
 // bindOps binds operator channels
 func (s *Stream) bindOps() {
-	s.log.Debug("Binding operators")
+	s.log.Print("binding operators")
 	if s.ops == nil {
 		return
 	}
@@ -96,14 +97,14 @@ func (s *Stream) bindOps() {
 
 // initGraph initialize stream graph source + ops +
 func (s *Stream) initGraph() error {
-	s.log.Infoln("Preparing stream operator graph")
+	s.log.Print("Preparing stream operator graph")
 	if s.source == nil {
 		return fmt.Errorf("Operator graph failed, missing source")
 	}
 
 	// if there are no ops, link source to sink
 	if len(s.ops) == 0 && s.sink != nil {
-		s.log.Warnln("No operator nodes found, binding source to sink directly")
+		s.log.Print("No operator nodes found, binding source to sink directly")
 		s.sink.SetInput(s.source.GetOutput())
 		return nil
 	}

@@ -1,12 +1,11 @@
 package stream
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"sync"
 
-	"golang.org/x/net/context"
-
-	"github.com/Sirupsen/logrus"
 	"github.com/vladimirvivien/automi/api"
 	autoctx "github.com/vladimirvivien/automi/api/context"
 )
@@ -26,30 +25,23 @@ type UnaryOp struct {
 	concurrency int
 	input       <-chan interface{}
 	output      chan interface{}
-	log         *logrus.Entry
+	log         *log.Logger
 	cancelled   bool
 	mutex       sync.RWMutex
 }
 
 func NewUnaryOp(ctx context.Context) *UnaryOp {
 	// extract logger
-	log, ok := autoctx.GetLogEntry(ctx)
-	if !ok {
-		log = logrus.WithField("Component", "UnaryOperator")
-		log.Error("Logger not found in context")
-	}
+	log := autoctx.GetLogger(ctx)
 
 	o := new(UnaryOp)
 	o.ctx = ctx
-	o.log = log.WithFields(logrus.Fields{
-		"Component": "UnaryOperator",
-		"Type":      fmt.Sprintf("%T", o),
-	})
+	o.log = log
 
 	o.concurrency = 1
 	o.output = make(chan interface{}, 1024)
 
-	o.log.Infof("Component initialized")
+	o.log.Printf("Component initialized")
 	return o
 }
 
@@ -83,12 +75,12 @@ func (o *UnaryOp) Exec() (err error) {
 		o.concurrency = 1
 	}
 
-	o.log.Info("Execution started")
+	o.log.Print("Execution started")
 
 	go func() {
 		defer func() {
 			close(o.output)
-			o.log.Info("Shuttingdown component")
+			o.log.Print("Shuttingdown component")
 		}()
 
 		var barrier sync.WaitGroup
@@ -111,11 +103,11 @@ func (o *UnaryOp) Exec() (err error) {
 		select {
 		case <-wait:
 			if o.cancelled {
-				o.log.Infof("Component cancelling...")
+				o.log.Printf("Component cancelling...")
 				return
 			}
 		case <-o.ctx.Done():
-			o.log.Info("UnaryOp done.")
+			o.log.Print("UnaryOp done.")
 			return
 		}
 	}()
@@ -124,7 +116,7 @@ func (o *UnaryOp) Exec() (err error) {
 
 func (o *UnaryOp) doProc(ctx context.Context) {
 	if o.op == nil {
-		o.log.Error("No operation defined for UnaryOp")
+		o.log.Print("No operation defined for UnaryOp")
 		return
 	}
 	exeCtx, cancel := context.WithCancel(ctx)
@@ -143,7 +135,7 @@ func (o *UnaryOp) doProc(ctx context.Context) {
 			case nil:
 				continue
 			case error, api.ProcError:
-				o.log.Error(val)
+				o.log.Print(val)
 				continue
 			default:
 				o.output <- val
@@ -151,7 +143,7 @@ func (o *UnaryOp) doProc(ctx context.Context) {
 
 		// is cancelling
 		case <-ctx.Done():
-			o.log.Infoln("Cancelling....")
+			o.log.Println("Cancelling....")
 			o.mutex.Lock()
 			cancel()
 			o.cancelled = true

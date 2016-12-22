@@ -1,13 +1,12 @@
 package stream
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/vladimirvivien/automi/testutil"
-
-	"golang.org/x/net/context"
 )
 
 func TestStreamOp_New(t *testing.T) {

@@ -1,12 +1,11 @@
 package stream
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"sync"
 
-	"golang.org/x/net/context"
-
-	"github.com/Sirupsen/logrus"
 	"github.com/vladimirvivien/automi/api"
 	autoctx "github.com/vladimirvivien/automi/api/context"
 )
@@ -19,30 +18,22 @@ type BinaryOp struct {
 	concurrency int
 	input       <-chan interface{}
 	output      chan interface{}
-	log         *logrus.Entry
+	log         *log.Logger
 	cancelled   bool
 	mutex       sync.RWMutex
 }
 
 func NewBinaryOp(ctx context.Context) *BinaryOp {
 	// extract logger
-	log, ok := autoctx.GetLogEntry(ctx)
-	if !ok {
-		log = logrus.WithField("Component", "BinaryOperator")
-		log.Error("Logger not found in context")
-	}
+	log := autoctx.GetLogger(ctx)
 
 	o := new(BinaryOp)
 	o.ctx = ctx
-	o.log = log.WithFields(logrus.Fields{
-		"Component": "BinaryOperator",
-		"Type":      fmt.Sprintf("%T", o),
-	})
-
+	o.log = log
 	o.concurrency = 1
 	o.output = make(chan interface{}, 1024)
 
-	o.log.Infof("Component initialized")
+	o.log.Printf("component initialized")
 	return o
 }
 
@@ -80,13 +71,13 @@ func (o *BinaryOp) Exec() (err error) {
 		o.concurrency = 1
 	}
 
-	o.log.Info("Execution started")
+	o.log.Print("execution started")
 
 	go func() {
 		defer func() {
 			o.output <- o.state
 			close(o.output)
-			o.log.Info("Shuttingdown component")
+			o.log.Print("shuttingdown component")
 		}()
 
 		var barrier sync.WaitGroup
@@ -109,11 +100,11 @@ func (o *BinaryOp) Exec() (err error) {
 		select {
 		case <-wait:
 			if o.cancelled {
-				o.log.Infof("Component cancelling...")
+				o.log.Printf("component cancelling...")
 				return
 			}
 		case <-o.ctx.Done():
-			o.log.Info("BinaryOp done.")
+			o.log.Print("binaryOp done.")
 			return
 		}
 	}()
@@ -122,7 +113,7 @@ func (o *BinaryOp) Exec() (err error) {
 
 func (o *BinaryOp) doProc(ctx context.Context) {
 	if o.op == nil {
-		o.log.Error("No operation defined for BinaryOp")
+		o.log.Print("no operation defined for BinaryOp")
 		return
 	}
 	exeCtx, cancel := context.WithCancel(ctx)
@@ -141,13 +132,13 @@ func (o *BinaryOp) doProc(ctx context.Context) {
 			case nil:
 				continue
 			case error, api.ProcError:
-				o.log.Error(val)
+				o.log.Print(val)
 				continue
 			}
 
 		// is cancelling
 		case <-ctx.Done():
-			o.log.Infoln("Cancelling....")
+			o.log.Println("cancelling....")
 			o.mutex.Lock()
 			cancel()
 			o.cancelled = true

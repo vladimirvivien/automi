@@ -1,20 +1,21 @@
 package stream
 
 import (
-	"github.com/Sirupsen/logrus"
-	"golang.org/x/net/context"
+	"context"
+	"log"
+	"os"
 )
 
 type Drain struct {
 	output chan interface{}
 	input  <-chan interface{}
-	log    *logrus.Entry
+	log    *log.Logger
 }
 
 func NewDrain() *Drain {
 	return &Drain{
 		output: make(chan interface{}, 1024),
-		log:    logrus.WithField("Component", "Drain"),
+		log:    log.New(os.Stderr, "", log.Flags()),
 	}
 }
 
@@ -27,11 +28,11 @@ func (s *Drain) GetOutput() <-chan interface{} {
 }
 
 func (s *Drain) Open(ctx context.Context) <-chan error {
-	s.log.Infoln("Opening component")
+	s.log.Print("cpening component")
 	result := make(chan error)
 	go func() {
 		defer func() {
-			s.log.Infoln("Closing component")
+			s.log.Print("closing component")
 			close(s.output)
 			close(result)
 		}()

@@ -1,14 +1,13 @@
 package stream
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/vladimirvivien/automi/api"
 	"github.com/vladimirvivien/automi/testutil"
-
-	"golang.org/x/net/context"
 )
 
 func TestUnaryOp_New(t *testing.T) {

@@ -1,15 +1,14 @@
 package csv
 
 import (
+	"context"
 	"encoding/csv"
 	"fmt"
 	"io"
+	"log"
 	"os"
 
-	"github.com/Sirupsen/logrus"
 	autoctx "github.com/vladimirvivien/automi/api/context"
-
-	"golang.org/x/net/context"
 )
 
 type CsvSink struct {
@@ -21,7 +20,7 @@ type CsvSink struct {
 	input     <-chan interface{}
 	snkWriter io.Writer
 	csvWriter *csv.Writer
-	log       *logrus.Entry
+	log       *log.Logger
 }
 
 func New() *CsvSink {
@@ -47,16 +46,7 @@ func (c *CsvSink) SetInput(in <-chan interface{}) {
 
 func (c *CsvSink) init(ctx context.Context) error {
 	//extract log entry
-	log, ok := autoctx.GetLogEntry(ctx)
-	if !ok {
-		log = logrus.WithField("Component", "CsvSink")
-		log.Error("No logger found in context")
-	}
-
-	c.log = log.WithFields(logrus.Fields{
-		"Component": "CsvSink",
-		"Type":      fmt.Sprintf("%T", c),
-	})
+	c.log = autoctx.GetLogger(ctx)
 
 	if c.input == nil {
 		return fmt.Errorf("Input attribute not set")
@@ -70,7 +60,7 @@ func (c *CsvSink) init(ctx context.Context) error {
 	var writer io.Writer
 	if c.snkWriter != nil {
 		writer = c.snkWriter
-		c.log.Debug("Using IO Writer sink")
+		c.log.Print("using IO Writer sink")
 	} else {
 		file, err := os.Create(c.filepath)
 		if err != nil {
@@ -78,7 +68,7 @@ func (c *CsvSink) init(ctx context.Context) error {
 		}
 		writer = file
 		c.file = file
-		c.log.Debug("Using sink file", file.Name())
+		c.log.Print("using sink file", file.Name())
 	}
 	c.csvWriter = csv.NewWriter(writer)
 	c.csvWriter.Comma = c.delimChar
@@ -88,10 +78,10 @@ func (c *CsvSink) init(ctx context.Context) error {
 		if err := c.csvWriter.Write(c.headers); err != nil {
 			return err
 		}
-		c.log.Debug("Wrote headers [", c.headers, "]")
+		c.log.Print("wrote headers [", c.headers, "]")
 	}
 
-	c.log.Info("Component initialized")
+	c.log.Print("component initialized")
 
 	return nil
 }
@@ -126,7 +116,7 @@ func (c *CsvSink) Open(ctx context.Context) <-chan error {
 				}
 			}
 			close(result)
-			c.log.Info("Execution completed")
+			c.log.Print("execution completed")
 		}()
 
 		for item := range c.input {
@@ -134,14 +124,14 @@ func (c *CsvSink) Open(ctx context.Context) <-chan error {
 
 			if !ok { // bad situation, fail fast
 				msg := fmt.Sprintf("Expecting []string, got unexpected type %T", data)
-				c.log.Error(msg)
+				c.log.Print(msg)
 				panic(msg)
 			}
 
 			if e := c.csvWriter.Write(data); e != nil {
 				//TODO distinguish error values for better handling
 				perr := fmt.Errorf("Unable to write record to file: %s ", e)
-				c.log.Error(perr)
+				c.log.Print(perr)
 				continue
 			}
 
@@ -149,7 +139,7 @@ func (c *CsvSink) Open(ctx context.Context) <-chan error {
 			c.csvWriter.Flush()
 			if e := c.csvWriter.Error(); e != nil {
 				perr := fmt.Errorf("IO flush error: %s", e)
-				c.log.Error(perr)
+				c.log.Print(perr)
 			}
 
 			select {

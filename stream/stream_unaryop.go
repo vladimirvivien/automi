@@ -1,12 +1,11 @@
 package stream
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
 	"github.com/vladimirvivien/automi/api"
-
-	"golang.org/x/net/context"
 )
 
 // isUnaryFuncForm ensures type is a function of form func(in)out.

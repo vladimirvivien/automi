@@ -1,35 +1,35 @@
 package stream
 
 import (
+	"context"
+	"log"
+	"os"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/vladimirvivien/automi/api"
-
-	"golang.org/x/net/context"
 )
 
 type strSrc struct {
 	src    []string
 	output chan interface{}
-	log    *logrus.Entry
+	log    *log.Logger
 }
 
 func newStrSrc(s []string) *strSrc {
 	return &strSrc{
 		src:    s,
 		output: make(chan interface{}, 1024),
-		log:    logrus.WithField("Component", "StrSrc"),
+		log:    log.New(os.Stderr, "", log.Flags()),
 	}
 }
 func (s *strSrc) GetOutput() <-chan interface{} {
 	return s.output
 }
 func (s *strSrc) Open(ctx context.Context) error {
-	s.log.Infoln("Opening stream source")
+	s.log.Print("Opening stream source")
 	go func() {
 		defer close(s.output)
 		for _, str := range s.src {
@@ -44,14 +44,14 @@ type strSink struct {
 	sink  []string
 	input <-chan interface{}
 	done  chan struct{}
-	log   *logrus.Entry
+	log   *log.Logger
 }
 
 func newStrSink() *strSink {
 	return &strSink{
 		sink: make([]string, 0),
 		done: make(chan struct{}),
-		log:  logrus.WithField("Component", "StrSink"),
+		log:  log.New(os.Stderr, "", log.Flags()),
 	}
 }
 func (s *strSink) SetInput(in <-chan interface{}) {
@@ -59,7 +59,7 @@ func (s *strSink) SetInput(in <-chan interface{}) {
 }
 
 func (s *strSink) Open(ctx context.Context) <-chan error {
-	s.log.Infoln("Opening stream sink")
+	s.log.Print("Opening stream sink")
 	result := make(chan error)
 	go func() {
 		defer close(s.done)

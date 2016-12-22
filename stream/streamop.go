@@ -1,12 +1,11 @@
 package stream
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"reflect"
 
-	"golang.org/x/net/context"
-
-	"github.com/Sirupsen/logrus"
 	autoctx "github.com/vladimirvivien/automi/api/context"
 	"github.com/vladimirvivien/automi/api/tuple"
 )
@@ -15,26 +14,18 @@ type StreamOp struct {
 	ctx    context.Context
 	input  <-chan interface{}
 	output chan interface{}
-	log    *logrus.Entry
+	log    *log.Logger
 }
 
 func NewStreamOp(ctx context.Context) *StreamOp {
-	log, ok := autoctx.GetLogEntry(ctx)
-	if !ok {
-		log = logrus.WithField("Component", "StreamOperator")
-		log.Error("Logger not found in context")
-	}
+	log := autoctx.GetLogger(ctx)
 
 	r := new(StreamOp)
 	r.ctx = ctx
-	r.log = log.WithFields(logrus.Fields{
-		"Component": "StreamOperator",
-		"Type":      fmt.Sprintf("%T", r),
-	})
-
+	r.log = log
 	r.output = make(chan interface{}, 1024)
 
-	r.log.Infof("Component initialized")
+	r.log.Print("component initialized")
 	return r
 }
 
@@ -55,7 +46,7 @@ func (r *StreamOp) Exec() (err error) {
 	go func() {
 		defer func() {
 			close(r.output)
-			r.log.Info("Component shutting down")
+			r.log.Print("component shutting down")
 		}()
 		for {
 			select {

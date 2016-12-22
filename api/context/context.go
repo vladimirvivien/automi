@@ -1,27 +1,33 @@
 package context
 
 import (
+	"context"
 	"fmt"
-
-	"github.com/Sirupsen/logrus"
-	"golang.org/x/net/context"
+	"log"
+	"os"
 )
 
 const (
-	logEntryKey = iota
+	loggerKey = iota
 	auxChKey
 )
 
-// WithLogEntry sets a Logrus Entry struct in the context
-// to be used for common logging infrastructure
-func WithLogEntry(ctx context.Context, logEntry *logrus.Entry) context.Context {
-	return context.WithValue(ctx, logEntryKey, logEntry)
+var (
+	logger *log.Logger = log.New(os.Stderr, log.Prefix(), log.Flags())
+)
+
+// WithLogger sets a logger value in the cotext.
+func WithLogger(ctx context.Context, logger *log.Logger) context.Context {
+	return context.WithValue(ctx, loggerKey, logger)
 }
 
-// GetLogEntry returns the Logrus Entry to use for logging
-func GetLogEntry(ctx context.Context) (*logrus.Entry, bool) {
-	l, ok := ctx.Value(logEntryKey).(*logrus.Entry)
-	return l, ok
+// GetLogger returns the logger if one is found, or create one.
+func GetLogger(ctx context.Context) *log.Logger {
+	l, ok := ctx.Value(loggerKey).(*log.Logger)
+	if l == nil || !ok {
+		return logger
+	}
+	return l
 }
 
 // WithAuxChan sets the auiliary channel to be used by components using the
