@@ -6,12 +6,14 @@ import (
 	"os"
 )
 
+// Drain is a generic sink that terminates streamed data
 type Drain struct {
 	output chan interface{}
 	input  <-chan interface{}
 	log    *log.Logger
 }
 
+// NewDrain creates a new Drain
 func NewDrain() *Drain {
 	return &Drain{
 		output: make(chan interface{}, 1024),
@@ -19,14 +21,17 @@ func NewDrain() *Drain {
 	}
 }
 
+// SetInput sets input channel for executor node
 func (s *Drain) SetInput(in <-chan interface{}) {
 	s.input = in
 }
 
+// GetOuput returns output channel for stream node
 func (s *Drain) GetOutput() <-chan interface{} {
 	return s.output
 }
 
+// Open opens the sink node to start consuming streaming data
 func (s *Drain) Open(ctx context.Context) <-chan error {
 	s.log.Print("cpening component")
 	result := make(chan error)

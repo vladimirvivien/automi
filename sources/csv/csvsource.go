@@ -1,4 +1,4 @@
-package file
+package csv
 
 import (
 	"context"
@@ -11,9 +11,9 @@ import (
 	autoctx "github.com/vladimirvivien/automi/api/context"
 )
 
-// CsvSource implements an Source process that reads the content of a
-// specified io.Reader or a os.File and emits its record via its Output Channel
-// and serializes each row as a slice []string.
+// CsvSource implements a Source node that reads the content of a
+// specified io.Reader or a os.File and emits each record as []string
+// to its Output Channel.
 type CsvSource struct {
 	filepath    string   // path for the file
 	delimChar   rune     // Delimiter charater, defaults to comma
@@ -29,6 +29,7 @@ type CsvSource struct {
 	output    chan interface{}
 }
 
+// New creates a new CsvSource
 func New() *CsvSource {
 	csv := &CsvSource{
 		delimChar:   ',',
@@ -38,31 +39,37 @@ func New() *CsvSource {
 	return csv
 }
 
+// WithReader sets an io.Reader value to read csv  data from
 func (c *CsvSource) WithReader(reader io.Reader) *CsvSource {
 	c.srcReader = reader
 	return c
 }
 
+// WithFile sets a file name to read csv data from
 func (c *CsvSource) WithFile(path string) *CsvSource {
 	c.filepath = path
 	return c
 }
 
+// Delimiter sets the delimiter character to use (default is comma)
 func (c *CsvSource) DelimChar(char rune) *CsvSource {
 	c.delimChar = char
 	return c
 }
 
+// CommentChar sets the character used to indicate comment lines
 func (c *CsvSource) CommentChar(char rune) *CsvSource {
 	c.commentChar = char
 	return c
 }
 
+// HasHeaders indicates that data source has header record
 func (c *CsvSource) HasHeaders() *CsvSource {
 	c.hasHeaders = true
 	return c
 }
 
+// init internal initialization method
 func (c *CsvSource) init(ctx context.Context) error {
 	// extract logger
 	log := autoctx.GetLogger(ctx)
@@ -117,10 +124,12 @@ func (c *CsvSource) init(ctx context.Context) error {
 	return nil
 }
 
+// GetOutput returns the channel for the source
 func (c *CsvSource) GetOutput() <-chan interface{} {
 	return c.output
 }
 
+// Open starting point that opens the source to start emitting data
 func (c *CsvSource) Open(ctx context.Context) (err error) {
 	if err = c.init(ctx); err != nil {
 		return

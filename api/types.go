@@ -5,6 +5,7 @@ import (
 	"fmt"
 )
 
+// Source represents a node that can source data
 type Source interface {
 	GetOutput() <-chan interface{}
 }
@@ -15,16 +16,18 @@ type StreamSource interface {
 	Open(context.Context) error
 }
 
+// Sink represents a node that can absorb/consume data
 type Sink interface {
 	SetInput(<-chan interface{})
 }
 
-// SteamSink  represents a final sink for a stream
+// SteamSink  represents a node that can stream data to be absorbed/consumed
 type StreamSink interface {
 	Sink
 	Open(context.Context) <-chan error
 }
 
+// Operator is an executor node that applies a function on items in the stream
 type Operator interface {
 	Sink
 	Source

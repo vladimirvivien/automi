@@ -9,6 +9,8 @@ import (
 	autoctx "github.com/vladimirvivien/automi/api/context"
 )
 
+// Stream represents a stream unto  which executor nodes can be
+// attached to operate on the streamed data
 type Stream struct {
 	source api.StreamSource
 	sink   api.StreamSink
@@ -18,6 +20,7 @@ type Stream struct {
 	log    *log.Logger
 }
 
+// New creates a new *Stream value
 func New() *Stream {
 	s := &Stream{
 		ops: make([]api.Operator, 0),
@@ -27,16 +30,19 @@ func New() *Stream {
 	return s
 }
 
+// WithContext sets a context.Context to use
 func (s *Stream) WithContext(ctx context.Context) *Stream {
 	s.ctx = ctx
 	return s
 }
 
+// From sets the stream source to use
 func (s *Stream) From(src api.StreamSource) *Stream {
 	s.source = src
 	return s
 }
 
+// To sets the terminal stream sink to use
 func (s *Stream) To(sink api.StreamSink) *Stream {
 	s.sink = sink
 	return s
@@ -51,6 +57,7 @@ func (s *Stream) ReStream() *Stream {
 	return s
 }
 
+// Open opens the Stream which starts all attached operators
 func (s *Stream) Open() <-chan error {
 	result := make(chan error, 1)
 	if err := s.initGraph(); err != nil {

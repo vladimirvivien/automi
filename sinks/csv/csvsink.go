@@ -11,10 +11,13 @@ import (
 	autoctx "github.com/vladimirvivien/automi/api/context"
 )
 
+// CsvSink represents a node that can consume stream as []string
+// and write it as comma-separated values to a specified io.Writer
+// or a file
 type CsvSink struct {
-	filepath  string
-	delimChar rune
-	headers   []string
+	filepath  string   // path for the file
+	delimChar rune     // delimiter character
+	headers   []string // optional csv headers
 
 	file      *os.File
 	input     <-chan interface{}
@@ -23,6 +26,7 @@ type CsvSink struct {
 	log       *log.Logger
 }
 
+// New creates a *CsvSink value
 func New() *CsvSink {
 	csv := &CsvSink{
 		delimChar: ',',
@@ -30,20 +34,24 @@ func New() *CsvSink {
 	return csv
 }
 
+// WithWriter sets the io.Writer that will write the csv data
 func (c *CsvSink) WithWriter(writer io.Writer) *CsvSink {
 	c.snkWriter = writer
 	return c
 }
 
+// WithFile sets a file name to use as a csv data sink
 func (c *CsvSink) WithFile(path string) *CsvSink {
 	c.filepath = path
 	return c
 }
 
+// SetInput sets the channel input
 func (c *CsvSink) SetInput(in <-chan interface{}) {
 	c.input = in
 }
 
+// internal initializiation of the component
 func (c *CsvSink) init(ctx context.Context) error {
 	//extract log entry
 	c.log = autoctx.GetLogger(ctx)
@@ -86,6 +94,7 @@ func (c *CsvSink) init(ctx context.Context) error {
 	return nil
 }
 
+// Open is the starting point that opens the sink for data to start flowing
 func (c *CsvSink) Open(ctx context.Context) <-chan error {
 	result := make(chan error)
 	if err := c.init(ctx); err != nil {

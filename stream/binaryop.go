@@ -10,7 +10,7 @@ import (
 	autoctx "github.com/vladimirvivien/automi/api/context"
 )
 
-// BinaryOp represents a binary operation (i.e. aggregation, reduction, etc)
+// BinaryOp is executor that knows how to run a binary operation (i.e. aggregation, reduction, etc)
 type BinaryOp struct {
 	ctx         context.Context
 	op          api.BinOperation
@@ -23,6 +23,7 @@ type BinaryOp struct {
 	mutex       sync.RWMutex
 }
 
+// NewBinOp creates a new binary operation executor
 func NewBinaryOp(ctx context.Context) *BinaryOp {
 	// extract logger
 	log := autoctx.GetLogger(ctx)
@@ -37,14 +38,17 @@ func NewBinaryOp(ctx context.Context) *BinaryOp {
 	return o
 }
 
+// SetOperation sets the operation to execute
 func (o *BinaryOp) SetOperation(op api.BinOperation) {
 	o.op = op
 }
 
+// SetInitialState sets an initial value used with the first streamed item
 func (o *BinaryOp) SetInitialState(val interface{}) {
 	o.state = val
 }
 
+// SetConcurrency sets the concurrency level
 func (o *BinaryOp) SetConcurrency(concurr int) {
 	o.concurrency = concurr
 	if o.concurrency < 1 {
@@ -52,14 +56,17 @@ func (o *BinaryOp) SetConcurrency(concurr int) {
 	}
 }
 
+// SetInput sets the input channel for the executor node
 func (o *BinaryOp) SetInput(in <-chan interface{}) {
 	o.input = in
 }
 
+// GetOutput returns the output channel for the executor node
 func (o *BinaryOp) GetOutput() <-chan interface{} {
 	return o.output
 }
 
+// Exec executes the associated operation
 func (o *BinaryOp) Exec() (err error) {
 	if o.input == nil {
 		err = fmt.Errorf("No input channel found")
@@ -111,6 +118,7 @@ func (o *BinaryOp) Exec() (err error) {
 	return nil
 }
 
+// doProc is a helper function that executes the operation
 func (o *BinaryOp) doProc(ctx context.Context) {
 	if o.op == nil {
 		o.log.Print("no operation defined for BinaryOp")

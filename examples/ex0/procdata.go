@@ -8,6 +8,7 @@ import (
 	"github.com/vladimirvivien/automi/stream"
 )
 
+// scientist represents row data in source (csv file)
 type scientist struct {
 	FirstName string
 	LastName  string
@@ -27,10 +28,16 @@ type scientist struct {
 // 5. stream.Open() - opens and executes stream operator and wait for
 // completion.
 func main() {
+	// in is the CSV source read from ./data.txt file
 	in := src.New().WithFile("./data.txt")
+
+	// out is the sink that will write to file ./result.txt
 	out := snk.New().WithFile("./result.txt")
 
+	// start with a new stream from source in
 	stream := stream.New().From(in)
+
+	// Map each row from CSV, typed as []string, to type scientist
 	stream.Map(func(cs []string) scientist {
 		yr, _ := strconv.Atoi(cs[3])
 		return scientist{
@@ -40,15 +47,21 @@ func main() {
 			BornYear:  yr,
 		}
 	})
+
+	// Filters out scientst born after 1930
 	stream.Filter(func(cs scientist) bool {
 		if cs.BornYear > 1930 {
 			return true
 		}
 		return false
 	})
+
+	// remap scientst value to slice of string
 	stream.Map(func(cs scientist) []string {
 		return []string{cs.FirstName, cs.LastName, cs.Title}
 	})
+
+	// stream []string to sink out
 	stream.To(out)
 
 	<-stream.Open() // wait for completion

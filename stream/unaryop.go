@@ -18,7 +18,7 @@ func pack(vals ...interface{}) packed {
 	return packed{vals}
 }
 
-// UnaryOp represents a unary operation (i.e. transformation, etc)
+// UnaryOp is an executor node that can execute a unary operation (i.e. transformation, etc)
 type UnaryOp struct {
 	ctx         context.Context
 	op          api.UnOperation
@@ -30,6 +30,7 @@ type UnaryOp struct {
 	mutex       sync.RWMutex
 }
 
+// NewUnary creates *UnaryOp value
 func NewUnaryOp(ctx context.Context) *UnaryOp {
 	// extract logger
 	log := autoctx.GetLogger(ctx)
@@ -45,10 +46,12 @@ func NewUnaryOp(ctx context.Context) *UnaryOp {
 	return o
 }
 
+// SetOperation sets the executor operation
 func (o *UnaryOp) SetOperation(op api.UnOperation) {
 	o.op = op
 }
 
+// SetConcurrency sets the concurrency level for the operation
 func (o *UnaryOp) SetConcurrency(concurr int) {
 	o.concurrency = concurr
 	if o.concurrency < 1 {
@@ -56,14 +59,17 @@ func (o *UnaryOp) SetConcurrency(concurr int) {
 	}
 }
 
+// SetInput sets the input channel for the executor node
 func (o *UnaryOp) SetInput(in <-chan interface{}) {
 	o.input = in
 }
 
+// GetOutput returns the output channel for the executor node
 func (o *UnaryOp) GetOutput() <-chan interface{} {
 	return o.output
 }
 
+// Exec is the entry point for the executor
 func (o *UnaryOp) Exec() (err error) {
 	if o.input == nil {
 		err = fmt.Errorf("No input channel found")
