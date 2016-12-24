@@ -1,4 +1,4 @@
-package csv
+package sinks
 
 import (
 	"context"
@@ -27,7 +27,7 @@ type CsvSink struct {
 }
 
 // New creates a *CsvSink value
-func New() *CsvSink {
+func Csv() *CsvSink {
 	csv := &CsvSink{
 		delimChar: ',',
 	}

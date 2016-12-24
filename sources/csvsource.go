@@ -1,4 +1,4 @@
-package csv
+package sources
 
 import (
 	"context"
@@ -30,7 +30,7 @@ type CsvSource struct {
 }
 
 // New creates a new CsvSource
-func New() *CsvSource {
+func Csv() *CsvSource {
 	csv := &CsvSource{
 		delimChar:   ',',
 		commentChar: '#',

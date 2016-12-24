@@ -3,8 +3,8 @@ package main
 import (
 	"strconv"
 
-	snk "github.com/vladimirvivien/automi/sinks/csv"
-	src "github.com/vladimirvivien/automi/sources/csv"
+	snk "github.com/vladimirvivien/automi/sinks"
+	src "github.com/vladimirvivien/automi/sources"
 	"github.com/vladimirvivien/automi/stream"
 )
 
@@ -29,10 +29,10 @@ type scientist struct {
 // completion.
 func main() {
 	// in is the CSV source read from ./data.txt file
-	in := src.New().WithFile("./data.txt")
+	in := src.Csv().WithFile("./data.txt")
 
 	// out is the sink that will write to file ./result.txt
-	out := snk.New().WithFile("./result.txt")
+	out := snk.Csv().WithFile("./result.txt")
 
 	// start with a new stream from source in
 	stream := stream.New().From(in)

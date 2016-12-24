@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/vladimirvivien/automi/api/tuple"
-	"github.com/vladimirvivien/automi/sinks/csv"
+	"github.com/vladimirvivien/automi/sinks"
 	"github.com/vladimirvivien/automi/stream"
 )
 
@@ -25,7 +25,7 @@ func main() {
 	src := stream.NewSliceSource("Hello World", "Hello Milkyway", "Hello Universe")
 
 	// sets a sink to stream data to file ./wc.out
-	snk := csv.New().WithFile("./wc.out")
+	snk := sinks.Csv().WithFile("./wc.out")
 
 	// start stream with source
 	stream := stream.New().From(src)

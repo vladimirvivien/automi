@@ -1,4 +1,4 @@
-package csv
+package sources
 
 import (
 	"bytes"
@@ -13,7 +13,7 @@ import (
 )
 
 func TestCsvSrc_BuilderPattern(t *testing.T) {
-	csv := New().WithFile("./test-file.txt").
+	csv := Csv().WithFile("./test-file.txt").
 		CommentChar('@').
 		DelimChar('|')
 
@@ -34,7 +34,7 @@ func TestCsvSrc_Open(t *testing.T) {
 	data := "Col1,Col2,Col3\nChristophe,Petion,Dessaline\nToussaint,Guerrier,Caiman"
 	reader := strings.NewReader(data)
 
-	csv := New().WithReader(reader).HasHeaders()
+	csv := Csv().WithReader(reader).HasHeaders()
 
 	if csv.file != nil {
 		t.Fatal("Expecting file object to be nil")
@@ -83,7 +83,7 @@ func BenchmarkCsvSource(b *testing.B) {
 		data.WriteString(testutil.GenWord() + "\n")
 	}
 
-	csv := New().WithReader(data).HasHeaders().DelimChar('|')
+	csv := Csv().WithReader(data).HasHeaders().DelimChar('|')
 
 	var m sync.RWMutex
 	counted := 0
