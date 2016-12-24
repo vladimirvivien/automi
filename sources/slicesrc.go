@@ -1,4 +1,4 @@
-package stream
+package sources
 
 import (
 	"context"
@@ -7,7 +7,8 @@ import (
 	autoctx "github.com/vladimirvivien/automi/api/context"
 )
 
-// SliceSrc is source node that streams out each item of a provided sice
+// SliceSrc is source node that takes in a slice and
+// emits slice items individually as a stream.
 type SliceSrc struct {
 	src    []interface{}
 	output chan interface{}
@@ -15,7 +16,7 @@ type SliceSrc struct {
 }
 
 // SliceSrc creates new slice source
-func NewSliceSource(elems ...interface{}) *SliceSrc {
+func Slice(elems ...interface{}) *SliceSrc {
 	return &SliceSrc{
 		src:    elems,
 		output: make(chan interface{}, 1024),
@@ -30,7 +31,7 @@ func (s *SliceSrc) GetOutput() <-chan interface{} {
 // Open opens the source node to start streaming data on its channel
 func (s *SliceSrc) Open(ctx context.Context) error {
 	s.log = autoctx.GetLogger(ctx)
-	s.log.Print("opening source")
+	s.log.Print("opening slice source")
 	go func() {
 		defer close(s.output)
 		for _, str := range s.src {

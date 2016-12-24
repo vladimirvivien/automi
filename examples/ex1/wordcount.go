@@ -6,6 +6,7 @@ import (
 
 	"github.com/vladimirvivien/automi/api/tuple"
 	"github.com/vladimirvivien/automi/sinks"
+	"github.com/vladimirvivien/automi/sources"
 	"github.com/vladimirvivien/automi/stream"
 )
 
@@ -22,7 +23,7 @@ import (
 // 7. stream.To() prints items to a file.
 func main() {
 	// sets up an in-memory stream strings
-	src := stream.NewSliceSource("Hello World", "Hello Milkyway", "Hello Universe")
+	src := sources.Slice("Hello World", "Hello Milkyway", "Hello Universe")
 
 	// sets a sink to stream data to file ./wc.out
 	snk := sinks.Csv().WithFile("./wc.out")

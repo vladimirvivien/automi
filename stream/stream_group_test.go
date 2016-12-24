@@ -6,11 +6,12 @@ import (
 	"time"
 
 	"github.com/vladimirvivien/automi/api/tuple"
+	"github.com/vladimirvivien/automi/sources"
 )
 
 // TestStream_GroupByInt_KV groups incoming tuple.KV data items.
 func TestStream_GroupByInt_KV(t *testing.T) {
-	src := NewSliceSource("Hello World", "Hello Milkyway", "Hello Universe")
+	src := sources.Slice("Hello World", "Hello Milkyway", "Hello Universe")
 	snk := NewDrain()
 	strm := New().From(src).FlatMap(func(line string) []string {
 		return strings.Split(line, " ")
@@ -47,7 +48,7 @@ func TestStream_GroupByInt_KV(t *testing.T) {
 
 // TestStream_GroupByInt_Slice tests  grouping data items received as slice.
 func TestStream_GroupByInt_Slice(t *testing.T) {
-	src := NewSliceSource("Hello World Wide", "Hello Milkyway Away", "Our World Now")
+	src := sources.Slice("Hello World Wide", "Hello Milkyway Away", "Our World Now")
 	snk := NewDrain()
 	strm := New().From(src).Map(func(item string) []string {
 		return strings.Split(item, " ")
@@ -82,7 +83,7 @@ func TestStream_GroupByInt_Slice(t *testing.T) {
 
 func TestStream_GroupByString_Struct(t *testing.T) {
 	type log struct{ Event, Src, Device, Result string }
-	src := NewSliceSource(
+	src := sources.Slice(
 		log{Event: "request", Src: "/i/a", Device: "00:11:51:AA", Result: "accepted"},
 		log{Event: "response", Src: "/i/a/", Device: "00:11:51:AA", Result: "served"},
 		log{Event: "request", Src: "/i/b", Device: "00:11:22:33", Result: "accepted"},

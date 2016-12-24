@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/vladimirvivien/automi/api"
+	"github.com/vladimirvivien/automi/sources"
 )
 
 type strSrc struct {
@@ -193,7 +194,7 @@ func TestStream_Open_WithOp(t *testing.T) {
 }
 
 func TestStream_Process(t *testing.T) {
-	src := NewSliceSource("hello", "world")
+	src := sources.Slice("hello", "world")
 	snk := NewDrain()
 	strm := New().From(src).Process(func(s string) string {
 		return strings.ToUpper(s)
@@ -327,7 +328,7 @@ func TestStream_FlatMap(t *testing.T) {
 	}
 }
 func TestStream_Reduce(t *testing.T) {
-	src := NewSliceSource(1, 2, 3, 4, 5)
+	src := sources.Slice(1, 2, 3, 4, 5)
 	snk := NewDrain()
 	strm := New().From(src).Reduce(func(op1, op2 int) int {
 		return op1 + op2
