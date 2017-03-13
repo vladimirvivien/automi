@@ -58,7 +58,7 @@ The stream operators that are applied to the stream as follows:
  - `stream.Map()` - maps []string to to scientist type
  - `stream.Filter()` - filters out scientist.BornYear > 1938
  - `stream.Map()` - maps scientist value to []string
- - `stram.To()` - writes sream values to a CsvSink
+ - `stream.To()` - writes stream values to a CsvSink
  - `stream.Open()` - opens and executes stream operator and wait for completion.
 
 The code implements stream processing based on the pipeline patterns.  What is clearly absent, however, is the low level channel communication code to coordinate and synchronize goroutines.  The programmer is provided a clean surface to express business code without the noisy channel infrastructure code.  Underneath the cover however, Automi is using patterns similar to the pipeline patterns to create safe and concurrent structures to execute the processing of the data stream.
