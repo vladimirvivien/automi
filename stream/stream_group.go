@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	"github.com/vladimirvivien/automi/api"
+	"github.com/vladimirvivien/automi/operators"
 )
 
 // GroupBy groups elements- based on classification method specified
@@ -36,7 +37,7 @@ func (s *Stream) GroupBy(g interface{}) *Stream {
 		panic(fmt.Sprintf("GroupBy failed, type %T is not a supported classifier", g))
 	}
 
-	operator := NewBinaryOp(s.ctx)
+	operator := operators.NewBinaryOp(s.ctx)
 	operator.SetOperation(op)
 	operator.SetInitialState(make(map[interface{}][]interface{})) // op0 used as accumulator
 	s.ops = append(s.ops, operator)
@@ -151,7 +152,7 @@ func (s *Stream) SumBy(g interface{}) *Stream {
 		panic(fmt.Sprintf("GroupBy failed, type %T is not a supported classifier", g))
 	}
 
-	operator := NewBinaryOp(s.ctx)
+	operator := operators.NewBinaryOp(s.ctx)
 	operator.SetOperation(op)
 	operator.SetInitialState(make(map[interface{}][]interface{}))
 	s.ops = append(s.ops, operator)

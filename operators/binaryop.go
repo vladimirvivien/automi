@@ -1,4 +1,4 @@
-package stream
+package operators
 
 import (
 	"context"

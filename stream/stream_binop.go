@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	"github.com/vladimirvivien/automi/api"
+	"github.com/vladimirvivien/automi/operators"
 )
 
 // isBinaryFuncForm ensures type is a function of form func(op1,op2)out.
@@ -29,7 +30,7 @@ func (s *Stream) isBinaryFuncForm(ftype reflect.Type) error {
 // operations to stream elements (i.e. reduce, collect, etc).
 // Use the other more specific methods instead.
 func (s *Stream) Accumulate(op api.BinOperation) *Stream {
-	operator := NewBinaryOp(s.ctx)
+	operator := operators.NewBinaryOp(s.ctx)
 	operator.SetOperation(op)
 	s.ops = append(s.ops, operator)
 	return s
@@ -42,7 +43,7 @@ func (s *Stream) Accumulate(op api.BinOperation) *Stream {
 // a binary operator operation is ignored.
 func (s *Stream) SetInitialState(val interface{}) *Stream {
 	lastOp := s.ops[len(s.ops)-1]
-	binOp, ok := lastOp.(*BinaryOp)
+	binOp, ok := lastOp.(*operators.BinaryOp)
 	if !ok {
 		s.log.Print("Unable to SetInitialState on last operator, wrong type. Value not set.")
 		return s

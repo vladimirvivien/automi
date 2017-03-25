@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	"github.com/vladimirvivien/automi/api"
+	"github.com/vladimirvivien/automi/operators"
 )
 
 // isUnaryFuncForm ensures type is a function of form func(in)out.
@@ -29,7 +30,7 @@ func (s *Stream) isUnaryFuncForm(ftype reflect.Type) error {
 // unary operations to stream elements (i.e. filter, map, etc)
 // It is exposed for completeness, use the other more specific methods.
 func (s *Stream) Transform(op api.UnOperation) *Stream {
-	operator := NewUnaryOp(s.ctx)
+	operator := operators.NewUnaryOp(s.ctx)
 	operator.SetOperation(op)
 	s.ops = append(s.ops, operator)
 	return s
