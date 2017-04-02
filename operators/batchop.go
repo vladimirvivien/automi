@@ -58,16 +58,17 @@ func (op *BatchOp) Exec() (err error) {
 			select {
 			case item, opened := <-op.input:
 				if !opened {
-					op.output <- batch
 					return
 				}
 				batch = append(batch, item)
-				switch {
-				case counter < op.size:
+				if counter < op.size-1 {
 					counter++
-				case counter >= op.size:
-					counter = 0
+					continue
+				}
+				if counter >= op.size-1 {
 					op.output <- batch
+					counter = 0
+					batch = make([]interface{}, 0, op.size)
 				}
 			}
 		}
