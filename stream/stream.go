@@ -7,6 +7,7 @@ import (
 
 	"github.com/vladimirvivien/automi/api"
 	autoctx "github.com/vladimirvivien/automi/api/context"
+	"github.com/vladimirvivien/automi/operators"
 )
 
 // Stream represents a stream unto  which executor nodes can be
@@ -52,7 +53,7 @@ func (s *Stream) To(sink api.StreamSink) *Stream {
 // and emmits their elements as individual channel items to downstream
 // operations.  Items of other types are ignored.
 func (s *Stream) ReStream() *Stream {
-	sop := NewStreamOp(s.ctx)
+	sop := operators.NewStreamOp(s.ctx)
 	s.ops = append(s.ops, sop)
 	return s
 }
