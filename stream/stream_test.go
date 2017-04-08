@@ -248,6 +248,7 @@ func TestStream_Filter(t *testing.T) {
 }
 
 func TestStream_Map(t *testing.T) {
+
 	src := newStrSrc([]string{"HELLO", "WORLD", "HOW", "ARE", "YOU"})
 	snk := NewDrain()
 	strm := New().From(src).Map(func(data string) int {

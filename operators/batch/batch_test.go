@@ -1,4 +1,4 @@
-package operators
+package batch
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 )
 
 func TestBatchOp_New(t *testing.T) {
-	s := NewBatchOp(context.Background())
+	s := New(context.Background())
 
 	if s.output == nil {
 		t.Error("missing output")
@@ -24,7 +24,7 @@ func TestBatchOp_New(t *testing.T) {
 }
 
 func TestBatchOp_GettersSetters(t *testing.T) {
-	o := NewBatchOp(context.Background())
+	o := New(context.Background())
 	in := make(chan interface{})
 
 	o.SetInput(in)
@@ -39,7 +39,7 @@ func TestBatchOp_GettersSetters(t *testing.T) {
 
 func TestBatchOp_Exec(t *testing.T) {
 	ctx, _ := context.WithCancel(context.Background())
-	o := NewBatchOp(ctx)
+	o := New(ctx)
 	o.size = 4
 
 	in := make(chan interface{})
@@ -95,7 +95,7 @@ func TestBatchOp_Exec(t *testing.T) {
 
 func BenchmarkBatchOp_Exec(b *testing.B) {
 	ctx := context.Background()
-	o := NewBatchOp(ctx)
+	o := New(ctx)
 	N := b.N
 	size := func() int {
 		if N == 1 {

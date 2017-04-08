@@ -1,4 +1,4 @@
-package operators
+package batch
 
 import (
 	"context"
@@ -8,10 +8,10 @@ import (
 	autoctx "github.com/vladimirvivien/automi/api/context"
 )
 
-// BatchOp is an executor that batches incoming streamed items based
+// BatchOperator is an executor that batches incoming streamed items based
 // on provided criteria.  The batched items are streamed on the
 // ouptut channel for downstream processing.
-type BatchOp struct {
+type BatchOperator struct {
 	ctx    context.Context
 	input  <-chan interface{}
 	output chan interface{}
@@ -19,10 +19,10 @@ type BatchOp struct {
 	size   int
 }
 
-// NewBatchOp returns a new BatchOp operator
-func NewBatchOp(ctx context.Context) *BatchOp {
+// New returns a new BatchOperator operator
+func New(ctx context.Context) *BatchOperator {
 	log := autoctx.GetLogger(ctx)
-	op := new(BatchOp)
+	op := new(BatchOperator)
 	op.ctx = ctx
 	op.log = log
 	op.output = make(chan interface{}, 1024)
@@ -31,17 +31,17 @@ func NewBatchOp(ctx context.Context) *BatchOp {
 }
 
 // SetInput sets the input channel for the executor node
-func (op *BatchOp) SetInput(in <-chan interface{}) {
+func (op *BatchOperator) SetInput(in <-chan interface{}) {
 	op.input = in
 }
 
 // GetOutput returns the output channel of the executer node
-func (op *BatchOp) GetOutput() <-chan interface{} {
+func (op *BatchOperator) GetOutput() <-chan interface{} {
 	return op.output
 }
 
 // Exec is the execution starting point for the executor node.
-func (op *BatchOp) Exec() (err error) {
+func (op *BatchOperator) Exec() (err error) {
 	if op.input == nil {
 		err = fmt.Errorf("No input channel found")
 		return

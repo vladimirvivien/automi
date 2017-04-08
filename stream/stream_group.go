@@ -7,82 +7,17 @@ import (
 
 	"github.com/vladimirvivien/automi/api"
 	"github.com/vladimirvivien/automi/operators"
+	"github.com/vladimirvivien/automi/operators/batch"
 )
 
-// GroupBy groups elements- based on classification method specified
-// by param g which can be one of the followings:
-// * int - indicates positional element in a tuple, slice, or array,
-//         other types are ignored.
-// * string - indicates the name of a field in a struct or a map.
-//          other types are ignored.
-// * func () int - a function which returns int
-// * func () string - a function which returns a string
-// GroupBy is a reductive function which will collect upstream elements,
-// partition them in a map based on above criteria, and returns the map
-// once stream window is closed.
-func (s *Stream) GroupBy(g interface{}) *Stream {
-	gType := reflect.TypeOf(g)
-	gVal := reflect.ValueOf(g)
-
-	var op api.BinFunc
-	switch gType.Kind() {
-	case reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64:
-		idx := gVal.Int()
-		op = s.groupByInt(idx)
-	case reflect.String:
-		name := gVal.String()
-		op = s.groupByName(name)
-	case reflect.Func:
-	default:
-		panic(fmt.Sprintf("GroupBy failed, type %T is not a supported classifier", g))
-	}
-
-	operator := operators.NewBinaryOp(s.ctx)
-	operator.SetOperation(op)
-	operator.SetInitialState(make(map[interface{}][]interface{})) // op0 used as accumulator
-	s.ops = append(s.ops, operator)
+// GroupByPos groups incoming batched items by their position in a slice.
+// The batch is expected to be of type [][]interface{}, a two dimension slice
+// The method walks dimension 1 of slice and groups data in dim 2 into map[key][]value
+// where key is the value found at pos for each row.
+// This method should be called after a Batch operation or it will fail.
+func (s *Stream) GroupByPos(pos int) *Stream {
+	s.ops = append(s.ops, batch.GroupByPosFunc(pos))
 	return s
-}
-
-// groupByInt expects incoming data as Pair, []slice, or [n]array.
-// It creates the reduction operation and stores incoming data in a map.
-func (s *Stream) groupByInt(i int64) api.BinFunc {
-	op := api.BinFunc(func(ctx context.Context, op0, op1 interface{}) interface{} {
-		stateType := reflect.TypeOf(op0)
-		if stateType.Kind() != reflect.Map {
-			panic("GroupBy expects a map[keytype][]slice for internal storage")
-		}
-		stateMap := reflect.ValueOf(op0)
-
-		// save data according to type
-		dataType := reflect.TypeOf(op1)
-		dataVal := reflect.ValueOf(op1)
-		switch dataType.Kind() {
-		case reflect.Slice, reflect.Array:
-			// build stateMap[key][]slice dynamically. Add item to slice.
-			key := dataVal.Index(int(i))
-			if key.IsValid() {
-				slice := stateMap.MapIndex(key)
-				if !slice.IsValid() {
-					slice = reflect.MakeSlice(stateType.Elem(), 0, 0)
-					stateMap.SetMapIndex(key, slice)
-				}
-
-				// copy value to group in new slice
-				for j := 0; j < dataVal.Len(); j++ {
-					if j != int(i) {
-						slice = reflect.Append(slice, dataVal.Index(j))
-					}
-				}
-				stateMap.SetMapIndex(key, slice)
-			}
-		default: // ignore anything else
-		}
-
-		return stateMap.Interface()
-	})
-
-	return op
 }
 
 // groupByName returns a binary function that groups streaming item
