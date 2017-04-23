@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/vladimirvivien/automi/api"
+	"github.com/vladimirvivien/automi/util"
 )
 
 // GroupByPosFunc generates a Unary Function that groups incoming batched items
@@ -54,7 +55,7 @@ func GroupByPosFunc(pos int) api.UnFunc {
 	})
 }
 
-func SumIntsByPosFunc(pos int) api.UnFunc {
+func SumByPosFunc(pos int) api.UnFunc {
 	return api.UnFunc(func(ctx context.Context, param0 interface{}) interface{} {
 		dataType := reflect.TypeOf(param0)
 		dataVal := reflect.ValueOf(param0)
@@ -64,7 +65,7 @@ func SumIntsByPosFunc(pos int) api.UnFunc {
 			return param0 // ignores the data
 		}
 
-		sum := int64(0)
+		sum := float64(0)
 
 		// walk [][]interface{}
 		for i := 0; i < dataVal.Len(); i++ {
@@ -73,12 +74,19 @@ func SumIntsByPosFunc(pos int) api.UnFunc {
 			case reflect.Slice, reflect.Array:
 				posVal := row.Index(pos)
 				if posVal.IsValid() {
-					switch posVal.Type().Kind() {
-					case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-						sum += posVal.Int()
-					case reflect.Interface:
-						sum += posVal.Elem().Int()
-					default:
+					if util.IsFloatValue(posVal) {
+						sum += posVal.Float()
+					}
+					if util.IsIntValue(posVal) {
+						sum += float64(posVal.Int())
+					}
+					if posVal.Type().Kind() == reflect.Interface {
+						if util.IsFloatValue(posVal.Elem()) {
+							sum += posVal.Elem().Float()
+						}
+						if util.IsIntValue(posVal.Elem()) {
+							sum += float64(posVal.Elem().Int())
+						}
 					}
 				}
 			default: // TODO handle type mismatch
@@ -87,10 +95,6 @@ func SumIntsByPosFunc(pos int) api.UnFunc {
 		return sum
 	})
 
-}
-
-func SumFloatsByPosFunc(pos int) api.UnFunc {
-	return nil
 }
 
 // GroupByNameFunc generates an api.UnFunc that groups incoming batched items
@@ -130,12 +134,47 @@ func GroupByNameFunc(name string) api.UnFunc {
 	})
 }
 
-func SumIntsByNameFunc(name string) api.UnFunc {
-	return nil
-}
+// SumByNameFunc generates an api.UnFunc that sums incoming batched items
+// by field name.  The batched data is expected to be in the following formats:
+// * []struct{} - slice of structs
+// The operation walks the slice and sums up the struct field F if of types
+// * struct{F Numeric}
+// * struct{F []Numeric}
+// * return float64
+func SumByNameFunc(name string) api.UnFunc {
+	return api.UnFunc(func(ctx context.Context, param0 interface{}) interface{} {
+		dataType := reflect.TypeOf(param0)
+		dataVal := reflect.ValueOf(param0)
 
-func SumFloatsByNameFunc(name string) api.UnFunc {
-	return nil
+		// validate expected type
+		if dataType.Kind() != reflect.Slice && dataType.Kind() != reflect.Array {
+			return param0 // ignores the data
+		}
+		name = strings.Title(name) // avoid unexported field panic
+
+		sum := float64(0)
+
+		// walk the slice
+		for i := 0; i < dataVal.Len(); i++ {
+			item := dataVal.Index(i)
+			switch item.Type().Kind() {
+			case reflect.Struct:
+				val := item.FieldByName(name)
+				if val.IsValid() {
+					switch {
+					case util.IsFloatValue(val):
+						sum += val.Float()
+					case util.IsIntValue(val):
+						sum += float64(val.Int())
+					default:
+						// TODO sum when field F in struct{F []numeric}
+					}
+				}
+			default: //TODO handle type mismatch
+			}
+		}
+		return sum
+	})
 }
 
 // GroupByKeyFunc generates an api.UnFunc that groups incoming batched items
@@ -178,12 +217,14 @@ func GroupByKeyFunc(key interface{}) api.UnFunc {
 	})
 }
 
-// SumInts generates an api.UnFunc that sums up the batched items from  upstream.
-// The data is expected to be in format:
-// * []integers
-// * [][]integers
-// The function returs the sum as an int64
-func SumInts() api.UnFunc {
+// SumByKeyFunc generates an api.UnFunc that sums incoming batched items
+// by key value.  The batched data is expected to be in the following formats:
+// * []map[T]T - slice of maps
+// The operation walks the slice and sums up each item when
+// * map[key]Numeric
+// * map[key][]Numeric
+// * returns a float64 value
+func SumByKeyFunc(key interface{}) api.UnFunc {
 	return api.UnFunc(func(ctx context.Context, param0 interface{}) interface{} {
 		dataType := reflect.TypeOf(param0)
 		dataVal := reflect.ValueOf(param0)
@@ -193,44 +234,42 @@ func SumInts() api.UnFunc {
 			return param0 // ignores the data
 		}
 
-		var sum int64
+		sum := float64(0)
 
-		updateSum := func(op0 *int64, item reflect.Value) {
-			if item.IsValid() {
-				switch item.Type().Kind() {
-				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-					*op0 += item.Int()
-				default: //TODO handle type mismatch
-				}
-
-			}
-		}
-
+		// walk the slice
 		for i := 0; i < dataVal.Len(); i++ {
 			item := dataVal.Index(i)
 			if item.IsValid() {
 				switch item.Type().Kind() {
-				case reflect.Slice, reflect.Array:
-					for j := 0; j < item.Len(); j++ {
-						updateSum(&sum, item.Index(j))
+				case reflect.Map:
+					val := item.MapIndex(reflect.ValueOf(key))
+					if val.IsValid() {
+						switch {
+						case util.IsFloatValue(val):
+							sum += val.Float()
+						case util.IsIntValue(val):
+							sum += float64(val.Int())
+						default:
+							// TODO sum when map[key] returns []Numeric
+						}
 					}
-				default:
-					updateSum(&sum, item)
+				default: //TODO handle type mismatch
 				}
 			}
 		}
 
 		return sum
-
 	})
 }
 
-// SumFloats generates an api.UnFunc that sums up the batched items from  upstream.
+// SumInts generates an api.UnFunc that sums up the batched items from  upstream.
 // The data is expected to be in format:
+// * []integers
 // * []floats
+// * [][]integers
 // * [][]floats
 // The function returs the sum as an float64
-func SumFloats() api.UnFunc {
+func Sum() api.UnFunc {
 	return api.UnFunc(func(ctx context.Context, param0 interface{}) interface{} {
 		dataType := reflect.TypeOf(param0)
 		dataVal := reflect.ValueOf(param0)
@@ -244,10 +283,11 @@ func SumFloats() api.UnFunc {
 
 		updateSum := func(op0 *float64, item reflect.Value) {
 			if item.IsValid() {
-				switch item.Type().Kind() {
-				case reflect.Float32, reflect.Float64:
+				if util.IsFloatValue(item) {
 					*op0 += item.Float()
-				default: //TODO handle type mismatch
+				}
+				if util.IsIntValue(item) {
+					*op0 += float64(item.Int())
 				}
 			}
 		}

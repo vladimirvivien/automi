@@ -107,56 +107,69 @@ func TestBatch_GroupByKeyFunc(t *testing.T) {
 }
 
 func TestBatch_SumInts(t *testing.T) {
-	op := SumInts()
+	op := Sum()
 	data := [][]int{
 		{10, 70, 20},
 		{40, 60, 90},
 		{0, 80, 30},
 	}
 	result := op.Apply(context.TODO(), data)
-	if result.(int64) != 400 {
+	if result.(float64) != 400 {
 		t.Error("expecting 400, but got ", result)
 	}
 
-	data2 := []int{10, 70, 20, 40, 60, 90, 0, 80, 30}
+	data2 := []float32{10.0, 70.0, 20.0, 40.0, 60, 90, 0, 80, 30}
 
 	result = op.Apply(context.TODO(), data2)
-	if result.(int64) != 400 {
+	if result.(float64) != 400 {
 		t.Error("expecting 400, but got ", result)
 	}
 }
 
-func TestBatch_SumIntsByPos(t *testing.T) {
-	op := SumIntsByPosFunc(2)
+func TestBatch_SumByPos(t *testing.T) {
+	op := SumByPosFunc(2)
 	data := [][]interface{}{
 		{"AA", "B", 4},
-		{"BB", "A", 2},
+		{"BB", "A", 2.0},
 		{"CA", "D", 4},
 	}
 
 	result := op.Apply(context.TODO(), data)
 
-	if result.(int64) != 10 {
+	if result.(float64) != 10 {
 		t.Error("expecting 10, got ", result)
 	}
 }
 
-func TestBatch_SumFloats(t *testing.T) {
-	op := SumFloats()
-	data := [][]float32{
-		{10.0, 70.0, 20.0},
-		{40.0, 60.0, 90.0},
-		{0.0, 80.0, 30.0},
+func TestBatch_SumByNameFunc(t *testing.T) {
+	op := SumByNameFunc("Size")
+	data := []struct {
+		Vehicle, Kind, Engine string
+		Size                  int
+	}{
+		{"Spirit", "plane", "propeller", 12},
+		{"Voyager", "satellite", "gravitational", 8},
+		{"BigFoot", "truck", "diesel", 8},
+		{"Enola", "plane", "propeller", 12},
+		{"Memphis", "plane", "propeller", 48},
 	}
-	result := op.Apply(context.TODO(), data)
-	if result.(float64) != 400.0 {
-		t.Error("expecting 400, but got ", result)
+	val := op.Apply(context.TODO(), data)
+	if val.(float64) != 88 {
+		t.Error("expecting sum of 88, got ", val)
 	}
+}
 
-	data2 := []float32{10.0, 70.0, 20.0, 40.0, 60.0, 90.0, 0.0, 80.0, 30.0}
-
-	result = op.Apply(context.TODO(), data2)
-	if result.(float64) != 400.0 {
-		t.Error("expecting 400, but got ", result)
+func TestBatch_SumByKeyFunc(t *testing.T) {
+	op := SumByKeyFunc("weight")
+	data := []map[string]int{
+		{"vehicle": 0, "weight": 2},
+		{"vehicle": 2, "weight": 4},
+		{"vehicle": 3, "weight": 2},
+		{"vehicle": 1, "weight": 5},
+		{"vehicle": 5},
+	}
+	val := op.Apply(context.TODO(), data)
+	if val.(float64) != 13 {
+		t.Error("expecting sum 13, got ", val)
 	}
 }
