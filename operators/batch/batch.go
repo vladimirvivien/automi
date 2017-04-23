@@ -48,11 +48,15 @@ func (op *BatchOperator) Exec() (err error) {
 	}
 
 	go func() {
+		batch := make([]interface{}, 0, op.size)
 		defer func() {
+			// push any straggler items in batch
+			if len(batch) > 0 {
+				op.output <- batch
+			}
 			close(op.output)
 			op.log.Print("component shutting down")
 		}()
-		batch := make([]interface{}, 0, op.size)
 		counter := 0
 		for {
 			select {
