@@ -173,3 +173,21 @@ func TestBatch_SumByKeyFunc(t *testing.T) {
 		t.Error("expecting sum 13, got ", val)
 	}
 }
+
+func TestBatch_SortByPosFunc(t *testing.T) {
+	op := SortByPosFunc(0)
+	data := [][]string{
+		{"Spirit", "plane", "propeller"},
+		{"Voyager", "satellite", "gravitational"},
+		{"BigFoot", "truck", "diesel"},
+		{"Enola", "plane", "propeller"},
+		{"Memphis", "plane", "propeller"},
+	}
+	val := op.Apply(context.TODO(), data)
+
+	sorted := val.([][]string)
+
+	if sorted[0][0] != "BigFoot" && sorted[1][0] != "Enola" && sorted[2][0] != "Memphis" {
+		t.Fatal("unexpected sort order for result: ", sorted)
+	}
+}

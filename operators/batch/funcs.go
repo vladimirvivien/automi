@@ -3,6 +3,7 @@ package batch
 import (
 	"context"
 	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/vladimirvivien/automi/api"
@@ -311,7 +312,69 @@ func Sum() api.UnFunc {
 	})
 }
 
-func Sort() api.UnFunc {
+// SoftByPosFunc generates a api.UnFunc that sorts batched data from upstream.
+// The batched data is expected to be in the following format(s):
+// * [][]T
+// with each iteration i for batch v:
+// - check v[i][pos] to be of type string, integers, float
+// - comapre V[i-1][pos] and v[i][pos]
+// The compared value at v[i][pos] must be comparable types
+// Returs a sorted [][]T
+func SortByPosFunc(pos int) api.UnFunc {
+	return api.UnFunc(func(ctx context.Context, param0 interface{}) interface{} {
+		dataType := reflect.TypeOf(param0)
+		dataVal := reflect.ValueOf(param0)
+
+		// validate expected type
+		if dataType.Kind() != reflect.Slice && dataType.Kind() != reflect.Array {
+			return param0 // ignores the data
+		}
+
+		// use sort.Sort() to sepecify a Less function
+		sort.Slice(dataVal.Interface(), func(i, j int) bool {
+			rowI := dataVal.Index(i)
+			rowJ := dataVal.Index(j)
+			typeIOk := rowI.Type().Kind() == reflect.Slice || rowI.Type().Kind() == reflect.Array
+			typeJOk := rowJ.Type().Kind() == reflect.Slice || rowI.Type().Kind() == reflect.Array
+
+			if typeIOk && typeJOk {
+				itemI := rowI.Index(pos)
+				itemJ := rowJ.Index(pos)
+				switch {
+				case util.IsIntValue(itemI) && util.IsIntValue(itemJ):
+					return itemI.Int() < itemJ.Int()
+				case util.IsFloatValue(itemI) && util.IsFloatValue(itemJ):
+					return itemI.Float() < itemJ.Float()
+				case util.IsIntValue(itemI) && util.IsFloatValue(itemJ):
+					return float64(itemI.Int()) < itemJ.Float()
+				case util.IsFloatValue(itemI) && util.IsIntValue(itemJ):
+					return itemI.Float() < float64(itemJ.Int())
+				case itemI.Type().Kind() == reflect.String && itemJ.Type().Kind() == reflect.String:
+					return itemI.String() < itemJ.String()
+				}
+			}
+			return false
+		})
+
+		return dataVal.Interface()
+	})
+}
+
+// SortByNameFunc generates a api.UnFunc operation that sorts batched items from upstream
+// using the field name of items in the batch.  The batched data is of the form:
+// * []struct
+// The field identified by name must be of comparable values.
+// The function returns a sorted []struct
+func SortByNameFunc(name string) api.UnFunc {
+	return nil
+}
+
+// SortByKeyFunc generates a api.UnFunc operation that sorts batched items from upsteram
+// using the key value of maps in the batch.  The batched data is of the form:
+// * [] map[K]V
+// The key specified for sorting must be of comparable types
+// The function returns sorted []map[K]V
+func SortByKeyFunc(key interface{}) api.UnFunc {
 	return nil
 }
 
