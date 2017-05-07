@@ -373,6 +373,7 @@ func SortByNameFunc(name string) api.UnFunc {
 			itemI := dataVal.Index(i)
 			itemJ := dataVal.Index(j)
 
+			// are items i, j structs
 			typeIOk := itemI.Type().Kind() == reflect.Struct
 			typeJOk := itemI.Type().Kind() == reflect.Struct
 
@@ -395,7 +396,34 @@ func SortByNameFunc(name string) api.UnFunc {
 // The key specified for sorting must be of comparable types
 // The function returns sorted []map[K]V
 func SortByKeyFunc(key interface{}) api.UnFunc {
-	return nil
+	return api.UnFunc(func(ctx context.Context, param0 interface{}) interface{} {
+		dataType := reflect.TypeOf(param0)
+		dataVal := reflect.ValueOf(param0)
+
+		// validate expected type
+		if dataType.Kind() != reflect.Slice && dataType.Kind() != reflect.Array {
+			return param0 // ignores the data
+		}
+
+		sort.Slice(dataVal.Interface(), func(i, j int) bool {
+			itemI := dataVal.Index(i)
+			itemJ := dataVal.Index(j)
+
+			// are items i, j maps
+			typeIOk := itemI.Type().Kind() == reflect.Map
+			typeJOk := itemI.Type().Kind() == reflect.Map
+
+			if typeIOk && typeJOk {
+				valI := itemI.MapIndex(reflect.ValueOf(key))
+				valJ := itemJ.MapIndex(reflect.ValueOf(key))
+				return util.IsLess(valI, valJ)
+			}
+
+			return false
+		})
+
+		return dataVal.Interface()
+	})
 }
 
 func ForAll(f func(ctx context.Context, batch interface{}) map[interface{}][]interface{}) api.UnFunc {

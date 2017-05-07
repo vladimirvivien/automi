@@ -212,3 +212,20 @@ func TestBatch_SortByNameFunc(t *testing.T) {
 		t.Fatal("Unexpected sort order")
 	}
 }
+
+func TestBatch_SortByKeyFunc(t *testing.T) {
+	op := SortByKeyFunc("Vehicle")
+	data := []map[string]string{
+		{"Vehicle": "Spirit", "Kind": "plane", "Engine": "propeller"},
+		{"Vehicle": "Voyager", "Kind": "satellite", "Engine": "gravitational"},
+		{"Vehicle": "BigFoot", "Kind": "truck", "Engine": "diesel"},
+		{"Vehicle": "Enola", "Kind": "plane", "Engine": "propeller"},
+		{"Vehicle": "Memphis", "Kind": "plane", "Engine": "propeller"},
+	}
+	val := op.Apply(context.TODO(), data)
+
+	sorted := val.([]map[string]string)
+	if sorted[0]["Vehicle"] != "BigFoot" && sorted[1]["Vehicle"] != "Enola" && sorted[2]["Vehicle"] != "Memphis" {
+		t.Fatal("Unexpected sort order")
+	}
+}
