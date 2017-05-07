@@ -334,24 +334,17 @@ func SortByPosFunc(pos int) api.UnFunc {
 		sort.Slice(dataVal.Interface(), func(i, j int) bool {
 			rowI := dataVal.Index(i)
 			rowJ := dataVal.Index(j)
+			// can we compare current and previous rows i, j
 			typeIOk := rowI.Type().Kind() == reflect.Slice || rowI.Type().Kind() == reflect.Array
 			typeJOk := rowJ.Type().Kind() == reflect.Slice || rowI.Type().Kind() == reflect.Array
 
+			// determine type of value at row_i[pos], prev row_j[pos]
+			// then compare them.
 			if typeIOk && typeJOk {
 				itemI := rowI.Index(pos)
 				itemJ := rowJ.Index(pos)
-				switch {
-				case util.IsIntValue(itemI) && util.IsIntValue(itemJ):
-					return itemI.Int() < itemJ.Int()
-				case util.IsFloatValue(itemI) && util.IsFloatValue(itemJ):
-					return itemI.Float() < itemJ.Float()
-				case util.IsIntValue(itemI) && util.IsFloatValue(itemJ):
-					return float64(itemI.Int()) < itemJ.Float()
-				case util.IsFloatValue(itemI) && util.IsIntValue(itemJ):
-					return itemI.Float() < float64(itemJ.Int())
-				case itemI.Type().Kind() == reflect.String && itemJ.Type().Kind() == reflect.String:
-					return itemI.String() < itemJ.String()
-				}
+
+				return util.IsLess(itemI, itemJ)
 			}
 			return false
 		})
@@ -366,7 +359,34 @@ func SortByPosFunc(pos int) api.UnFunc {
 // The field identified by name must be of comparable values.
 // The function returns a sorted []struct
 func SortByNameFunc(name string) api.UnFunc {
-	return nil
+	return api.UnFunc(func(ctx context.Context, param0 interface{}) interface{} {
+		dataType := reflect.TypeOf(param0)
+		dataVal := reflect.ValueOf(param0)
+
+		// validate expected type
+		if dataType.Kind() != reflect.Slice && dataType.Kind() != reflect.Array {
+			return param0 // ignores the data
+		}
+
+		name = strings.Title(name) // cap name to avoid panic
+		sort.Slice(dataVal.Interface(), func(i, j int) bool {
+			itemI := dataVal.Index(i)
+			itemJ := dataVal.Index(j)
+
+			typeIOk := itemI.Type().Kind() == reflect.Struct
+			typeJOk := itemI.Type().Kind() == reflect.Struct
+
+			if typeIOk && typeJOk {
+				valI := itemI.FieldByName(name)
+				valJ := itemJ.FieldByName(name)
+				return util.IsLess(valI, valJ)
+			}
+
+			return false
+		})
+
+		return dataVal.Interface()
+	})
 }
 
 // SortByKeyFunc generates a api.UnFunc operation that sorts batched items from upsteram

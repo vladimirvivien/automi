@@ -22,3 +22,19 @@ func IsFloatValue(val reflect.Value) bool {
 	}
 	return false
 }
+
+func IsLess(itemI, itemJ reflect.Value) bool {
+	switch {
+	case IsIntValue(itemI) && IsIntValue(itemJ):
+		return itemI.Int() < itemJ.Int()
+	case IsFloatValue(itemI) && IsFloatValue(itemJ):
+		return itemI.Float() < itemJ.Float()
+	case IsIntValue(itemI) && IsFloatValue(itemJ):
+		return float64(itemI.Int()) < itemJ.Float()
+	case IsFloatValue(itemI) && IsIntValue(itemJ):
+		return itemI.Float() < float64(itemJ.Int())
+	case itemI.Type().Kind() == reflect.String && itemJ.Type().Kind() == reflect.String:
+		return itemI.String() < itemJ.String()
+	}
+	return false
+}

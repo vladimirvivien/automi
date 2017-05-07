@@ -191,3 +191,24 @@ func TestBatch_SortByPosFunc(t *testing.T) {
 		t.Fatal("unexpected sort order for result: ", sorted)
 	}
 }
+
+func TestBatch_SortByNameFunc(t *testing.T) {
+	op := SortByNameFunc("Vehicle")
+	type V struct {
+		Vehicle, Kind, Engine string
+		Size                  int
+	}
+	data := []V{
+		{"Spirit", "plane", "propeller", 12},
+		{"Voyager", "satellite", "gravitational", 8},
+		{"BigFoot", "truck", "diesel", 8},
+		{"Enola", "plane", "propeller", 12},
+		{"Memphis", "plane", "propeller", 48},
+	}
+	val := op.Apply(context.TODO(), data)
+
+	sorted := val.([]V)
+	if sorted[0].Vehicle != "BigFoot" && sorted[1].Vehicle != "Enola" && sorted[2].Vehicle != "Memphis" {
+		t.Fatal("Unexpected sort order")
+	}
+}
