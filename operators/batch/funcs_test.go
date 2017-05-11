@@ -229,3 +229,22 @@ func TestBatch_SortByKeyFunc(t *testing.T) {
 		t.Fatal("Unexpected sort order")
 	}
 }
+
+func TestBatch_SortWithFunc(t *testing.T) {
+	op := SortWithFunc(func(batch interface{}, i, j int) bool {
+		items := batch.([]string)
+		return items[i] < items[j]
+	})
+	data := []string{
+		"Spririt",
+		"Voyager",
+		"BigFoot",
+		"Enola",
+		"Memphis",
+	}
+	val := op.Apply(context.TODO(), data)
+	sorted := val.([]string)
+	if sorted[0] != "BigFoot" && sorted[1] != "Enola" && sorted[2] != "Membphis" {
+		t.Fatal("Unexpected sort order")
+	}
+}
