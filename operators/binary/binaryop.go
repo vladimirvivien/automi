@@ -1,4 +1,4 @@
-package operators
+package binary
 
 import (
 	"context"
@@ -10,7 +10,8 @@ import (
 	autoctx "github.com/vladimirvivien/automi/api/context"
 )
 
-// BinaryOp is executor that knows how to run a binary operation (i.e. aggregation, reduction, etc)
+// BinaryOp represents an operator that knows how to run a
+// binary operations such as aggregation, reduction, etc.
 type BinaryOp struct {
 	ctx         context.Context
 	op          api.BinOperation
@@ -23,8 +24,8 @@ type BinaryOp struct {
 	mutex       sync.RWMutex
 }
 
-// NewBinOp creates a new binary operation executor
-func NewBinaryOp(ctx context.Context) *BinaryOp {
+// New creates a new binary operator
+func New(ctx context.Context) *BinaryOp {
 	// extract logger
 	log := autoctx.GetLogger(ctx)
 

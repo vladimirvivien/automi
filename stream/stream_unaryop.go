@@ -1,116 +1,71 @@
 package stream
 
 import (
-	"context"
-	"fmt"
-	"reflect"
-
 	"github.com/vladimirvivien/automi/api"
-	"github.com/vladimirvivien/automi/operators"
+	"github.com/vladimirvivien/automi/operators/unary"
 )
 
-// isUnaryFuncForm ensures type is a function of form func(in)out.
-func (s *Stream) isUnaryFuncForm(ftype reflect.Type) error {
-	// enforce f with sig fn(in)out
-	switch ftype.Kind() {
-	case reflect.Func:
-		if ftype.NumIn() != 1 {
-			return fmt.Errorf("Function must take one parameter")
-		}
-		if ftype.NumOut() != 1 {
-			return fmt.Errorf("Function must return one parameter")
-		}
-	default:
-		return fmt.Errorf("Operation expects a function argument")
-	}
-	return nil
-}
-
-// Transform is the raw  method used to apply transfomrmative
-// unary operations to stream elements (i.e. filter, map, etc)
-// It is exposed for completeness, use the other more specific methods.
+// Transform is the base method used to apply transfomrmative
+// unary operations to streamed elements (i.e. filter, map, etc)
+// It is exposed here for completeness, use the other more specific methods.
 func (s *Stream) Transform(op api.UnOperation) *Stream {
-	operator := operators.NewUnaryOp(s.ctx)
+	operator := unary.New(s.ctx)
 	operator.SetOperation(op)
 	s.ops = append(s.ops, operator)
 	return s
 }
 
-// Process is used to express general processing operation of incoming stream
-// elements.  Function must be of the form "func(input)output", anything else
-// will cause painic.
+// Process applies the user-defined function for general processing of incoming
+// streamed elements.  The user-defined function must be of type:
+//   func(T) R - where T is the incoming item from upstream,
+//               R is the type of the processed value
+//
+// See Also
+//
+//   "github.com/vladimirvivien/automi/operators/unary"#ProcessFunc
 func (s *Stream) Process(f interface{}) *Stream {
-	fntype := reflect.TypeOf(f)
-	if err := s.isUnaryFuncForm(fntype); err != nil {
-		panic(fmt.Sprintf("Op Process() failed: %s", err))
+	op, err := unary.ProcessFunc(f)
+	if err != nil {
+		panic(err)
 	}
-
-	fnval := reflect.ValueOf(f)
-
-	op := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
-		arg0 := reflect.ValueOf(data)
-		result := fnval.Call([]reflect.Value{arg0})[0]
-		return result.Interface()
-	})
-
 	return s.Transform(op)
 }
 
-// Filter takes a predicate func that filters the stream.
-// Function must be of form "func(input)bool", anything else causes panic.
-// If func returns true, current item continues downstream.
+// Filter takes a predicate user-defined func that filters the stream.
+// The specified function must be of type:
+//   func (T) bool
+// If the func returns true, current item continues downstream.
 func (s *Stream) Filter(f interface{}) *Stream {
-	fntype := reflect.TypeOf(f)
-	if err := s.isUnaryFuncForm(fntype); err != nil {
-		panic(fmt.Sprintf("Op Filter() failed :%s", err))
+	op, err := unary.FilterFunc(f)
+	if err != nil {
+		panic(err)
 	}
-	// ensure bool ret type
-	if fntype.Out(0).Kind() != reflect.Bool {
-		panic("Op Filter() must return a bool")
-	}
-
-	fnval := reflect.ValueOf(f)
-
-	op := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
-		arg0 := reflect.ValueOf(data)
-		result := fnval.Call([]reflect.Value{arg0})[0]
-		predicate := result.Bool()
-		if !predicate {
-			return nil
-		}
-		return data
-	})
 	return s.Transform(op)
 }
 
-// Map takes one value and maps it to another value.
-// The map function must be of form "func(input)output",
-// anything else causes panic.
+// Map uses the user-defined function to take the value of an incoming item and
+// returns a new value that is said to be mapped to the intial item.  The user-defined
+// function must be of type:
+//   func(T) R - where T is the type of the incoming item and R the type of the returned item.
 func (s *Stream) Map(f interface{}) *Stream {
-	return s.Process(f)
+	op, err := unary.MapFunc(f)
+	if err != nil {
+		panic(err)
+	}
+	return s.Transform(op)
 }
 
-// FlatMap similar to Map, however, expected to return a slice of values
-// to downstream operators.  The operator will flatten the slice and emit
-// individually onto the stream. The FlatMap function must have the form
-// "func(intput)[]output", anything else will be rejected
+// FlatMap similar to Map, however, the user-defined function is expected to return
+// a slice of values (instead of just one mapped value) for downstream operators.
+// The FlatMap function flatten the slice, returned by the user-defined function,
+// into items that are individually streamed. The user-defined function must have
+// the the following type:
+//   func(T) []R - where T is the incoming item and []R is a slice to be flattened
 func (s *Stream) FlatMap(f interface{}) *Stream {
-	fntype := reflect.TypeOf(f)
-	if err := s.isUnaryFuncForm(fntype); err != nil {
-		panic(fmt.Sprintf("Op FlatMap() failed: %s", err))
+	op, err := unary.FlatMapFunc(f)
+	if err != nil {
+		panic(err)
 	}
-	if fntype.Out(0).Kind() != reflect.Slice {
-		panic(fmt.Sprintf("Op FlatMap() expects to return a slice of values"))
-	}
-
-	fnval := reflect.ValueOf(f)
-
-	op := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
-		arg0 := reflect.ValueOf(data)
-		result := fnval.Call([]reflect.Value{arg0})[0]
-		return result.Interface()
-	})
-
 	s.Transform(op) // add flatmap as unary op
 	s.ReStream()    // add streamop to unpack flatmap result
 	return s

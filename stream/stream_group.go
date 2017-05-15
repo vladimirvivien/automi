@@ -1,95 +1,57 @@
 package stream
 
 import (
-	"context"
-	"fmt"
-	"reflect"
-
 	"github.com/vladimirvivien/automi/api"
-	"github.com/vladimirvivien/automi/operators"
 	"github.com/vladimirvivien/automi/operators/batch"
+	"github.com/vladimirvivien/automi/operators/unary"
 )
 
-// GroupByPos groups incoming batched items by their position in a slice.
-// The batch is expected to be of type [][]interface{}, a two dimension slice
-// The method walks dimension 1 of slice and groups data in dim 2 into map[key][]value
-// where key is the value found at pos for each row.
-// This method should be called after a Batch operation or it will fail.
+// GroupByKey groups incoming items that are batched as
+// type []map[K]V where parameter key is used to group
+// the items when K=key.  Items with same key values are
+// grouped in a new map and returned as []map[G]M.
+//
+// See Also
+//
+// See the following for more on GroupByKey
+//   "github.com/vladimirvivien/automi/operators/batch/"#GroupByKeyFunc
+func (s *Stream) GroupByKey(key interface{}) *Stream {
+	operator := unary.New(s.ctx)
+	operator.SetOperation(batch.GroupByKeyFunc(key))
+	return s.appendOp(operator)
+}
+
+// GroupByName groups incoming items that are batched as
+// type []T where T is a struct. Parameter name is used to select
+// T.name as key to group items with the same value into a map map[key][]T
+// that is sent downstream.
+//
+// See Also
+//
+// See the following for more on GroupByName
+//    "github.com/vladimirvivien/automi/operators/batch/"#GrouByNameFunc
+func (s *Stream) GroupByName(name string) *Stream {
+	operator := unary.New(s.ctx)
+	operator.SetOperation(batch.GroupByNameFunc(name))
+	return s.appendOp(operator)
+}
+
+// GroupByPos groups incoming items that are batched as
+// [][]T. For each i in dimension 1, [i][pos] is selected as key
+// and grouped in a map, map[key][]T, that is returned downstream.
+//
+// See Also
+//
+// See the following for more
+//   "github.com/vladimirvivien/automi/operators/batch/"#GroupByPosFunc
 func (s *Stream) GroupByPos(pos int) *Stream {
-	s.ops = append(s.ops, batch.GroupByPosFunc(pos))
-	return s
+	operator := unary.New(s.ctx)
+	operator.SetOperation(batch.GroupByPosFunc(pos))
+	return s.appendOp(operator)
 }
 
-// groupByName returns a binary function that groups streaming item
-// by a struct.name or a map[name].  If the item is not a struct or map,
-// it is ignored.
-func (s *Stream) groupByName(name string) api.BinFunc {
-	op := api.BinFunc(func(ctx context.Context, op0, op1 interface{}) interface{} {
-		stateType := reflect.TypeOf(op0)
-		if stateType.Kind() != reflect.Map {
-			panic("GroupBy expects a map[keytype][]slice for internal storage")
-		}
-		stateMap := reflect.ValueOf(op0)
-
-		// stream item data type and value
-		dataType := reflect.TypeOf(op1)
-		dataVal := reflect.ValueOf(op1)
-		key := dataVal.FieldByName(name)
-
-		if key.IsValid() {
-			// ensure state map[K][]slice is ready
-			slice := stateMap.MapIndex(key)
-			if !slice.IsValid() {
-				slice = reflect.MakeSlice(stateType.Elem(), 0, 0)
-				stateMap.SetMapIndex(key, slice)
-			}
-
-			switch dataType.Kind() {
-			// append struct.name = V to state map[name][]slice{V}
-			case reflect.Struct:
-				slice = reflect.Append(slice, dataVal)
-				stateMap.SetMapIndex(key, slice)
-			default:
-			}
-		}
-
-		return stateMap.Interface()
-
-	})
-
-	return op
-}
-
-// SumBy is a convenient aggregation method that will add up
-// numeric values stored in stream items.  SumBy expects specific
-// type of data, from upstream, for it to work properly as outlined below.
-//   * map[K]numeric - a map where the values are numeric elements
-//   * tuple.KV - where kv[1] are numeric elements
-//   * []slice, [n]array - where slice[i] or array[i] are
-//     slices or arrays of numeric values
-//   * struct{} - where the specified element is a slice or array of ints
-// SumBy parameter can be of the following type:
-//   * int - used as index when stream is slice or array, or tuple.KV
-//   * "string" - the name of a map key with where the value is a slice or array
-// SumBy emmits its result as map[key]int
-func (s *Stream) SumBy(g interface{}) *Stream {
-	gType := reflect.TypeOf(g)
-	gVal := reflect.ValueOf(g)
-
-	var op api.BinFunc
-	switch gType.Kind() {
-	case reflect.Int, reflect.Int16, reflect.Int32, reflect.Int64:
-		idx := gVal.Int()
-		op = s.groupByInt(idx)
-	case reflect.String:
-	case reflect.Func:
-	default:
-		panic(fmt.Sprintf("GroupBy failed, type %T is not a supported classifier", g))
-	}
-
-	operator := operators.NewBinaryOp(s.ctx)
-	operator.SetOperation(op)
-	operator.SetInitialState(make(map[interface{}][]interface{}))
+// GroupByKey
+func (s *Stream) appendOp(operator api.Operator) *Stream {
 	s.ops = append(s.ops, operator)
 	return s
 }

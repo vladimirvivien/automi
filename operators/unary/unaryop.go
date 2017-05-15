@@ -1,4 +1,4 @@
-package operators
+package unary
 
 import (
 	"context"
@@ -19,7 +19,7 @@ func pack(vals ...interface{}) packed {
 }
 
 // UnaryOp is an executor node that can execute a unary operation (i.e. transformation, etc)
-type UnaryOp struct {
+type UnaryOperator struct {
 	ctx         context.Context
 	op          api.UnOperation
 	concurrency int
@@ -30,12 +30,12 @@ type UnaryOp struct {
 	mutex       sync.RWMutex
 }
 
-// NewUnary creates *UnaryOp value
-func NewUnaryOp(ctx context.Context) *UnaryOp {
+// NewUnary creates *UnaryOperator value
+func New(ctx context.Context) *UnaryOperator {
 	// extract logger
 	log := autoctx.GetLogger(ctx)
 
-	o := new(UnaryOp)
+	o := new(UnaryOperator)
 	o.ctx = ctx
 	o.log = log
 
@@ -47,12 +47,12 @@ func NewUnaryOp(ctx context.Context) *UnaryOp {
 }
 
 // SetOperation sets the executor operation
-func (o *UnaryOp) SetOperation(op api.UnOperation) {
+func (o *UnaryOperator) SetOperation(op api.UnOperation) {
 	o.op = op
 }
 
 // SetConcurrency sets the concurrency level for the operation
-func (o *UnaryOp) SetConcurrency(concurr int) {
+func (o *UnaryOperator) SetConcurrency(concurr int) {
 	o.concurrency = concurr
 	if o.concurrency < 1 {
 		o.concurrency = 1
@@ -60,17 +60,17 @@ func (o *UnaryOp) SetConcurrency(concurr int) {
 }
 
 // SetInput sets the input channel for the executor node
-func (o *UnaryOp) SetInput(in <-chan interface{}) {
+func (o *UnaryOperator) SetInput(in <-chan interface{}) {
 	o.input = in
 }
 
 // GetOutput returns the output channel for the executor node
-func (o *UnaryOp) GetOutput() <-chan interface{} {
+func (o *UnaryOperator) GetOutput() <-chan interface{} {
 	return o.output
 }
 
 // Exec is the entry point for the executor
-func (o *UnaryOp) Exec() (err error) {
+func (o *UnaryOperator) Exec() (err error) {
 	if o.input == nil {
 		err = fmt.Errorf("No input channel found")
 		return
@@ -120,7 +120,7 @@ func (o *UnaryOp) Exec() (err error) {
 	return nil
 }
 
-func (o *UnaryOp) doProc(ctx context.Context) {
+func (o *UnaryOperator) doProc(ctx context.Context) {
 	if o.op == nil {
 		o.log.Print("No operation defined for UnaryOp")
 		return

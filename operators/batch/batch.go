@@ -40,7 +40,10 @@ func (op *BatchOperator) GetOutput() <-chan interface{} {
 	return op.output
 }
 
-// Exec is the execution starting point for the executor node.
+// Exec is the execution starting point for the operator node.
+// The batch operator batches N size items from upstream into
+// a slice []T t.  When t reaches size N, the slice is sent
+// downstream for processing.
 func (op *BatchOperator) Exec() (err error) {
 	if op.input == nil {
 		err = fmt.Errorf("No input channel found")

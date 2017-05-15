@@ -1,4 +1,4 @@
-package operators
+package streamop
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 )
 
 func TestStreamOp_New(t *testing.T) {
-	s := NewStreamOp(context.Background())
+	s := New(context.Background())
 
 	if s.output == nil {
 		t.Fatal("Missing output")
@@ -18,7 +18,7 @@ func TestStreamOp_New(t *testing.T) {
 }
 
 func TestStreamOp_Params(t *testing.T) {
-	o := NewStreamOp(context.Background())
+	o := New(context.Background())
 	in := make(chan interface{})
 
 	o.SetInput(in)
@@ -33,7 +33,7 @@ func TestStreamOp_Params(t *testing.T) {
 
 func TestStreamOp_Exec(t *testing.T) {
 	ctx, _ := context.WithCancel(context.Background())
-	o := NewStreamOp(ctx)
+	o := New(ctx)
 
 	in := make(chan interface{})
 	go func() {
@@ -73,7 +73,7 @@ func TestStreamOp_Exec(t *testing.T) {
 
 func BenchmarkStreamOp_Exec(b *testing.B) {
 	ctx := context.Background()
-	o := NewStreamOp(ctx)
+	o := New(ctx)
 	N := b.N
 
 	chanSize := func() int {

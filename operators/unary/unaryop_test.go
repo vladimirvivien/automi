@@ -1,4 +1,4 @@
-package operators
+package unary
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 )
 
 func TestUnaryOp_New(t *testing.T) {
-	o := NewUnaryOp(context.Background())
+	o := New(context.Background())
 
 	if o.output == nil {
 		t.Fatal("Missing output")
@@ -26,7 +26,7 @@ func TestUnaryOp_New(t *testing.T) {
 	}
 }
 func TestUnaryOp_Params(t *testing.T) {
-	o := NewUnaryOp(context.Background())
+	o := New(context.Background())
 	op := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
 		return nil
 	})
@@ -54,7 +54,7 @@ func TestUnaryOp_Params(t *testing.T) {
 
 func TestUnaryOp_Exec(t *testing.T) {
 	ctx, _ := context.WithCancel(context.Background())
-	o := NewUnaryOp(ctx)
+	o := New(ctx)
 
 	op := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
 		values := data.([]string)
@@ -100,7 +100,7 @@ func TestUnaryOp_Exec(t *testing.T) {
 
 func BenchmarkUnaryOp_Exec(b *testing.B) {
 	ctx := context.Background()
-	o := NewUnaryOp(ctx)
+	o := New(ctx)
 	N := b.N
 
 	chanSize := func() int {

@@ -43,7 +43,7 @@ func main() {
 
 	// Group incoming KVs by position 0 (which is the word)
 	// then restream the grouped data as individual KV
-	stream.GroupBy(0).ReStream()
+	stream.GroupByPos(0).ReStream()
 
 	// this Map counts the word occurence
 	// by doing a reduce.  Then push the result as a string slice

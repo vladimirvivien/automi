@@ -1,4 +1,4 @@
-package operators
+package streamop
 
 import (
 	"context"
@@ -20,7 +20,7 @@ type StreamOp struct {
 }
 
 // NewSteamOp creates a *StreamOp value
-func NewStreamOp(ctx context.Context) *StreamOp {
+func New(ctx context.Context) *StreamOp {
 	log := autoctx.GetLogger(ctx)
 
 	r := new(StreamOp)
