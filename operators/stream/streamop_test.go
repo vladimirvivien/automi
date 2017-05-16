@@ -1,4 +1,4 @@
-package streamop
+package stream
 
 import (
 	"context"

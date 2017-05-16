@@ -96,13 +96,13 @@ func isUnaryFuncForm(ftype reflect.Type) error {
 	switch ftype.Kind() {
 	case reflect.Func:
 		if ftype.NumIn() != 1 {
-			return fmt.Errorf("function requires one parameter")
+			return fmt.Errorf("unary function must take one parameter")
 		}
 		if ftype.NumOut() != 1 {
-			return fmt.Errorf("function must exactly one parameter")
+			return fmt.Errorf("unary func must return one param")
 		}
 	default:
-		return fmt.Errorf("unary operator expects a function argument")
+		return fmt.Errorf("requires unary function of type func(T)R")
 	}
 	return nil
 }

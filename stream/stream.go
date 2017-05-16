@@ -7,7 +7,7 @@ import (
 
 	"github.com/vladimirvivien/automi/api"
 	autoctx "github.com/vladimirvivien/automi/api/context"
-	"github.com/vladimirvivien/automi/operators/streamop"
+	streamop "github.com/vladimirvivien/automi/operators/stream"
 )
 
 // Stream represents a stream unto  which executor nodes can be

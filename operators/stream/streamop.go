@@ -1,4 +1,4 @@
-package streamop
+package stream
 
 import (
 	"context"
@@ -10,20 +10,21 @@ import (
 	"github.com/vladimirvivien/automi/api/tuple"
 )
 
-// StreamOp is an executor node takes streamed maps, arrays, and slices
-// and unpacks and emits each item individually unto the stream.
-type StreamOp struct {
+// StreamOperator is an operator takes streamed items of type
+// map, array, or slice and unpacks and emits each item individually
+// downstream.
+type StreamOperator struct {
 	ctx    context.Context
 	input  <-chan interface{}
 	output chan interface{}
 	log    *log.Logger
 }
 
-// NewSteamOp creates a *StreamOp value
-func New(ctx context.Context) *StreamOp {
+// New creates a *StreamOperator value
+func New(ctx context.Context) *StreamOperator {
 	log := autoctx.GetLogger(ctx)
 
-	r := new(StreamOp)
+	r := new(StreamOperator)
 	r.ctx = ctx
 	r.log = log
 	r.output = make(chan interface{}, 1024)
@@ -33,17 +34,17 @@ func New(ctx context.Context) *StreamOp {
 }
 
 // SetInput sets the input channel for the executor node
-func (r *StreamOp) SetInput(in <-chan interface{}) {
+func (r *StreamOperator) SetInput(in <-chan interface{}) {
 	r.input = in
 }
 
 // GetOutput returns the output channel of the executer node
-func (r *StreamOp) GetOutput() <-chan interface{} {
+func (r *StreamOperator) GetOutput() <-chan interface{} {
 	return r.output
 }
 
 // Exec is the execution starting point for the executor node.
-func (r *StreamOp) Exec() (err error) {
+func (r *StreamOperator) Exec() (err error) {
 	if r.input == nil {
 		err = fmt.Errorf("No input channel found")
 		return
