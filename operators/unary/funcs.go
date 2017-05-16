@@ -8,11 +8,12 @@ import (
 	"github.com/vladimirvivien/automi/api"
 )
 
-// ProcessFunc returns a unary function (api.UnFunc) which applies the specified
-// user-defined function to process incomfing data items from upstream. The
-// provided function must be of type:
-//   func(T) R - where T is the type of incoming item, R the type of returned processed item
-// The code will ignore additional parameters returned by the user-defined function.
+// ProcessFunc returns a unary function which applies the specified
+// user-defined function that processes data items from upstream and
+// returns a result value. The provided function must be of type:
+//   func(T) R
+//   where T is the type of incoming item
+//   R the type of returned processed item
 func ProcessFunc(f interface{}) (api.UnFunc, error) {
 	fntype := reflect.TypeOf(f)
 	if err := isUnaryFuncForm(fntype); err != nil {
