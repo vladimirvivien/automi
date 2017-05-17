@@ -6,6 +6,11 @@ import (
 	"github.com/vladimirvivien/automi/operators/unary"
 )
 
+func (s *Stream) Batch() *Stream {
+	operator := batch.New(s.ctx)
+	return s.appendOp(operator)
+}
+
 // GroupByKey groups incoming items that are batched as
 // type []map[K]V where parameter key is used to group
 // the items when K=key.  Items with same key values are

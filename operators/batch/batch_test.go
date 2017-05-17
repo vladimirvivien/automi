@@ -37,7 +37,80 @@ func TestBatchOp_GettersSetters(t *testing.T) {
 	}
 }
 
-func TestBatchOp_Exec(t *testing.T) {
+func TestBatchOp_Exec_OneBatch(t *testing.T) {
+	ctx, _ := context.WithCancel(context.Background())
+	o := New(ctx)
+
+	in := make(chan interface{})
+	go func() {
+		in <- "A"
+		in <- "B"
+		in <- "C"
+		in <- "D"
+		in <- "E"
+		in <- "F"
+		in <- "G"
+		in <- "H"
+
+		in <- "I"
+		in <- "J"
+		in <- "K"
+		in <- "L"
+		in <- "M"
+		in <- "N"
+		in <- "O"
+		in <- "P"
+
+		in <- "Q"
+		in <- "R"
+		in <- "S"
+		in <- "T"
+		in <- "U"
+		in <- "V"
+		in <- "W"
+		in <- "X"
+
+		in <- "Y"
+		in <- "Z"
+		close(in)
+	}()
+	o.SetInput(in)
+
+	batches := 0
+	expectedBatches := 1
+	batchSize := 0
+	var m sync.Mutex
+
+	wait := make(chan struct{})
+	go func() {
+		defer close(wait)
+		for data := range o.GetOutput() {
+			batch := data.([]interface{})
+			m.Lock()
+			batches++
+			batchSize = len(batch)
+			m.Unlock()
+		}
+	}()
+
+	if err := o.Exec(); err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case <-wait:
+		if batches != expectedBatches {
+			t.Fatalf("Expecting %d batch, but got %d", expectedBatches, batches)
+		}
+		if batchSize != 26 {
+			t.Fatal("unexpected batch size ", batchSize)
+		}
+	case <-time.After(50 * time.Millisecond):
+		t.Fatal("Took too long...")
+	}
+}
+
+func TestBatchOp_Exec_MultipleBatches(t *testing.T) {
 	ctx, _ := context.WithCancel(context.Background())
 	o := New(ctx)
 	o.size = 4
