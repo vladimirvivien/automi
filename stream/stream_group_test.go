@@ -1,7 +1,6 @@
 package stream
 
 import (
-	"sync"
 	"testing"
 	"time"
 
@@ -25,13 +24,10 @@ func TestStream_GroupByKey(t *testing.T) {
 
 	wait := make(chan struct{})
 	var result map[interface{}][]interface{}
-	var m sync.Mutex
 	go func() {
 		defer close(wait)
 		r := <-snk.GetOutput()
-		m.Lock()
 		result = r.(map[interface{}][]interface{})
-		m.Unlock()
 	}()
 
 	select {
@@ -69,13 +65,10 @@ func TestStream_GroupByName(t *testing.T) {
 
 	wait := make(chan struct{})
 	var result map[interface{}][]interface{}
-	var m sync.Mutex
 	go func() {
 		defer close(wait)
 		r := <-snk.GetOutput()
-		m.Lock()
 		result = r.(map[interface{}][]interface{})
-		m.Unlock()
 	}()
 
 	select {
