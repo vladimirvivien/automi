@@ -2,40 +2,30 @@ package stream
 
 import (
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
+	"github.com/vladimirvivien/automi/collectors"
 	"github.com/vladimirvivien/automi/emitters"
 )
 
 func TestStream_Process(t *testing.T) {
 	src := emitters.Slice([]string{"hello", "world"})
-	snk := NewDrain()
+	snk := collectors.Slice()
 	strm := New(src).Process(func(s string) string {
 		return strings.ToUpper(s)
-	}).To(snk)
-
-	wait := make(chan struct{})
-	go func() {
-		defer close(wait)
-		for data := range snk.GetOutput() {
-			val := data.(string)
-			if val != "HELLO" && val != "WORLD" {
-				t.Fatalf("Got %v of type %T", val, val)
-			}
-		}
-	}()
+	}).SinkTo(snk)
 
 	select {
 	case err := <-strm.Open():
 		if err != nil {
 			t.Fatal(err)
 		}
-		select {
-		case <-wait:
-		case <-time.After(100 * time.Microsecond):
-			t.Fatal("Draining took too long")
+		for _, data := range snk.Get() {
+			val := data.(string)
+			if val != "HELLO" && val != "WORLD" {
+				t.Fatalf("got unexpected value %v of type %T", val, val)
+			}
 		}
 	case <-time.After(50 * time.Millisecond):
 		t.Fatal("Waited too long ...")
@@ -44,11 +34,11 @@ func TestStream_Process(t *testing.T) {
 
 func TestStream_Filter(t *testing.T) {
 	src := emitters.Slice([]string{"HELLO", "WORLD", "HOW", "ARE", "YOU"})
-	snk := newStrSink()
+	snk := collectors.Slice()
 	strm := New(src).Filter(func(data string) bool {
 		return !strings.Contains(data, "O")
 	})
-	strm.To(snk)
+	strm.SinkTo(snk)
 
 	select {
 	case err := <-strm.Open():
@@ -58,87 +48,62 @@ func TestStream_Filter(t *testing.T) {
 	case <-time.After(50 * time.Millisecond):
 		t.Fatal("Waited too long ...")
 	}
-	if len(snk.sink) != 1 {
-		t.Fatal("Filter failed, expected 1 element, got ", len(snk.sink))
+	if len(snk.Get()) != 1 {
+		t.Fatal("Filter failed, expected 1 element, got ", len(snk.Get()))
 	}
 }
 
 func TestStream_Map(t *testing.T) {
 
 	src := emitters.Slice([]string{"HELLO", "WORLD", "HOW", "ARE", "YOU"})
-	snk := NewDrain()
+	snk := collectors.Slice()
 	strm := New(src).Map(func(data string) int {
 		return len(data)
-	}).To(snk)
+	}).SinkTo(snk)
 
-	var m sync.RWMutex
 	count := 0
-	wait := make(chan struct{})
-	go func() {
-		defer close(wait)
-		for data := range snk.GetOutput() {
-			val := data.(int)
-			m.Lock()
-			count += val
-			m.Unlock()
-		}
-	}()
 
 	select {
 	case err := <-strm.Open():
 		if err != nil {
 			t.Fatal(err)
 		}
-		select {
-		case <-wait:
-		case <-time.After(50 * time.Millisecond):
-			t.Fatal("Waited too long for sink output to process")
+		for _, data := range snk.Get() {
+			val := data.(int)
+			count += val
 		}
-
 	case <-time.After(50 * time.Millisecond):
 		t.Fatal("Waited too long for stream to Open...")
 	}
 
-	m.RLock()
 	if count != 19 {
 		t.Fatal("Map failed, expected count 19, got ", count)
 	}
-	m.RUnlock()
 }
 
 func TestStream_FlatMap(t *testing.T) {
 	src := emitters.Slice([]string{"HELLO WORLD", "HOW ARE YOU?"})
-	snk := NewDrain()
+	snk := collectors.Slice()
 	strm := New(src).FlatMap(func(data string) []string {
 		return strings.Split(data, " ")
-	}).To(snk)
+	}).SinkTo(snk)
 
-	var m sync.RWMutex
 	count := 0
 	expected := 20
-	wait := make(chan struct{})
-	go func() {
-		defer close(wait)
-		for data := range snk.GetOutput() {
-			vals := data.(string)
-			m.Lock()
-			count += len(vals)
-			m.Unlock()
-		}
-	}()
 
 	select {
 	case err := <-strm.Open():
 		if err != nil {
 			t.Fatal(err)
 		}
-		select {
-		case <-wait:
-			if count != expected {
-				t.Fatalf("Expecting %d words, got %d", expected, count)
-			}
-		case <-time.After(50 * time.Millisecond):
-			t.Fatal("Took too long to process sink output")
+
+		for _, data := range snk.Get() {
+			vals := data.(string)
+			count += len(vals)
+		}
+
+		if count != expected {
+			t.Fatalf("Expecting %d words, got %d", expected, count)
 		}
 	case <-time.After(50 * time.Millisecond):
 		t.Fatal("Waited too long ...")

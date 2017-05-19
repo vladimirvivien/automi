@@ -2,49 +2,15 @@ package stream
 
 import (
 	"context"
-	"log"
-	"os"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/vladimirvivien/automi/api"
+	"github.com/vladimirvivien/automi/collectors"
 	"github.com/vladimirvivien/automi/emitters"
 )
 
-// ***** Sink *****
-type strSink struct {
-	sink  []string
-	input <-chan interface{}
-	done  chan struct{}
-	log   *log.Logger
-}
-
-func newStrSink() *strSink {
-	return &strSink{
-		sink: make([]string, 0),
-		done: make(chan struct{}),
-		log:  log.New(os.Stderr, "", log.Flags()),
-	}
-}
-func (s *strSink) SetInput(in <-chan interface{}) {
-	s.input = in
-}
-
-func (s *strSink) Open(ctx context.Context) <-chan error {
-	s.log.Print("Opening stream sink")
-	result := make(chan error)
-	go func() {
-		defer close(s.done)
-		for str := range s.input {
-			s.sink = append(s.sink, str.(string))
-		}
-		close(result)
-	}()
-	return result
-}
-
-// *** Tests *** //
 func TestStream_New(t *testing.T) {
 	st := New([]interface{}{"hello"})
 	if st.ops == nil {
@@ -64,13 +30,13 @@ func TestStream_BuilderMethods(t *testing.T) {
 	}
 
 	st := New([]interface{}{"Hello", "World", "!!!"}).
-		To(newStrSink()).
+		SinkTo(collectors.Slice()).
 		Transform(api.UnFunc(op))
 
 	if st.srcParam == nil {
 		t.Fatal("From() not setting source")
 	}
-	if st.sink == nil {
+	if st.snkParam == nil {
 		t.Fatal("To() not setting sink")
 	}
 	if len(st.ops) != 1 {
@@ -80,7 +46,7 @@ func TestStream_BuilderMethods(t *testing.T) {
 
 func TestStream_InitGraph(t *testing.T) {
 	src := emitters.Slice([]string{"Hello", "World"})
-	snk := newStrSink()
+	snk := collectors.Slice()
 	op1 := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
 		return nil
 	})
@@ -88,17 +54,13 @@ func TestStream_InitGraph(t *testing.T) {
 		return nil
 	})
 
-	strm := New(src).To(snk)
+	strm := New(src).SinkTo(snk)
 
 	if err := strm.initGraph(); err != nil {
 		t.Fatal(err)
 	}
 
-	if strm.source.GetOutput() != snk.input {
-		t.Fatal("Source not link to sink when no ops are present")
-	}
-
-	strm = New(src).Transform(op1).Transform(op2).To(snk)
+	strm = New(src).Transform(op1).Transform(op2).SinkTo(snk)
 	if err := strm.initGraph(); err != nil {
 		t.Fatal(err)
 	}
@@ -106,22 +68,13 @@ func TestStream_InitGraph(t *testing.T) {
 	if len(strm.ops) != 2 {
 		t.Fatal("Not adding operations to stream")
 	}
-
-	if strm.source.GetOutput() == snk.input {
-		t.Fatal("Graph invalid, source skipping ops, linked to sink!")
-	}
-
-	if strm.ops[1].GetOutput() != snk.input {
-		t.Fatal("Sink not linked to last element in graph")
-	}
-
 }
 
 func TestStream_Open_NoOp(t *testing.T) {
 	t.Skip()
 	src := emitters.Slice([]string{"Hello", "World"})
-	snk := newStrSink()
-	st := New(src).To(snk)
+	snk := collectors.Slice()
+	st := New(src).SinkTo(snk)
 	select {
 	case err := <-st.Open():
 		if err != nil {
@@ -130,15 +83,15 @@ func TestStream_Open_NoOp(t *testing.T) {
 	case <-time.After(50 * time.Millisecond):
 		t.Fatal("Waited too long ...")
 	}
-	if len(snk.sink) != 2 {
-		t.Fatal("Data not streaming, expected 2 elements, got ", len(snk.sink))
+	if len(snk.Get()) != 2 {
+		t.Fatal("Data not streaming, expected 2 elements, got ", len(snk.Get()))
 	}
 }
 
 func TestStream_Open_WithOp(t *testing.T) {
 	t.Skip()
 	src := emitters.Slice([]string{"HELLO", "WORLD", "HOW", "ARE", "YOU"})
-	snk := newStrSink()
+	snk := collectors.Slice()
 	op1 := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
 		str := data.(string)
 		return len(str)
@@ -154,7 +107,7 @@ func TestStream_Open_WithOp(t *testing.T) {
 		return nil
 	})
 
-	strm := New(src).Transform(op1).Transform(op2).To(snk)
+	strm := New(src).Transform(op1).Transform(op2).SinkTo(snk)
 	select {
 	case err := <-strm.Open():
 		if err != nil {

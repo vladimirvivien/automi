@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vladimirvivien/automi/collectors"
 	"github.com/vladimirvivien/automi/emitters"
 )
 
@@ -19,29 +20,17 @@ func TestStream_GroupByKey(t *testing.T) {
 		{"Event": "request", "Src": "/i/d", "Device": "00:BB:22:DD", "Result": "accepted"},
 		{"Event": "response", "Src": "/i/d", "Device": "00:BB:22:DD", "Result": "served"},
 	})
-	snk := NewDrain()
-	strm := New(src).Batch().GroupByKey("Device").To(snk)
-
-	wait := make(chan struct{})
-	var result map[interface{}][]interface{}
-	go func() {
-		defer close(wait)
-		r := <-snk.GetOutput()
-		result = r.(map[interface{}][]interface{})
-	}()
+	snk := collectors.Slice()
+	strm := New(src).Batch().GroupByKey("Device").SinkTo(snk)
 
 	select {
 	case err := <-strm.Open():
 		if err != nil {
 			t.Fatal(err)
 		}
-		select {
-		case <-wait:
-			if len(result) != 3 {
-				t.Fatal("Unexpected group size ", len(result))
-			}
-		case <-time.After(10 * time.Millisecond):
-			t.Fatal("Stream took too long to complete")
+		val := snk.Get()[0].(map[interface{}][]interface{})
+		if len(val) != 3 {
+			t.Fatal("unxpected group size:", len(val))
 		}
 	case <-time.After(10 * time.Millisecond):
 		t.Fatal("Took too long")
@@ -60,29 +49,17 @@ func TestStream_GroupByName(t *testing.T) {
 		log{Event: "request", Src: "/i/d", Device: "00:BB:22:DD", Result: "accepted"},
 		log{Event: "response", Src: "/i/d", Device: "00:BB:22:DD", Result: "served"},
 	})
-	snk := NewDrain()
-	strm := New(src).Batch().GroupByName("Device").To(snk)
-
-	wait := make(chan struct{})
-	var result map[interface{}][]interface{}
-	go func() {
-		defer close(wait)
-		r := <-snk.GetOutput()
-		result = r.(map[interface{}][]interface{})
-	}()
+	snk := collectors.Slice()
+	strm := New(src).Batch().GroupByName("Device").SinkTo(snk)
 
 	select {
 	case err := <-strm.Open():
 		if err != nil {
 			t.Fatal(err)
 		}
-		select {
-		case <-wait:
-			if len(result) != 3 {
-				t.Fatal("unexpected group size:", len(result))
-			}
-		case <-time.After(10 * time.Millisecond):
-			t.Fatal("Stream took too long to complete")
+		result := snk.Get()[0].(map[interface{}][]interface{})
+		if len(result) != 3 {
+			t.Fatal("unexpected group size:", len(result))
 		}
 	case <-time.After(10 * time.Millisecond):
 		t.Fatal("Took too long")

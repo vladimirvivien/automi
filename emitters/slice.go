@@ -35,7 +35,7 @@ func (s *SliceEmitter) Open(ctx context.Context) error {
 	// ensure slice is a slice
 	sliceType := reflect.TypeOf(s.slice)
 	if sliceType.Kind() != reflect.Slice {
-		return errors.New("expected slice for SliceEmitter")
+		return errors.New("SliceEmitter requires slice")
 	}
 	s.log = autoctx.GetLogger(ctx)
 	s.log.Print("opening slice source")

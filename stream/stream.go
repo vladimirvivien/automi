@@ -16,6 +16,7 @@ import (
 // attached to operate on the streamed data
 type Stream struct {
 	srcParam interface{}
+	snkParam interface{}
 	source   api.Source
 	sink     api.Sink
 	drain    <-chan interface{}
@@ -47,9 +48,9 @@ func (s *Stream) WithContext(ctx context.Context) *Stream {
 //	return s
 //}
 
-// To sets the terminal stream sink to use
-func (s *Stream) To(sink api.Sink) *Stream {
-	s.sink = sink
+// SinkTo sets the terminal stream sink to use
+func (s *Stream) SinkTo(snk interface{}) *Stream {
+	s.snkParam = snk
 	return s
 }
 
@@ -118,6 +119,11 @@ func (s *Stream) initGraph() error {
 		return err
 	}
 
+	// setup sink type
+	if err := s.setupSink(); err != nil {
+		return err
+	}
+
 	// if there are no ops, link source to sink
 	if len(s.ops) == 0 && s.sink != nil {
 		s.log.Print("No operator nodes found, binding source to sink directly")
@@ -154,7 +160,29 @@ func (s *Stream) setupSource() error {
 	}
 
 	if s.source == nil {
-		return errors.New("invalid source provided")
+		return errors.New("invalid source")
+	}
+
+	return nil
+}
+
+// setupSink checks the sink param, setup the proper type or return nil if problem
+func (s *Stream) setupSink() error {
+	if s.snkParam == nil {
+		return errors.New("missing sink parameter")
+	}
+
+	if snk, ok := s.snkParam.(api.Sink); ok {
+		s.sink = snk
+	}
+
+	srcType := reflect.TypeOf(s.srcParam)
+	switch srcType.Kind() {
+	case reflect.Chan:
+	}
+
+	if s.sink == nil {
+		return errors.New("invalid sink")
 	}
 
 	return nil
