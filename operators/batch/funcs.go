@@ -124,6 +124,14 @@ func GroupByNameFunc(name string) api.UnFunc {
 		name = strings.Title(name) // avoid unexported field panic
 		group := make(map[interface{}][]interface{})
 
+		groupItems := func(key, value reflect.Value, grp map[interface{}][]interface{}) {
+			if key.IsValid() {
+				grp[key.Interface()] = append(
+					grp[key.Interface()], value.Interface(),
+				)
+			}
+		}
+
 		// walk the slice
 		for i := 0; i < dataVal.Len(); i++ {
 			item := dataVal.Index(i)
@@ -131,10 +139,15 @@ func GroupByNameFunc(name string) api.UnFunc {
 			case reflect.Struct:
 				key := item.FieldByName(name)
 				if key.IsValid() {
-					group[key.Interface()] = append(
-						group[key.Interface()], item.Interface(),
-					)
+					groupItems(key, item, group)
 				}
+			case reflect.Interface:
+				mapItem := item.Elem()
+				if mapItem.Type().Kind() == reflect.Struct {
+					itemKey := mapItem.FieldByName(name)
+					groupItems(itemKey, mapItem, group)
+				}
+
 			default: //TODO handle type mismatch
 			}
 		}
@@ -211,6 +224,13 @@ func GroupByKeyFunc(key interface{}) api.UnFunc {
 		}
 
 		group := make(map[interface{}][]interface{})
+		groupItems := func(key, value reflect.Value, grp map[interface{}][]interface{}) {
+			if key.IsValid() {
+				grp[key.Interface()] = append(
+					group[key.Interface()], value.Interface(),
+				)
+			}
+		}
 
 		// walk the slice
 		for i := 0; i < dataVal.Len(); i++ {
@@ -218,12 +238,15 @@ func GroupByKeyFunc(key interface{}) api.UnFunc {
 			if item.IsValid() {
 				switch item.Type().Kind() {
 				case reflect.Map:
-					key := item.MapIndex(reflect.ValueOf(key))
-					if key.IsValid() {
-						group[key.Interface()] = append(
-							group[key.Interface()], item.Interface(),
-						)
+					itemKey := item.MapIndex(reflect.ValueOf(key))
+					groupItems(itemKey, item, group)
+				case reflect.Interface:
+					mapItem := item.Elem()
+					if mapItem.Type().Kind() == reflect.Map {
+						itemKey := mapItem.MapIndex(reflect.ValueOf(key))
+						groupItems(itemKey, mapItem, group)
 					}
+
 				default: //TODO handle type mismatch
 				}
 			}

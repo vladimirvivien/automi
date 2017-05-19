@@ -2,30 +2,34 @@ package stream
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"log"
+	"reflect"
 
 	"github.com/vladimirvivien/automi/api"
 	autoctx "github.com/vladimirvivien/automi/api/context"
+	"github.com/vladimirvivien/automi/emitters"
 	streamop "github.com/vladimirvivien/automi/operators/stream"
 )
 
 // Stream represents a stream unto  which executor nodes can be
 // attached to operate on the streamed data
 type Stream struct {
-	source api.StreamSource
-	sink   api.StreamSink
-	drain  <-chan interface{}
-	ops    []api.Operator
-	ctx    context.Context
-	log    *log.Logger
+	srcParam interface{}
+	source   api.Source
+	sink     api.Sink
+	drain    <-chan interface{}
+	ops      []api.Operator
+	ctx      context.Context
+	log      *log.Logger
 }
 
 // New creates a new *Stream value
-func New() *Stream {
+func New(src interface{}) *Stream {
 	s := &Stream{
-		ops: make([]api.Operator, 0),
-		ctx: context.Background(),
+		srcParam: src,
+		ops:      make([]api.Operator, 0),
+		ctx:      context.Background(),
 	}
 	s.log = autoctx.GetLogger(s.ctx)
 	return s
@@ -38,13 +42,13 @@ func (s *Stream) WithContext(ctx context.Context) *Stream {
 }
 
 // From sets the stream source to use
-func (s *Stream) From(src api.StreamSource) *Stream {
-	s.source = src
-	return s
-}
+//func (s *Stream) From(src api.StreamSource) *Stream {
+//	s.source = src
+//	return s
+//}
 
 // To sets the terminal stream sink to use
-func (s *Stream) To(sink api.StreamSink) *Stream {
+func (s *Stream) To(sink api.Sink) *Stream {
 	s.sink = sink
 	return s
 }
@@ -58,7 +62,9 @@ func (s *Stream) ReStream() *Stream {
 	return s
 }
 
-// Open opens the Stream which starts all attached operators
+// Open opens the Stream which executes all operators nodes.
+// If there's an issue prior to execution, an error is returned
+// in the error channel.
 func (s *Stream) Open() <-chan error {
 	result := make(chan error, 1)
 	if err := s.initGraph(); err != nil {
@@ -106,8 +112,10 @@ func (s *Stream) bindOps() {
 // initGraph initialize stream graph source + ops +
 func (s *Stream) initGraph() error {
 	s.log.Print("Preparing stream operator graph")
-	if s.source == nil {
-		return fmt.Errorf("Operator graph failed, missing source")
+
+	// setup source type
+	if err := s.setupSource(); err != nil {
+		return err
 	}
 
 	// if there are no ops, link source to sink
@@ -123,6 +131,30 @@ func (s *Stream) initGraph() error {
 	// link last op to sink
 	if s.sink != nil {
 		s.sink.SetInput(s.ops[len(s.ops)-1].GetOutput())
+	}
+
+	return nil
+}
+
+// setupSource checks the source, setup the proper type or return nil if problem
+func (s *Stream) setupSource() error {
+	if s.srcParam == nil {
+		return errors.New("missing source parameter")
+	}
+
+	if src, ok := s.srcParam.(api.Source); ok {
+		s.source = src
+	}
+
+	srcType := reflect.TypeOf(s.srcParam)
+	switch srcType.Kind() {
+	case reflect.Slice:
+		s.source = emitters.Slice(s.srcParam)
+	case reflect.Chan:
+	}
+
+	if s.source == nil {
+		return errors.New("invalid source provided")
 	}
 
 	return nil

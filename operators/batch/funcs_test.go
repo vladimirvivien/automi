@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestBatch_GroupByPosFunc_WithSlice(t *testing.T) {
+func TestBatchFuncs_GroupByPos_WithSlice(t *testing.T) {
 	op := GroupByPosFunc(0)
 	data := [][]string{
 		[]string{"aa", "absolute", "resolute"},
@@ -27,7 +27,7 @@ func TestBatch_GroupByPosFunc_WithSlice(t *testing.T) {
 	}
 }
 
-func TestBatch_GroupByPosFunc_WithArray(t *testing.T) {
+func TestBatchFuncs_GroupByPos_WithArray(t *testing.T) {
 	op := GroupByPosFunc(0)
 	data := [][4]string{
 		[4]string{"aa", "absolute", "resolute", "cantolope"},
@@ -49,7 +49,7 @@ func TestBatch_GroupByPosFunc_WithArray(t *testing.T) {
 	}
 }
 
-func TestBatch_GroupByNameFunc(t *testing.T) {
+func TestBatchFuncs_GroupByName(t *testing.T) {
 	op := GroupByNameFunc("Kind")
 	data := []struct{ Vehicle, Kind, Engine string }{
 		{"Spirit", "plane", "propeller"},
@@ -78,7 +78,7 @@ func TestBatch_GroupByNameFunc(t *testing.T) {
 
 }
 
-func TestBatch_GroupByKeyFunc(t *testing.T) {
+func TestBatchFuncs_GroupByKey(t *testing.T) {
 	op := GroupByKeyFunc("kind")
 	data := []map[string]string{
 		{"vehicle": "spirit", "kind": "plane", "engine": "props"},
@@ -106,7 +106,7 @@ func TestBatch_GroupByKeyFunc(t *testing.T) {
 	}
 }
 
-func TestBatch_SumInts(t *testing.T) {
+func TestBatchFuncs_SumInts(t *testing.T) {
 	op := Sum()
 	data := [][]int{
 		{10, 70, 20},
@@ -126,7 +126,7 @@ func TestBatch_SumInts(t *testing.T) {
 	}
 }
 
-func TestBatch_SumByPos(t *testing.T) {
+func TestBatchFuncs_SumByPos(t *testing.T) {
 	op := SumByPosFunc(2)
 	data := [][]interface{}{
 		{"AA", "B", 4},
@@ -141,7 +141,7 @@ func TestBatch_SumByPos(t *testing.T) {
 	}
 }
 
-func TestBatch_SumByNameFunc(t *testing.T) {
+func TestBatchFuncs_SumByName(t *testing.T) {
 	op := SumByNameFunc("Size")
 	data := []struct {
 		Vehicle, Kind, Engine string
@@ -159,7 +159,7 @@ func TestBatch_SumByNameFunc(t *testing.T) {
 	}
 }
 
-func TestBatch_SumByKeyFunc(t *testing.T) {
+func TestBatchFuncs_SumByKey(t *testing.T) {
 	op := SumByKeyFunc("weight")
 	data := []map[string]int{
 		{"vehicle": 0, "weight": 2},
@@ -174,7 +174,7 @@ func TestBatch_SumByKeyFunc(t *testing.T) {
 	}
 }
 
-func TestBatch_SortByPosFunc(t *testing.T) {
+func TestBatchFuncs_SortByPos(t *testing.T) {
 	op := SortByPosFunc(0)
 	data := [][]string{
 		{"Spirit", "plane", "propeller"},
@@ -192,7 +192,7 @@ func TestBatch_SortByPosFunc(t *testing.T) {
 	}
 }
 
-func TestBatch_SortByNameFunc(t *testing.T) {
+func TestBatchFuncs_SortByName(t *testing.T) {
 	op := SortByNameFunc("Vehicle")
 	type V struct {
 		Vehicle, Kind, Engine string
@@ -213,7 +213,7 @@ func TestBatch_SortByNameFunc(t *testing.T) {
 	}
 }
 
-func TestBatch_SortByKeyFunc(t *testing.T) {
+func TestBatchFuncs_SortByKey(t *testing.T) {
 	op := SortByKeyFunc("Vehicle")
 	data := []map[string]string{
 		{"Vehicle": "Spirit", "Kind": "plane", "Engine": "propeller"},
@@ -230,7 +230,7 @@ func TestBatch_SortByKeyFunc(t *testing.T) {
 	}
 }
 
-func TestBatch_SortWithFunc(t *testing.T) {
+func TestBatchFuncs_SortWithFunc(t *testing.T) {
 	op := SortWithFunc(func(batch interface{}, i, j int) bool {
 		items := batch.([]string)
 		return items[i] < items[j]

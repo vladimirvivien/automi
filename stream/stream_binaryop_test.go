@@ -4,13 +4,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vladimirvivien/automi/sources"
+	"github.com/vladimirvivien/automi/emitters"
 )
 
 func TestStream_Reduce(t *testing.T) {
-	src := sources.Slice(1, 2, 3, 4, 5)
 	snk := NewDrain()
-	strm := New().From(src).Reduce(0, func(op1, op2 int) int {
+	strm := New(emitters.Slice([]int{1, 2, 3, 4, 5})).Reduce(0, func(op1, op2 int) int {
 		return op1 + op2
 	}).To(snk)
 

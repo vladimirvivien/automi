@@ -6,13 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vladimirvivien/automi/sources"
+	"github.com/vladimirvivien/automi/emitters"
 )
 
 func TestStream_Process(t *testing.T) {
-	src := sources.Slice("hello", "world")
+	src := emitters.Slice([]string{"hello", "world"})
 	snk := NewDrain()
-	strm := New().From(src).Process(func(s string) string {
+	strm := New(src).Process(func(s string) string {
 		return strings.ToUpper(s)
 	}).To(snk)
 
@@ -43,9 +43,9 @@ func TestStream_Process(t *testing.T) {
 }
 
 func TestStream_Filter(t *testing.T) {
-	src := newStrSrc([]string{"HELLO", "WORLD", "HOW", "ARE", "YOU"})
+	src := emitters.Slice([]string{"HELLO", "WORLD", "HOW", "ARE", "YOU"})
 	snk := newStrSink()
-	strm := New().From(src).Filter(func(data string) bool {
+	strm := New(src).Filter(func(data string) bool {
 		return !strings.Contains(data, "O")
 	})
 	strm.To(snk)
@@ -65,9 +65,9 @@ func TestStream_Filter(t *testing.T) {
 
 func TestStream_Map(t *testing.T) {
 
-	src := newStrSrc([]string{"HELLO", "WORLD", "HOW", "ARE", "YOU"})
+	src := emitters.Slice([]string{"HELLO", "WORLD", "HOW", "ARE", "YOU"})
 	snk := NewDrain()
-	strm := New().From(src).Map(func(data string) int {
+	strm := New(src).Map(func(data string) int {
 		return len(data)
 	}).To(snk)
 
@@ -107,9 +107,9 @@ func TestStream_Map(t *testing.T) {
 }
 
 func TestStream_FlatMap(t *testing.T) {
-	src := newStrSrc([]string{"HELLO WORLD", "HOW ARE YOU?"})
+	src := emitters.Slice([]string{"HELLO WORLD", "HOW ARE YOU?"})
 	snk := NewDrain()
-	strm := New().From(src).FlatMap(func(data string) []string {
+	strm := New(src).FlatMap(func(data string) []string {
 		return strings.Split(data, " ")
 	}).To(snk)
 

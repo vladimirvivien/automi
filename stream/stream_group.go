@@ -14,7 +14,7 @@ func (s *Stream) Batch() *Stream {
 // GroupByKey groups incoming items that are batched as
 // type []map[K]V where parameter key is used to group
 // the items when K=key.  Items with same key values are
-// grouped in a new map and returned as []map[G]M.
+// grouped in a new map and returned as []map[G]V.
 //
 // See Also
 //
