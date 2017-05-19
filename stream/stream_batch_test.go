@@ -65,3 +65,33 @@ func TestStream_GroupByName(t *testing.T) {
 		t.Fatal("Took too long")
 	}
 }
+
+func TestStream_GroupByPos(t *testing.T) {
+	src := emitters.Slice([][]string{
+		{"request", "/i/a", "00:11:51:AA", "accepted"},
+		{"response", "/i/a/", "00:11:51:AA", "served"},
+		{"request", "/i/b", "00:11:22:33", "accepted"},
+		{"response", "/i/b", "00:11:22:33", "served"},
+		{"request", "/i/c", "00:11:51:AA", "accepted"},
+		{"response", "/i/c", "00:11:51:AA", "served"},
+		{"request", "/i/d", "00:BB:22:DD", "accepted"},
+		{"response", "/i/d", "00:BB:22:DD", "served"},
+	})
+	snk := collectors.Slice()
+
+	strm := New(src).Batch().GroupByPos(3).SinkTo(snk)
+
+	select {
+	case err := <-strm.Open():
+		if err != nil {
+			t.Fatal(err)
+		}
+		result := snk.Get()[0].(map[interface{}][]interface{})
+		if len(result) != 2 {
+			t.Fatal("unexpected group size:", len(result))
+		}
+	case <-time.After(10 * time.Millisecond):
+		t.Fatal("Took too long")
+	}
+
+}

@@ -31,6 +31,16 @@ func GroupByPosFunc(pos int) api.UnFunc {
 		}
 
 		group := make(map[interface{}][]interface{})
+		groupItems := func(key reflect.Value, row reflect.Value, grp map[interface{}][]interface{}) {
+			for j := 0; j < row.Len(); j++ {
+				if j != pos {
+					grp[key.Interface()] = append(
+						grp[key.Interface()],
+						row.Index(j),
+					)
+				}
+			}
+		}
 
 		// walk dimension 1 of [][]interface{}
 		for i := 0; i < dataVal.Len(); i++ {
@@ -39,16 +49,16 @@ func GroupByPosFunc(pos int) api.UnFunc {
 			case reflect.Slice, reflect.Array:
 				key := row.Index(pos)
 				if key.IsValid() {
-					// walk dim 2, grab all items in slice, and map in group
-					for j := 0; j < row.Len(); j++ {
-						if j != pos {
-							group[key.Interface()] = append(
-								group[key.Interface()],
-								row.Index(j),
-							)
-						}
-					}
+					groupItems(key, row, group)
 				}
+			case reflect.Interface:
+				elem := row.Elem()
+				switch elem.Type().Kind() {
+				case reflect.Slice, reflect.Array:
+					key := elem.Index(pos)
+					groupItems(key, elem, group)
+				}
+
 			default: // TODO handle type mismatch
 			}
 		}
