@@ -468,7 +468,6 @@ func SortByKeyFunc(key interface{}) api.UnFunc {
 
 			return false
 		})
-
 		return dataVal.Interface()
 	})
 }

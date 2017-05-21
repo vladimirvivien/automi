@@ -96,12 +96,12 @@ func TestStream_GroupByPos(t *testing.T) {
 }
 
 func TestStream_SortByKey(t *testing.T) {
-	src := emitters.Slice([]map[string]interface{}{
-		{"Name": "Mercury", "Diameter": 4879},
-		{"Name": "Venus", "Diameter": 12104},
-		{"Name": "Uranus", "Diameter": 50724},
-		{"Name": "Saturn", "Diameter": 116464},
-		{"Name": "Earth", "Diameter": 12742},
+	src := emitters.Slice([]map[string]string{
+		{"Name": "Mercury", "Diameter": "4879"},
+		{"Name": "Venus", "Diameter": "12104"},
+		{"Name": "Uranus", "Diameter": "50724"},
+		{"Name": "Saturn", "Diameter": "116464"},
+		{"Name": "Earth", "Diameter": "12742"},
 	})
 
 	snk := collectors.Slice()
@@ -112,12 +112,99 @@ func TestStream_SortByKey(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		result := snk.Get()[0].([]map[string]interface{})
+		result := snk.Get()[0].([]map[string]string)
 		if result[0]["Name"] != "Earth" && result[1]["Name"] != "Mercury" && result[2]["Name"] != "Saturn" {
 			t.Fatal("unexpected sort order", result)
 		}
 	case <-time.After(10 * time.Millisecond):
 		t.Fatal("Took too long")
 	}
+}
 
+func TestStream_SortByName(t *testing.T) {
+	src := emitters.Slice([]struct {
+		Name     string
+		Diameter int
+	}{
+		{Name: "Mercury", Diameter: 4879},
+		{Name: "Venus", Diameter: 12104},
+		{Name: "Uranus", Diameter: 50724},
+		{Name: "Saturn", Diameter: 116464},
+		{Name: "Earth", Diameter: 12742},
+	})
+
+	snk := collectors.Slice()
+	strm := New(src).Batch().SortByName("Name").SinkTo(snk)
+
+	select {
+	case err := <-strm.Open():
+		if err != nil {
+			t.Fatal(err)
+		}
+		result := snk.Get()[0].([]struct {
+			Name     string
+			Diameter int
+		})
+		if result[0].Name != "Earth" && result[1].Name != "Mercury" && result[2].Name != "Saturn" {
+			t.Fatal("unexpected sort order", result)
+		}
+	case <-time.After(10 * time.Millisecond):
+		t.Fatal("Took too long")
+	}
+}
+
+func TestStream_SortByPos(t *testing.T) {
+	src := emitters.Slice([][]string{
+		{"Mercury", "4879"},
+		{"Venus", "12104"},
+		{"Uranus", "50724"},
+		{"Saturn", "116464"},
+		{"Earth", "12742"},
+	})
+
+	snk := collectors.Slice()
+	strm := New(src).Batch().SortByPos(0).SinkTo(snk)
+
+	select {
+	case err := <-strm.Open():
+		if err != nil {
+			t.Fatal(err)
+		}
+		result := snk.Get()[0].([][]string)
+		if result[0][0] != "Earth" && result[1][0] != "Mercury" && result[2][0] != "Saturn" {
+			t.Fatal("unexpected sort order", result)
+		}
+	case <-time.After(10 * time.Millisecond):
+		t.Fatal("Took too long")
+	}
+}
+
+func TestStream_SortWith(t *testing.T) {
+	src := emitters.Slice([]string{
+		"Mercury",
+		"Venus",
+		"Uranus",
+		"Saturn",
+		"Earth",
+	})
+
+	snk := collectors.Slice()
+	strm := New(src).Batch().SortWith(func(batch interface{}, i, j int) bool {
+		items := batch.([]string)
+		return items[i] < items[j]
+	})
+	strm = strm.SinkTo(snk)
+
+	select {
+	case err := <-strm.Open():
+		if err != nil {
+			t.Fatal(err)
+		}
+		result := snk.Get()[0].([]string)
+		if result[0] != "Earth" && result[1] != "Mercury" && result[2] != "Saturn" {
+			t.Fatal("unexpected sort order", result)
+		}
+	case <-time.After(10 * time.Millisecond):
+		t.Fatal("Took too long")
+	}
 }

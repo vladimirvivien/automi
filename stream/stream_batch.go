@@ -34,7 +34,7 @@ func (s *Stream) GroupByKey(key interface{}) *Stream {
 // See Also
 //
 // See batch operator function GroupByName in
-//    "github.com/vladimirvivien/automi/operators/batch/"
+//    "github.com/vladimirvivien/automi/operators/batch"
 func (s *Stream) GroupByName(name string) *Stream {
 	operator := unary.New(s.ctx)
 	operator.SetOperation(batch.GroupByNameFunc(name))
@@ -48,7 +48,7 @@ func (s *Stream) GroupByName(name string) *Stream {
 // See Also
 //
 // See the batch operator function GroupByPosFunc in
-//   "github.com/vladimirvivien/automi/operators/batch/"
+//   "github.com/vladimirvivien/automi/operators/batch"
 func (s *Stream) GroupByPos(pos int) *Stream {
 	operator := unary.New(s.ctx)
 	operator.SetOperation(batch.GroupByPosFunc(pos))
@@ -62,10 +62,51 @@ func (s *Stream) GroupByPos(pos int) *Stream {
 // See Also
 //
 // See also the operator function SortByKeyFunc in
-//   "github.com/vladimirvivien/operators/batch"
+//   "github.com/vladimirvivien/automi/operators/batch"
 func (s *Stream) SortByKey(key interface{}) *Stream {
 	operator := unary.New(s.ctx)
 	operator.SetOperation(batch.SortByKeyFunc(key))
+	return s.appendOp(operator)
+}
+
+// SortByName sorts incoming items that are batched as []T where
+// T struct with fields identified by param name.  Value struct.<name>
+// is used to sort the slice.  The operator returns stored slice []T.
+//
+// See Also
+//
+// See also the operator function SortByNameFunc in
+//   "github.com/vladimirvivien/automi/operators/batch"
+func (s *Stream) SortByName(name string) *Stream {
+	operator := unary.New(s.ctx)
+	operator.SetOperation(batch.SortByNameFunc(name))
+	return s.appendOp(operator)
+}
+
+// SortByPos sorts incoming items that are batched as [][]T where
+// value at [][[pos]T is used to sort the slice.  The operator
+// returns sorted slice [][]T.
+//
+// See Also
+//
+// See also the operator function SortByPosFunc in
+//   "github.com/vladimirvivien/automi/operators/batch"
+func (s *Stream) SortByPos(pos int) *Stream {
+	operator := unary.New(s.ctx)
+	operator.SetOperation(batch.SortByPosFunc(pos))
+	return s.appendOp(operator)
+}
+
+// SortWith sorts incoming items that are batched as []T using the
+// provided Less function for applicaiton with the sort package.
+//
+// See Also
+//
+// See also the operator function SortWithFunc in
+//   "github.com/vladimirvivien/automi/operators/batch"
+func (s *Stream) SortWith(f func(batch interface{}, i, j int) bool) *Stream {
+	operator := unary.New(s.ctx)
+	operator.SetOperation(batch.SortWithFunc(f))
 	return s.appendOp(operator)
 }
 
