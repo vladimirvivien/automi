@@ -107,7 +107,7 @@ func TestBatchFuncs_GroupByKey(t *testing.T) {
 }
 
 func TestBatchFuncs_SumInts(t *testing.T) {
-	op := Sum()
+	op := SumFunc()
 	data := [][]int{
 		{10, 70, 20},
 		{40, 60, 90},

@@ -82,6 +82,16 @@ func SumByPosFunc(pos int) api.UnFunc {
 		}
 
 		sum := float64(0)
+		updateSum := func(op0 *float64, item reflect.Value) {
+			if item.IsValid() {
+				if util.IsFloatValue(item) {
+					*op0 += item.Float()
+				}
+				if util.IsIntValue(item) {
+					*op0 += float64(item.Int())
+				}
+			}
+		}
 
 		// walk [][]interface{}
 		for i := 0; i < dataVal.Len(); i++ {
@@ -89,22 +99,10 @@ func SumByPosFunc(pos int) api.UnFunc {
 			switch row.Type().Kind() {
 			case reflect.Slice, reflect.Array:
 				posVal := row.Index(pos)
-				if posVal.IsValid() {
-					if util.IsFloatValue(posVal) {
-						sum += posVal.Float()
-					}
-					if util.IsIntValue(posVal) {
-						sum += float64(posVal.Int())
-					}
-					if posVal.Type().Kind() == reflect.Interface {
-						if util.IsFloatValue(posVal.Elem()) {
-							sum += posVal.Elem().Float()
-						}
-						if util.IsIntValue(posVal.Elem()) {
-							sum += float64(posVal.Elem().Int())
-						}
-					}
+				if posVal.Type().Kind() == reflect.Interface {
+					updateSum(&sum, posVal.Elem())
 				}
+				updateSum(&sum, posVal)
 			default: // TODO handle type mismatch
 			}
 		}
@@ -189,6 +187,16 @@ func SumByNameFunc(name string) api.UnFunc {
 		name = strings.Title(name) // avoid unexported field panic
 
 		sum := float64(0)
+		updateSum := func(op0 *float64, item reflect.Value) {
+			if item.IsValid() {
+				if util.IsFloatValue(item) {
+					*op0 += item.Float()
+				}
+				if util.IsIntValue(item) {
+					*op0 += float64(item.Int())
+				}
+			}
+		}
 
 		// walk the slice
 		for i := 0; i < dataVal.Len(); i++ {
@@ -196,15 +204,12 @@ func SumByNameFunc(name string) api.UnFunc {
 			switch item.Type().Kind() {
 			case reflect.Struct:
 				val := item.FieldByName(name)
-				if val.IsValid() {
-					switch {
-					case util.IsFloatValue(val):
-						sum += val.Float()
-					case util.IsIntValue(val):
-						sum += float64(val.Int())
-					default:
-						// TODO sum when field F in struct{F []numeric}
-					}
+				updateSum(&sum, val)
+			case reflect.Interface:
+				elem := item.Elem()
+				if elem.Type().Kind() == reflect.Struct {
+					val := elem.FieldByName(name)
+					updateSum(&sum, val)
 				}
 			default: //TODO handle type mismatch
 			}
@@ -285,6 +290,17 @@ func SumByKeyFunc(key interface{}) api.UnFunc {
 
 		sum := float64(0)
 
+		updateSum := func(op0 *float64, item reflect.Value) {
+			if item.IsValid() {
+				if util.IsFloatValue(item) {
+					*op0 += item.Float()
+				}
+				if util.IsIntValue(item) {
+					*op0 += float64(item.Int())
+				}
+			}
+		}
+
 		// walk the slice
 		for i := 0; i < dataVal.Len(); i++ {
 			item := dataVal.Index(i)
@@ -292,15 +308,12 @@ func SumByKeyFunc(key interface{}) api.UnFunc {
 				switch item.Type().Kind() {
 				case reflect.Map:
 					val := item.MapIndex(reflect.ValueOf(key))
-					if val.IsValid() {
-						switch {
-						case util.IsFloatValue(val):
-							sum += val.Float()
-						case util.IsIntValue(val):
-							sum += float64(val.Int())
-						default:
-							// TODO sum when map[key] returns []Numeric
-						}
+					updateSum(&sum, val)
+				case reflect.Interface:
+					elem := item.Elem()
+					if elem.Type().Kind() == reflect.Map {
+						val := elem.MapIndex(reflect.ValueOf(key))
+						updateSum(&sum, val)
 					}
 				default: //TODO handle type mismatch
 				}
@@ -318,7 +331,7 @@ func SumByKeyFunc(key interface{}) api.UnFunc {
 //  [][]integers
 //  [][]floats
 // The function returns the sum as a float64
-func Sum() api.UnFunc {
+func SumFunc() api.UnFunc {
 	return api.UnFunc(func(ctx context.Context, param0 interface{}) interface{} {
 		dataType := reflect.TypeOf(param0)
 		dataVal := reflect.ValueOf(param0)
@@ -348,6 +361,14 @@ func Sum() api.UnFunc {
 				case reflect.Slice, reflect.Array:
 					for j := 0; j < item.Len(); j++ {
 						updateSum(&sum, item.Index(j))
+					}
+				case reflect.Interface:
+					elem := item.Elem()
+					switch elem.Type().Kind() {
+					case reflect.Slice, reflect.Array:
+						for j := 0; j < elem.Len(); j++ {
+							updateSum(&sum, elem.Index(j))
+						}
 					}
 				default:
 					updateSum(&sum, item)

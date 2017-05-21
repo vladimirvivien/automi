@@ -208,3 +208,109 @@ func TestStream_SortWith(t *testing.T) {
 		t.Fatal("Took too long")
 	}
 }
+
+func TestStream_Sum(t *testing.T) {
+	src := emitters.Slice([]int{
+		4879,
+		12104,
+		50724,
+		116464,
+		12742,
+	})
+
+	snk := collectors.Slice()
+	strm := New(src).Batch().Sum().SinkTo(snk)
+
+	select {
+	case err := <-strm.Open():
+		if err != nil {
+			t.Fatal(err)
+		}
+		result := snk.Get()[0].(float64)
+		if result <= 116464 {
+			t.Fatal("unexpected result:", result)
+		}
+	case <-time.After(10 * time.Millisecond):
+		t.Fatal("Took too long")
+	}
+}
+
+func TestStream_SumByKey(t *testing.T) {
+	src := emitters.Slice([]map[string]int{
+		{"Diameter": 4879},
+		{"Diameter": 12104},
+		{"Diameter": 50724},
+		{"Diameter": 116464},
+		{"Diameter": 12742},
+	})
+
+	snk := collectors.Slice()
+	strm := New(src).Batch().SumByKey("Diameter").SinkTo(snk)
+
+	select {
+	case err := <-strm.Open():
+		if err != nil {
+			t.Fatal(err)
+		}
+		result := snk.Get()[0].(float64)
+		t.Log("Sum calculated:", result)
+		if result <= 116464 {
+			t.Fatal("unexpected result:", result)
+		}
+	case <-time.After(10 * time.Millisecond):
+		t.Fatal("Took too long")
+	}
+}
+
+func TestStream_SumByName(t *testing.T) {
+	src := emitters.Slice([]struct{ Diam int }{
+		{Diam: 4879},
+		{Diam: 12104},
+		{Diam: 50724},
+		{Diam: 116464},
+		{Diam: 12742},
+	})
+
+	snk := collectors.Slice()
+	strm := New(src).Batch().SumByName("Diam").SinkTo(snk)
+
+	select {
+	case err := <-strm.Open():
+		if err != nil {
+			t.Fatal(err)
+		}
+		result := snk.Get()[0].(float64)
+		t.Log("Sum calculated:", result)
+		if result <= 116464 {
+			t.Fatal("unexpected result:", result)
+		}
+	case <-time.After(10 * time.Millisecond):
+		t.Fatal("Took too long")
+	}
+}
+
+func TestStream_SumByPos(t *testing.T) {
+	src := emitters.Slice([]int{
+		4879,
+		12104,
+		50724,
+		116464,
+		12742,
+	})
+
+	snk := collectors.Slice()
+	strm := New(src).Batch().Sum().SinkTo(snk)
+
+	select {
+	case err := <-strm.Open():
+		if err != nil {
+			t.Fatal(err)
+		}
+		result := snk.Get()[0].(float64)
+		if result <= 116464 {
+			t.Fatal("unexpected result:", result)
+		}
+	case <-time.After(10 * time.Millisecond):
+		t.Fatal("Took too long")
+	}
+}
