@@ -93,5 +93,31 @@ func TestStream_GroupByPos(t *testing.T) {
 	case <-time.After(10 * time.Millisecond):
 		t.Fatal("Took too long")
 	}
+}
+
+func TestStream_SortByKey(t *testing.T) {
+	src := emitters.Slice([]map[string]interface{}{
+		{"Name": "Mercury", "Diameter": 4879},
+		{"Name": "Venus", "Diameter": 12104},
+		{"Name": "Uranus", "Diameter": 50724},
+		{"Name": "Saturn", "Diameter": 116464},
+		{"Name": "Earth", "Diameter": 12742},
+	})
+
+	snk := collectors.Slice()
+	strm := New(src).Batch().SortByKey("Name").SinkTo(snk)
+
+	select {
+	case err := <-strm.Open():
+		if err != nil {
+			t.Fatal(err)
+		}
+		result := snk.Get()[0].([]map[string]interface{})
+		if result[0]["Name"] != "Earth" && result[1]["Name"] != "Mercury" && result[2]["Name"] != "Saturn" {
+			t.Fatal("unexpected sort order", result)
+		}
+	case <-time.After(10 * time.Millisecond):
+		t.Fatal("Took too long")
+	}
 
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"reflect"
 
 	autoctx "github.com/vladimirvivien/automi/api/context"
 )
@@ -42,7 +43,7 @@ func (op *BatchOperator) GetOutput() <-chan interface{} {
 
 // Exec is the execution starting point for the operator node.
 // The batch operator batches N size items from upstream into
-// a slice []T t.  When t reaches size N, the slice is sent
+// a slice []T.  When the slice reaches size N, the slice is sent
 // downstream for processing.
 func (op *BatchOperator) Exec() (err error) {
 	if op.input == nil {
@@ -50,16 +51,21 @@ func (op *BatchOperator) Exec() (err error) {
 		return
 	}
 
+	// The operator dynamically creates the slice of []T.
+	// it does this by creating automatically detecting elem type T
+	// from the first item that shows up in the channel
+
 	go func() {
-		batch := make([]interface{}, 0, op.size)
+		var batchValue reflect.Value
 		defer func() {
 			// push any straggler items in batch
-			if len(batch) > 0 {
-				op.output <- batch
+			if batchValue.IsValid() && batchValue.Len() > 0 {
+				op.output <- batchValue.Interface()
 			}
 			close(op.output)
 			op.log.Print("component shutting down")
 		}()
+
 		counter := 0
 		for {
 			select {
@@ -67,18 +73,45 @@ func (op *BatchOperator) Exec() (err error) {
 				if !opened {
 					return
 				}
-				batch = append(batch, item)
+				if !batchValue.IsValid() {
+					batchType := op.makeBatchType(item)
+					batchValue = reflect.MakeSlice(reflect.SliceOf(batchType), 0, op.size)
+				}
+
+				batchValue = reflect.Append(batchValue, reflect.ValueOf(item))
 				if counter < op.size-1 {
 					counter++
 					continue
 				}
 				if counter >= op.size-1 {
-					op.output <- batch
+					op.output <- batchValue.Interface()
 					counter = 0
-					batch = make([]interface{}, 0, op.size)
+					batchType := op.makeBatchType(item)
+					batchValue = reflect.MakeSlice(reflect.SliceOf(batchType), 0, op.size)
 				}
 			}
 		}
 	}()
 	return nil
+}
+
+// makeBatchType detects and return type to be used for the batch based
+// on items in the
+func (op *BatchOperator) makeBatchType(item interface{}) reflect.Type {
+	itemType := reflect.TypeOf(item)
+	var retType reflect.Type
+
+	switch itemType.Kind() {
+	case reflect.Array, reflect.Slice:
+		elem := itemType.Elem()
+		retType = reflect.SliceOf(elem)
+	case reflect.Map:
+		elemType := itemType.Elem()
+		keyType := itemType.Key()
+		retType = reflect.MapOf(keyType, elemType)
+	default:
+		retType = itemType
+	}
+
+	return retType
 }

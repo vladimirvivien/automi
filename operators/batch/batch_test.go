@@ -85,7 +85,7 @@ func TestBatchOp_Exec_OneBatch(t *testing.T) {
 	go func() {
 		defer close(wait)
 		for data := range o.GetOutput() {
-			batch := data.([]interface{})
+			batch := data.([]string)
 			m.Lock()
 			batches++
 			batchSize = len(batch)
@@ -139,7 +139,7 @@ func TestBatchOp_Exec_MultipleBatches(t *testing.T) {
 	go func() {
 		defer close(wait)
 		for data := range o.GetOutput() {
-			batch := data.([]interface{})
+			batch := data.([]string)
 			batchSize := len(batch)
 			t.Log("got batch size:", batchSize)
 			if batchSize != 4 && batchSize != 2 {
@@ -160,6 +160,115 @@ func TestBatchOp_Exec_MultipleBatches(t *testing.T) {
 	case <-wait:
 		if batches != expectedBatches {
 			t.Fatalf("Expecting %d batch, but got %d", expectedBatches, batches)
+		}
+	case <-time.After(50 * time.Millisecond):
+		t.Fatal("Took too long...")
+	}
+}
+
+func TestBatchOp_BatchSlice(t *testing.T) {
+	o := New(context.TODO())
+
+	in := make(chan interface{})
+	go func() {
+		in <- []string{"AA", "BB"}
+		in <- []string{"CC", "DD"}
+		in <- []string{"EE", "FF", "GG"}
+		close(in)
+	}()
+	o.SetInput(in)
+
+	wait := make(chan struct{})
+	var typeOk bool
+
+	go func() {
+		defer close(wait)
+		for data := range o.GetOutput() {
+			_, typeOk = data.([][]string)
+		}
+	}()
+
+	if err := o.Exec(); err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case <-wait:
+		if !typeOk {
+			t.Fatal("unexpected batch type")
+		}
+	case <-time.After(50 * time.Millisecond):
+		t.Fatal("Took too long...")
+	}
+
+}
+
+func TestBatchOp_BatchMap(t *testing.T) {
+	o := New(context.TODO())
+
+	in := make(chan interface{})
+	go func() {
+		in <- map[string]string{"AA": "AA-AA", "BB": "BB-CC"}
+		in <- map[string]string{"CC": "CA", "DD": "BB"}
+		in <- map[string]string{"EE": "CAR", "FF": "CEX", "GG": "IEX"}
+		close(in)
+	}()
+	o.SetInput(in)
+
+	wait := make(chan struct{})
+	var typeOk bool
+
+	go func() {
+		defer close(wait)
+		for data := range o.GetOutput() {
+			_, typeOk = data.([]map[string]string)
+		}
+	}()
+
+	if err := o.Exec(); err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case <-wait:
+		if !typeOk {
+			t.Fatal("unexpected batch type")
+		}
+	case <-time.After(50 * time.Millisecond):
+		t.Fatal("Took too long...")
+	}
+}
+
+func TestBatchOp_BatchStruct(t *testing.T) {
+	o := New(context.TODO())
+	type log struct{ Event, Req string }
+	in := make(chan interface{})
+	go func() {
+		in <- log{Event: "AA-AA", Req: "BB-CC"}
+		in <- log{Event: "CA", Req: "BB"}
+		in <- log{Event: "CAR", Req: "CEX"}
+		close(in)
+	}()
+	o.SetInput(in)
+
+	wait := make(chan struct{})
+	var typeOk bool
+
+	go func() {
+		defer close(wait)
+		for data := range o.GetOutput() {
+			_, typeOk = data.([]log)
+		}
+	}()
+
+	if err := o.Exec(); err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case <-wait:
+		if !typeOk {
+			t.Fatal("unexpected batch type")
 		}
 	case <-time.After(50 * time.Millisecond):
 		t.Fatal("Took too long...")

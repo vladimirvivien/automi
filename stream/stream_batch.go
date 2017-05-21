@@ -18,7 +18,7 @@ func (s *Stream) Batch() *Stream {
 //
 // See Also
 //
-// See the following for more on GroupByKey
+// See batch operator function GroupByKey in
 //   "github.com/vladimirvivien/automi/operators/batch/"#GroupByKeyFunc
 func (s *Stream) GroupByKey(key interface{}) *Stream {
 	operator := unary.New(s.ctx)
@@ -33,8 +33,8 @@ func (s *Stream) GroupByKey(key interface{}) *Stream {
 //
 // See Also
 //
-// See the following for more on GroupByName
-//    "github.com/vladimirvivien/automi/operators/batch/"#GrouByNameFunc
+// See batch operator function GroupByName in
+//    "github.com/vladimirvivien/automi/operators/batch/"
 func (s *Stream) GroupByName(name string) *Stream {
 	operator := unary.New(s.ctx)
 	operator.SetOperation(batch.GroupByNameFunc(name))
@@ -47,11 +47,25 @@ func (s *Stream) GroupByName(name string) *Stream {
 //
 // See Also
 //
-// See the following for more
-//   "github.com/vladimirvivien/automi/operators/batch/"#GroupByPosFunc
+// See the batch operator function GroupByPosFunc in
+//   "github.com/vladimirvivien/automi/operators/batch/"
 func (s *Stream) GroupByPos(pos int) *Stream {
 	operator := unary.New(s.ctx)
 	operator.SetOperation(batch.GroupByPosFunc(pos))
+	return s.appendOp(operator)
+}
+
+// SortByKey sorts incoming items that are batched as type []map[K]V
+// where K is a comparable type specified by param key and used to
+// sort the slice.  The opertor returns a sorted []map[K]V.
+//
+// See Also
+//
+// See also the operator function SortByKeyFunc in
+//   "github.com/vladimirvivien/operators/batch"
+func (s *Stream) SortByKey(key interface{}) *Stream {
+	operator := unary.New(s.ctx)
+	operator.SetOperation(batch.SortByKeyFunc(key))
 	return s.appendOp(operator)
 }
 
