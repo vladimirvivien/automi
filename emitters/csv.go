@@ -67,6 +67,7 @@ func (c *CsvEmitter) init(ctx context.Context) error {
 	// extract logger
 	log := autoctx.GetLogger(ctx)
 	c.log = log
+	c.log.Println("opening csv emitter node")
 
 	// establish defaults
 	if c.delimChar == 0 {
@@ -117,8 +118,6 @@ func (c *CsvEmitter) Open(ctx context.Context) (err error) {
 		return
 	}
 
-	c.log.Print("source opened")
-
 	go func() {
 		defer func() {
 			close(c.output)
@@ -128,7 +127,7 @@ func (c *CsvEmitter) Open(ctx context.Context) (err error) {
 					c.log.Print(err)
 				}
 			}
-			c.log.Print("source closed")
+			c.log.Print("csv emitter closed")
 		}()
 
 		for {
@@ -137,6 +136,7 @@ func (c *CsvEmitter) Open(ctx context.Context) (err error) {
 				if err == io.EOF {
 					return
 				}
+				//TODO route error
 				c.log.Print(fmt.Errorf("Error reading row: %s", err))
 				continue
 			}
@@ -145,7 +145,6 @@ func (c *CsvEmitter) Open(ctx context.Context) (err error) {
 			case c.output <- row:
 			case <-ctx.Done():
 				return
-			default:
 			}
 		}
 	}()
@@ -170,7 +169,7 @@ func (c *CsvEmitter) setupSource() error {
 		if err != nil {
 			return err
 		}
-		c.log.Println("setting up file", f, "as csv source")
+		c.log.Println("setting up file", f.Name(), "as csv source")
 		c.srcReader = f
 		c.file = f // so we can close it
 	}
