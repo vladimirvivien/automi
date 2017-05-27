@@ -1,8 +1,10 @@
-package sinks
+package collectors
 
 import (
 	"bytes"
 	"context"
+	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -10,18 +12,21 @@ import (
 	"github.com/vladimirvivien/automi/testutil"
 )
 
-func TestCsvSink_New(t *testing.T) {
+func TestCsvCollector_New(t *testing.T) {
 	data := bytes.NewBufferString("")
-	csv := Csv().WithWriter(data)
-	if csv.snkWriter == nil {
+	csv := Csv(data).DelimChar('|').Headers([]string{"a", "b"})
+	if csv.snkParam == nil {
 		t.Fatal("CsvSnk not setting input writer")
 	}
-	if csv.delimChar != ',' {
-		t.Fatal("CsvSnk not setting delim char")
+	if csv.delimChar != '|' {
+		t.Fatal("csv collectors not setting delim char")
+	}
+	if len(csv.headers) != 2 {
+		t.Fatal("csv collectors not setting headers")
 	}
 }
 
-func TestCsvSink_Open(t *testing.T) {
+func TestCsvCollector_IO(t *testing.T) {
 	in := make(chan interface{})
 	go func() {
 		in <- []string{"Christophe", "Petion", "Dessaline"}
@@ -29,7 +34,7 @@ func TestCsvSink_Open(t *testing.T) {
 		close(in)
 	}()
 	data := bytes.NewBufferString("")
-	csv := Csv().WithWriter(data)
+	csv := Csv(data)
 	csv.SetInput(in)
 
 	// process
@@ -39,17 +44,57 @@ func TestCsvSink_Open(t *testing.T) {
 			t.Fatal(err)
 		}
 	case <-time.After(50 * time.Millisecond):
-		t.Fatal("Sink took too long to open")
+		t.Fatal("collector took too long to open")
 	}
 
 	expected := "Christophe,Petion,Dessaline\nToussaint,Guerrier,Caiman"
 	actual := strings.TrimSpace(data.String())
 	if actual != expected {
-		t.Fatal("Sink did not get expected data, got: ", actual)
+		t.Fatal("collector did not get expected data, got: ", actual)
 	}
 }
 
-func BenchmarkCsvSink(b *testing.B) {
+func TestCsvCollector_File(t *testing.T) {
+	in := make(chan interface{})
+	go func() {
+		in <- []string{"Christophe", "Petion", "Dessaline"}
+		in <- []string{"Toussaint", "Guerrier", "Caiman"}
+		close(in)
+	}()
+
+	f, err := os.Create("./csv-test.out")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		f.Close()
+		os.Remove("./csv-test.out")
+	}()
+	csv := Csv(f)
+	csv.SetInput(in)
+
+	// process
+	select {
+	case err := <-csv.Open(context.Background()):
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(50 * time.Millisecond):
+		t.Fatal("collector took too long to open")
+	}
+
+	expected := "Christophe,Petion,Dessaline\nToussaint,Guerrier,Caiman"
+	data, err := ioutil.ReadFile("./csv-test.out")
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual := strings.TrimSpace(string(data))
+	if actual != expected {
+		t.Fatal("collector did not get expected data, got: ", actual)
+	}
+}
+
+func BenchmarkCsvCollector(b *testing.B) {
 	N := b.N
 	b.Logf("N = %d", N)
 
@@ -70,7 +115,7 @@ func BenchmarkCsvSink(b *testing.B) {
 	}()
 
 	data := bytes.NewBufferString("")
-	csv := Csv().WithWriter(data)
+	csv := Csv(data)
 	csv.SetInput(in)
 
 	// process

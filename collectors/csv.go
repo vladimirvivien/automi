@@ -1,8 +1,9 @@
-package sinks
+package collectors
 
 import (
 	"context"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -19,6 +20,7 @@ type CsvCollector struct {
 	delimChar rune     // delimiter character
 	headers   []string // optional csv headers
 
+	snkParam  interface{}
 	file      *os.File
 	input     <-chan interface{}
 	snkWriter io.Writer
@@ -27,22 +29,21 @@ type CsvCollector struct {
 }
 
 // New creates a *CsvCollector value
-func Csv() *CsvCollector {
+func Csv(sink interface{}) *CsvCollector {
 	csv := &CsvCollector{
+		snkParam:  sink,
 		delimChar: ',',
 	}
 	return csv
 }
 
-// WithWriter sets the io.Writer that will write the csv data
-func (c *CsvCollector) WithWriter(writer io.Writer) *CsvCollector {
-	c.snkWriter = writer
+func (c *CsvCollector) DelimChar(char rune) *CsvCollector {
+	c.delimChar = char
 	return c
 }
 
-// WithFile sets a file name to use as a csv data sink
-func (c *CsvCollector) WithFile(path string) *CsvCollector {
-	c.filepath = path
+func (c *CsvCollector) Headers(headers []string) *CsvCollector {
+	c.headers = headers
 	return c
 }
 
@@ -60,29 +61,22 @@ func (c *CsvCollector) init(ctx context.Context) error {
 		return fmt.Errorf("Input attribute not set")
 	}
 
+	c.log.Println("opening csv collector node")
+
 	// establish defaults
 	if c.delimChar == 0 {
 		c.delimChar = ','
 	}
 
-	var writer io.Writer
-	if c.snkWriter != nil {
-		writer = c.snkWriter
-		c.log.Print("using IO Writer sink")
-	} else {
-		file, err := os.Create(c.filepath)
-		if err != nil {
-			return fmt.Errorf("Failed to create file %s: %v ", c.filepath, err)
-		}
-		writer = file
-		c.file = file
-		c.log.Print("using sink file", file.Name())
+	if err := c.setupSink(); err != nil {
+		return err
 	}
-	c.csvWriter = csv.NewWriter(writer)
+
+	c.csvWriter = csv.NewWriter(c.snkWriter)
 	c.csvWriter.Comma = c.delimChar
 
 	// write headers
-	if len(c.headers) > 0 {
+	if c.headers != nil && len(c.headers) > 0 {
 		if err := c.csvWriter.Write(c.headers); err != nil {
 			return err
 		}
@@ -160,4 +154,33 @@ func (c *CsvCollector) Open(ctx context.Context) <-chan error {
 	}()
 
 	return result
+}
+
+func (c *CsvCollector) setupSink() error {
+	if c.snkParam == nil {
+		return errors.New("missing CSV sink")
+	}
+	if wtr, ok := c.snkParam.(io.Writer); ok {
+		c.log.Println("using raw io.Writer as csv sink")
+		c.snkWriter = wtr
+	}
+
+	if wtr, ok := c.snkParam.(*os.File); ok {
+		c.log.Println("using file", wtr, "as csv sink")
+		c.snkWriter = wtr
+	}
+
+	if wtr, ok := c.snkParam.(string); ok {
+		f, err := os.Create(wtr)
+		if err != nil {
+			return err
+		}
+		c.log.Println("setting up file", f.Name(), "as csv sink")
+		c.snkWriter = f
+		c.file = f // so we can close it
+	}
+	if c.snkWriter == nil {
+		return errors.New("invalid CSV sink")
+	}
+	return nil
 }

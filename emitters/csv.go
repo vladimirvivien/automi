@@ -39,7 +39,7 @@ func CSV(source interface{}) *CsvEmitter {
 		srcParam:    source,
 		delimChar:   ',',
 		commentChar: '#',
-		output:      make(chan interface{}),
+		output:      make(chan interface{}, 1024),
 	}
 	return csv
 }
