@@ -3,11 +3,13 @@ package stream
 import (
 	"context"
 	"errors"
+	"io"
 	"log"
 	"reflect"
 
 	"github.com/vladimirvivien/automi/api"
 	autoctx "github.com/vladimirvivien/automi/api/context"
+	"github.com/vladimirvivien/automi/collectors"
 	"github.com/vladimirvivien/automi/emitters"
 	streamop "github.com/vladimirvivien/automi/operators/stream"
 )
@@ -150,6 +152,12 @@ func (s *Stream) setupSource() error {
 
 	if src, ok := s.srcParam.(api.Source); ok {
 		s.source = src
+		return nil
+	}
+
+	if src, ok := s.srcParam.(io.Reader); ok {
+		s.source = emitters.Reader(src)
+		return nil
 	}
 
 	srcType := reflect.TypeOf(s.srcParam)
@@ -178,6 +186,8 @@ func (s *Stream) setupSink() error {
 
 	srcType := reflect.TypeOf(s.srcParam)
 	switch srcType.Kind() {
+	case reflect.Slice:
+		s.sink = collectors.Slice()
 	case reflect.Chan:
 	}
 

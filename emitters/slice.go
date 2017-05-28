@@ -9,7 +9,7 @@ import (
 	autoctx "github.com/vladimirvivien/automi/api/context"
 )
 
-// SliceSrc is source node that takes in a slice and
+// SliceEmitter is an emitter that takes in a slice and
 // emits slice items individually as a stream.
 type SliceEmitter struct {
 	slice  interface{}
