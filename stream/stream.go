@@ -147,7 +147,7 @@ func (s *Stream) initGraph() error {
 // setupSource checks the source, setup the proper type or return nil if problem
 func (s *Stream) setupSource() error {
 	if s.srcParam == nil {
-		return errors.New("missing source parameter")
+		return errors.New("stream missing source parameter")
 	}
 
 	if src, ok := s.srcParam.(api.Source); ok {
@@ -156,7 +156,7 @@ func (s *Stream) setupSource() error {
 	}
 
 	if src, ok := s.srcParam.(io.Reader); ok {
-		s.source = emitters.Reader(src)
+		s.source = emitters.Reader(src, nil)
 		return nil
 	}
 
@@ -164,6 +164,7 @@ func (s *Stream) setupSource() error {
 	switch srcType.Kind() {
 	case reflect.Slice:
 		s.source = emitters.Slice(s.srcParam)
+		return nil
 	case reflect.Chan:
 	}
 
@@ -177,14 +178,19 @@ func (s *Stream) setupSource() error {
 // setupSink checks the sink param, setup the proper type or return nil if problem
 func (s *Stream) setupSink() error {
 	if s.snkParam == nil {
-		return errors.New("missing sink parameter")
+		return errors.New("stream missing sink parameter")
 	}
 
 	if snk, ok := s.snkParam.(api.Sink); ok {
 		s.sink = snk
 	}
 
-	srcType := reflect.TypeOf(s.srcParam)
+	if snk, ok := s.snkParam.(io.Writer); ok {
+		s.sink = collectors.Writer(snk)
+		return nil
+	}
+
+	srcType := reflect.TypeOf(s.snkParam)
 	switch srcType.Kind() {
 	case reflect.Slice:
 		s.sink = collectors.Slice()

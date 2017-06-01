@@ -71,25 +71,22 @@ func TestStream_InitGraph(t *testing.T) {
 }
 
 func TestStream_Open_NoOp(t *testing.T) {
-	t.Skip()
-	src := emitters.Slice([]string{"Hello", "World"})
 	snk := collectors.Slice()
-	st := New(src).SinkTo(snk)
+	st := New([]string{"Hello", "World"}).SinkTo(snk)
 	select {
 	case err := <-st.Open():
 		if err != nil {
 			t.Fatal(err)
 		}
+		if len(snk.Get()) != 2 {
+			t.Fatal("Data not streaming, expected 2 elements, got ", len(snk.Get()))
+		}
 	case <-time.After(50 * time.Millisecond):
 		t.Fatal("Waited too long ...")
-	}
-	if len(snk.Get()) != 2 {
-		t.Fatal("Data not streaming, expected 2 elements, got ", len(snk.Get()))
 	}
 }
 
 func TestStream_Open_WithOp(t *testing.T) {
-	t.Skip()
 	src := emitters.Slice([]string{"HELLO", "WORLD", "HOW", "ARE", "YOU"})
 	snk := collectors.Slice()
 	op1 := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {

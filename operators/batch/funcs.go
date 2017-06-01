@@ -70,7 +70,8 @@ func GroupByPosFunc(pos int) api.UnFunc {
 // items based on their position.  The stream data is expected to be of types:
 //   []T - where T is an integer or floating point type
 //
-// The generated function accumulates the sum from the batch and returns it.
+// The generated function accumulates the sum from the batch and returns it as
+// map[int]float64 {pos: sum}
 func SumByPosFunc(pos int) api.UnFunc {
 	return api.UnFunc(func(ctx context.Context, param0 interface{}) interface{} {
 		dataType := reflect.TypeOf(param0)
@@ -106,7 +107,7 @@ func SumByPosFunc(pos int) api.UnFunc {
 			default: // TODO handle type mismatch
 			}
 		}
-		return sum
+		return map[int]float64{pos: sum}
 	})
 
 }
@@ -174,7 +175,7 @@ func GroupByNameFunc(name string) api.UnFunc {
 //  - struct{name T} - where T is intergers, floats
 //  - struct{name []T} - where T is integers, floats
 //
-// The generated function returns a value of type float64
+// The generated function returns a value of type map[string]float64{name:sum}
 func SumByNameFunc(name string) api.UnFunc {
 	return api.UnFunc(func(ctx context.Context, param0 interface{}) interface{} {
 		dataType := reflect.TypeOf(param0)
@@ -214,7 +215,7 @@ func SumByNameFunc(name string) api.UnFunc {
 			default: //TODO handle type mismatch
 			}
 		}
-		return sum
+		return map[string]float64{name: sum}
 	})
 }
 
@@ -277,7 +278,7 @@ func GroupByKeyFunc(key interface{}) api.UnFunc {
 // Each slice item m can be of type
 //   map[K]V - where V can be integers or floats
 //   map[K][]V - where []V is a slice of integers or floats
-// The function returns a float64 value
+// The function returns value map[interface{}]float64{key: sum}
 func SumByKeyFunc(key interface{}) api.UnFunc {
 	return api.UnFunc(func(ctx context.Context, param0 interface{}) interface{} {
 		dataType := reflect.TypeOf(param0)
@@ -320,7 +321,7 @@ func SumByKeyFunc(key interface{}) api.UnFunc {
 			}
 		}
 
-		return sum
+		return map[interface{}]float64{key: sum}
 	})
 }
 

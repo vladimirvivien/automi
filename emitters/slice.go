@@ -32,13 +32,13 @@ func (s *SliceEmitter) GetOutput() <-chan interface{} {
 
 // Open opens the source node to start streaming data on its channel
 func (s *SliceEmitter) Open(ctx context.Context) error {
-	// ensure slice is a slice
+	// ensure slice param is a slice
 	sliceType := reflect.TypeOf(s.slice)
 	if sliceType.Kind() != reflect.Slice {
 		return errors.New("SliceEmitter requires slice")
 	}
 	s.log = autoctx.GetLogger(ctx)
-	s.log.Print("opening slice source")
+	s.log.Print("opening slice emitter")
 	sliceVal := reflect.ValueOf(s.slice)
 
 	if !sliceVal.IsValid() {
@@ -46,7 +46,10 @@ func (s *SliceEmitter) Open(ctx context.Context) error {
 	}
 
 	go func() {
-		defer close(s.output)
+		defer func() {
+			close(s.output)
+			s.log.Println("closing slice emitter")
+		}()
 		for i := 0; i < sliceVal.Len(); i++ {
 			val := sliceVal.Index(i)
 			s.output <- val.Interface()

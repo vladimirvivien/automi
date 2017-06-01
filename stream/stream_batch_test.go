@@ -252,9 +252,9 @@ func TestStream_SumByKey(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		result := snk.Get()[0].(float64)
-		t.Log("Sum calculated:", result)
-		if result <= 116464 {
+		result := snk.Get()[0].(map[interface{}]float64)
+		t.Log("Sum calculated:", result["Diameter"])
+		if result["Diameter"] <= 116464 {
 			t.Fatal("unexpected result:", result)
 		}
 	case <-time.After(10 * time.Millisecond):
@@ -279,9 +279,9 @@ func TestStream_SumByName(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		result := snk.Get()[0].(float64)
+		result := snk.Get()[0].(map[string]float64)
 		t.Log("Sum calculated:", result)
-		if result <= 116464 {
+		if result["Diam"] <= 116464 {
 			t.Fatal("unexpected result:", result)
 		}
 	case <-time.After(10 * time.Millisecond):
@@ -290,24 +290,21 @@ func TestStream_SumByName(t *testing.T) {
 }
 
 func TestStream_SumByPos(t *testing.T) {
-	src := emitters.Slice([]int{
-		4879,
-		12104,
-		50724,
-		116464,
-		12742,
+	src := emitters.Slice([][]int{
+		{4879, 12104, 50724, 116464, 12742},
+		{1, -1, 0, 1, 0},
 	})
 
 	snk := collectors.Slice()
-	strm := New(src).Batch().Sum().SinkTo(snk)
+	strm := New(src).Batch().SumByPos(3).SinkTo(snk)
 
 	select {
 	case err := <-strm.Open():
 		if err != nil {
 			t.Fatal(err)
 		}
-		result := snk.Get()[0].(float64)
-		if result <= 116464 {
+		result := snk.Get()[0].(map[int]float64)
+		if result[3] <= 116464 {
 			t.Fatal("unexpected result:", result)
 		}
 	case <-time.After(10 * time.Millisecond):

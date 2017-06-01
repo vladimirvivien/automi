@@ -53,6 +53,8 @@ func (e *ReaderEmitter) Open(ctx context.Context) error {
 			bytes := make([]byte, len(e.scanner.Bytes()))
 			copy(bytes, e.scanner.Bytes())
 
+			//TODO: handle scanner errors
+
 			select {
 			case e.output <- bytes:
 			case <-ctx.Done():

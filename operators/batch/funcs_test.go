@@ -135,8 +135,9 @@ func TestBatchFuncs_SumByPos(t *testing.T) {
 	}
 
 	result := op.Apply(context.TODO(), data)
+	val := result.(map[int]float64)
 
-	if result.(float64) != 10 {
+	if val[2] != 10 {
 		t.Error("expecting 10, got ", result)
 	}
 }
@@ -154,7 +155,9 @@ func TestBatchFuncs_SumByName(t *testing.T) {
 		{"Memphis", "plane", "propeller", 48},
 	}
 	val := op.Apply(context.TODO(), data)
-	if val.(float64) != 88 {
+	result := val.(map[string]float64)
+
+	if result["Size"] != 88 {
 		t.Error("expecting sum of 88, got ", val)
 	}
 }
@@ -169,7 +172,9 @@ func TestBatchFuncs_SumByKey(t *testing.T) {
 		{"vehicle": 5},
 	}
 	val := op.Apply(context.TODO(), data)
-	if val.(float64) != 13 {
+	result := val.(map[interface{}]float64)
+
+	if result["weight"] != 13 {
 		t.Error("expecting sum 13, got ", val)
 	}
 }
