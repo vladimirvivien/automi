@@ -102,9 +102,13 @@ func (op *BatchOperator) makeBatchType(item interface{}) reflect.Type {
 	var retType reflect.Type
 
 	switch itemType.Kind() {
-	case reflect.Array, reflect.Slice:
+	case reflect.Slice:
 		elem := itemType.Elem()
 		retType = reflect.SliceOf(elem)
+	case reflect.Array:
+		elemType := itemType.Elem()
+		itemCount := itemType.Len()
+		retType = reflect.ArrayOf(itemCount, elemType)
 	case reflect.Map:
 		elemType := itemType.Elem()
 		keyType := itemType.Key()

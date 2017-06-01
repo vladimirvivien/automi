@@ -56,7 +56,9 @@ func (c *WriterCollector) Open(ctx context.Context) <-chan error {
 					continue
 				}
 			default:
-				c.log.Printf("unexpected type %T, needs []byte", data)
+				// other types are serialized using string representation
+				// extracted by fmt
+				fmt.Fprintf(c.writer, "%v", data)
 			}
 		}
 	}()

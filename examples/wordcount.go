@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/vladimirvivien/automi/stream"
 )
@@ -11,12 +12,18 @@ func main() {
 	stream := stream.New([]string{
 		"Hello World",
 		"Hello Milkyway",
-		"Hello Universe\n",
+		"Hello Universe",
 	})
 
-	stream.Process(func(line string) []byte {
-		return []byte(line)
+	stream.FlatMap(func(line string) []string {
+		return strings.Split(line, " ")
 	})
+
+	stream.Map(func(word string) [2]interface{} {
+		return [2]interface{}{word, 1}
+	})
+
+	stream.Batch().GroupByPos(0)
 
 	stream.SinkTo(os.Stdout)
 
