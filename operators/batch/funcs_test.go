@@ -162,6 +162,38 @@ func TestBatchFuncs_SumByName(t *testing.T) {
 	}
 }
 
+func TestBatchFuncs_SumByName_All(t *testing.T) {
+	op := SumByNameFunc("")
+	data := []interface{}{
+		struct {
+			Vehicle string
+			Engines int
+			Sizes   []int
+		}{"Spirit", 2, []int{4, 2, 1}},
+		struct {
+			Vehicle string
+			Engines int
+			Sizes   []int
+		}{"Voyager", 1, []int{1}},
+		struct {
+			Vehicle string
+			Engines int
+			Sizes   []int
+		}{"Memphis", 8, []int{2, 4}},
+	}
+	val := op.Apply(context.TODO(), data)
+	result := val.(map[string]float64)
+
+	if result["Sizes"] != 14 {
+		t.Error("expecting sum of 14, got ", result)
+	}
+
+	if result["Engines"] != 11 {
+		t.Error("expecting sum of 11, got ", result)
+	}
+
+}
+
 func TestBatchFuncs_SumByKey(t *testing.T) {
 	op := SumByKeyFunc("weight")
 	data := []map[string]int{
@@ -176,6 +208,26 @@ func TestBatchFuncs_SumByKey(t *testing.T) {
 
 	if result["weight"] != 13 {
 		t.Error("expecting sum 13, got ", val)
+	}
+}
+
+func TestBatchFuncs_SumByKey_All(t *testing.T) {
+	op := SumByKeyFunc(nil)
+	data := []map[interface{}]interface{}{
+		{"vehicle": 0, "weight": 2},
+		{"vehicle": 2, "weight": 4},
+		{"vehicle": 3, "weight": 2},
+		{"vehicle": 1, "weight": 5},
+		{"vehicle": []int{5, 5, 2}},
+	}
+	val := op.Apply(context.TODO(), data)
+	result := val.(map[interface{}]float64)
+
+	if result["vehicle"] != 18 {
+		t.Error("expecting sum 18, got ", result["vehicle"])
+	}
+	if result["weight"] != 13 {
+		t.Error("expecting sum 13, got ", result["weight"])
 	}
 }
 

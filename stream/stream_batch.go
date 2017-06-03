@@ -125,9 +125,13 @@ func (s *Stream) Sum() *Stream {
 }
 
 // SumByKey sums up numeric items that are batched as []map[K]V or
-// []map[K][]V where key specifies a K that returns a V or a []V that
+// []map[K][]V where key specifies a K value that returns a V or a []V that
 // is a numeric (or a slice of) value of type integer or floating
-// point. The operator returns a single float64.
+// point. If key == nil, the grand total sum of all values for all keys
+// will be calculated.
+//
+// This operator returns map[interface{}]float64{key:sum} where
+// sum is the calculated sum.
 //
 // See Also
 //
@@ -137,6 +141,12 @@ func (s *Stream) SumByKey(key interface{}) *Stream {
 	operator := unary.New(s.ctx)
 	operator.SetOperation(batch.SumByKeyFunc(key))
 	return s.appendOp(operator)
+}
+
+// SumAllKeys returns a grand total of all keys by calling
+//  SumByKey(nil)
+func (s *Stream) SumAllKeys() *Stream {
+	return s.SumByKey(nil)
 }
 
 // SumByName sums up items that are batched as []T where

@@ -166,16 +166,11 @@ func GroupByNameFunc(name string) api.UnFunc {
 
 // SumByNameFunc generates an api.UnFunc that sums incoming batched items
 // by sturct field name.  The batched data is expected to be of type:
-//   []T - where T is a struct
-//
-// The operation walks the slice and for each item t
-//  - cummulatively sums value t.name
-//
-// Field t.name value can be of types:
-//  - struct{name T} - where T is intergers, floats
-//  - struct{name []T} - where T is integers, floats
-//
-// The generated function returns a value of type map[string]float64{name:sum}
+//   - []struct{F} - where field F is either an integer or floating point
+//   - []struct{V} - where field V is a slice of integers or floating points
+// The function returns value of type
+//   map[interface{}]float64{name:sum}
+// Where sum is the total calculated sum for fields name.
 func SumByNameFunc(name string) api.UnFunc {
 	return api.UnFunc(func(ctx context.Context, param0 interface{}) interface{} {
 		dataType := reflect.TypeOf(param0)
@@ -185,37 +180,46 @@ func SumByNameFunc(name string) api.UnFunc {
 		if dataType.Kind() != reflect.Slice && dataType.Kind() != reflect.Array {
 			return param0 // ignores the data
 		}
-		name = strings.Title(name) // avoid unexported field panic
 
-		sum := float64(0)
-		updateSum := func(op0 *float64, item reflect.Value) {
-			if item.IsValid() {
-				if util.IsFloatValue(item) {
-					*op0 += item.Float()
-				}
-				if util.IsIntValue(item) {
-					*op0 += float64(item.Int())
-				}
-			}
-		}
+		name = strings.Title(name) // avoid unexported field panic
+		result := make(map[string]float64)
 
 		// walk the slice
 		for i := 0; i < dataVal.Len(); i++ {
 			item := dataVal.Index(i)
 			switch item.Type().Kind() {
 			case reflect.Struct:
-				val := item.FieldByName(name)
-				updateSum(&sum, val)
+				if name != "" {
+					val := item.FieldByName(name)
+					result[name] += sumAll(val)
+				} else {
+					// if no field provide, sum all fields
+					for i := 0; i < item.Type().NumField(); i++ {
+						itemField := item.Type().Field(i)
+						itemVal := item.Field(i)
+						result[itemField.Name] += sumAll(itemVal)
+					}
+				}
 			case reflect.Interface:
 				elem := item.Elem()
 				if elem.Type().Kind() == reflect.Struct {
-					val := elem.FieldByName(name)
-					updateSum(&sum, val)
+					if name != "" {
+						val := elem.FieldByName(name)
+						result[name] += sumAll(val)
+					} else {
+						for i := 0; i < elem.Type().NumField(); i++ {
+							itemField := elem.Type().Field(i)
+							itemVal := elem.Field(i)
+							result[itemField.Name] += sumAll(itemVal)
+						}
+					}
 				}
 			default: //TODO handle type mismatch
+
 			}
+
 		}
-		return map[string]float64{name: sum}
+		return result
 	})
 }
 
@@ -273,12 +277,13 @@ func GroupByKeyFunc(key interface{}) api.UnFunc {
 }
 
 // SumByKeyFunc generates an api.UnFunc that sums incoming batched items
-// by key value.  The batched data is expected to be of type:
-//   []map[K]V - slice of map[K]V
-// Each slice item m can be of type
-//   map[K]V - where V can be integers or floats
-//   map[K][]V - where []V is a slice of integers or floats
-// The function returns value map[interface{}]float64{key: sum}
+// by key value.  The batched data can be of the following types:
+//   []map[K]V - where V is either an integer or a floating point
+//   []map[K][]V - where []V is a slice of integers or floating points
+// The function returns value
+//   map[interface{}]float64{K: sum}
+// Where sum is the total calculated sum for a given key K.
+// If key == nil, it returns sums for all keys.
 func SumByKeyFunc(key interface{}) api.UnFunc {
 	return api.UnFunc(func(ctx context.Context, param0 interface{}) interface{} {
 		dataType := reflect.TypeOf(param0)
@@ -289,39 +294,45 @@ func SumByKeyFunc(key interface{}) api.UnFunc {
 			return param0 // ignores the data
 		}
 
-		sum := float64(0)
-
-		updateSum := func(op0 *float64, item reflect.Value) {
-			if item.IsValid() {
-				if util.IsFloatValue(item) {
-					*op0 += item.Float()
-				}
-				if util.IsIntValue(item) {
-					*op0 += float64(item.Int())
-				}
-			}
-		}
+		result := make(map[interface{}]float64)
 
 		// walk the slice
 		for i := 0; i < dataVal.Len(); i++ {
 			item := dataVal.Index(i)
+
 			if item.IsValid() {
 				switch item.Type().Kind() {
 				case reflect.Map:
-					val := item.MapIndex(reflect.ValueOf(key))
-					updateSum(&sum, val)
+					if key != nil {
+						val := item.MapIndex(reflect.ValueOf(key))
+						result[key] += sumAll(val)
+					} else {
+						// if not key provided, sum up all map entries
+						for _, k := range item.MapKeys() {
+							val := item.MapIndex(k)
+							result[k.Interface()] += sumAll(val)
+						}
+					}
 				case reflect.Interface:
 					elem := item.Elem()
 					if elem.Type().Kind() == reflect.Map {
-						val := elem.MapIndex(reflect.ValueOf(key))
-						updateSum(&sum, val)
+						if key != nil {
+							val := elem.MapIndex(reflect.ValueOf(key))
+							result[key] += sumAll(val)
+						} else {
+							// if key is nil, sum up all map entries
+							for _, k := range elem.MapKeys() {
+								val := elem.MapIndex(k)
+								result[k.Interface()] += sumAll(val)
+							}
+						}
 					}
 				default: //TODO handle type mismatch
 				}
 			}
 		}
 
-		return map[interface{}]float64{key: sum}
+		return result
 	})
 }
 
@@ -524,4 +535,26 @@ func ForAll(f func(ctx context.Context, batch interface{}) map[interface{}][]int
 	return api.UnFunc(func(ctx context.Context, param0 interface{}) interface{} {
 		return f(ctx, param0)
 	})
+}
+
+func sumAll(item reflect.Value) float64 {
+	if !item.IsValid() {
+		return 0.0
+	}
+
+	itemVal := item
+	if item.Type().Kind() == reflect.Interface {
+		itemVal = item.Elem()
+	}
+
+	sum := 0.0
+	switch itemVal.Type().Kind() {
+	case reflect.Array, reflect.Slice:
+		for i := 0; i < itemVal.Len(); i++ {
+			sum += util.ValueAsFloat(itemVal.Index(i))
+		}
+	default:
+		sum = util.ValueAsFloat(itemVal)
+	}
+	return sum
 }

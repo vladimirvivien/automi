@@ -23,7 +23,18 @@ func main() {
 		return [2]interface{}{word, 1}
 	})
 
-	stream.Batch().GroupByPos(0)
+	stream.Batch().GroupByPos(0).SumAllKeys()
+
+	// reduce: count occurences
+	stream.Process(func(wordMap map[interface{}][]interface{}) map[interface{}]int64 {
+		result := make(map[interface{}]int64)
+		for k, v := range wordMap {
+			for _ = range v {
+				result[k]++
+			}
+		}
+		return result
+	})
 
 	stream.SinkTo(os.Stdout)
 
