@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log"
+	"os"
 	"reflect"
 
 	"github.com/vladimirvivien/automi/api"
@@ -144,27 +145,31 @@ func (s *Stream) initGraph() error {
 	return nil
 }
 
-// setupSource checks the source, setup the proper type or return nil if problem
+// setupSource checks the source, setup the proper type or return err if problem
 func (s *Stream) setupSource() error {
 	if s.srcParam == nil {
 		return errors.New("stream missing source parameter")
 	}
 
-	if src, ok := s.srcParam.(api.Source); ok {
+	// check specific type
+	switch src := s.srcPram.(type) {
+	case (api.Source):
 		s.source = src
-		return nil
-	}
-
-	if src, ok := s.srcParam.(io.Reader); ok {
+	case *os.File:
+		// assume csv
+		s.source = emitters.CSV(src)
+	case string:
+		// assume csv file name
+		s.source = emitters.CSV(src)
+	case io.Reader:
 		s.source = emitters.Reader(src, nil)
-		return nil
 	}
 
+	// check on type kind
 	srcType := reflect.TypeOf(s.srcParam)
 	switch srcType.Kind() {
 	case reflect.Slice:
 		s.source = emitters.Slice(s.srcParam)
-		return nil
 	case reflect.Chan:
 	}
 
@@ -175,26 +180,35 @@ func (s *Stream) setupSource() error {
 	return nil
 }
 
-// setupSink checks the sink param, setup the proper type or return nil if problem
+// setupSink checks the sink param, setup the proper type or return err if problem
 func (s *Stream) setupSink() error {
+	// if sink param is nil, use null collector
 	if s.snkParam == nil {
-		return errors.New("stream missing sink parameter")
-	}
-
-	if snk, ok := s.snkParam.(api.Sink); ok {
-		s.sink = snk
-	}
-
-	if snk, ok := s.snkParam.(io.Writer); ok {
-		s.sink = collectors.Writer(snk)
+		s.sink = collectors.Null()
 		return nil
 	}
 
-	srcType := reflect.TypeOf(s.snkParam)
-	switch srcType.Kind() {
-	case reflect.Slice:
-		s.sink = collectors.Slice()
-	case reflect.Chan:
+	// check specific type
+	switch snk := s.snkParam.(type) {
+	case api.Sink:
+		s.sink = snk
+	case string:
+		// assume csv file name
+		s.sink = collectors.CSV(snk)
+	case *os.File:
+		// assume csv file
+		s.sink = collectors.CSV(snk)
+	case io.Writer:
+		s.sink = collectors.Writer(snk)
+
+	default:
+		// check by type kind
+		srcType := reflect.TypeOf(s.snkParam)
+		switch srcType.Kind() {
+		case reflect.Slice:
+			s.sink = collectors.Slice()
+		case reflect.Chan:
+		}
 	}
 
 	if s.sink == nil {

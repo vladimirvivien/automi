@@ -92,34 +92,28 @@ func (c *CsvCollector) init(ctx context.Context) error {
 func (c *CsvCollector) Open(ctx context.Context) <-chan error {
 	result := make(chan error)
 	if err := c.init(ctx); err != nil {
-		go func() {
-			result <- err
-		}()
+		go func() { result <- err }()
 		return result
 	}
 
 	go func() {
 		defer func() {
+			c.log.Print("closing csv collector")
 			// flush remaining bits
 			c.csvWriter.Flush()
 			if e := c.csvWriter.Error(); e != nil {
-				go func() {
-					result <- fmt.Errorf("IO flush error: %s", e)
-				}()
+				go func() { result <- e }()
 				return
 			}
 
 			// close file
 			if c.file != nil {
 				if e := c.file.Close(); e != nil {
-					go func() {
-						result <- fmt.Errorf("Unable to close file %s: %s", c.file.Name(), e)
-					}()
+					go func() { result <- e }()
 					return
 				}
 			}
 			close(result)
-			c.log.Print("execution completed")
 		}()
 
 		for item := range c.input {

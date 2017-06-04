@@ -34,13 +34,16 @@ func (c *WriterCollector) Open(ctx context.Context) <-chan error {
 	result := make(chan error)
 
 	if err := c.setupWriter(); err != nil {
-		result <- err
+		go func() { result <- err }()
 		return result
 	}
 
 	go func() {
 		defer func() {
-			c.writer.Flush() //TODO handle error
+			if err := c.writer.Flush(); err != nil {
+				go func() { result <- err }()
+				return
+			}
 			close(result)
 			c.log.Print("closing io.Writer collector")
 		}()
