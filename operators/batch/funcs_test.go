@@ -13,15 +13,15 @@ func TestBatchFuncs_GroupByPos_WithSlice(t *testing.T) {
 		[]string{"aa", "classic", "magic", "toxic"},
 	}
 	result := op.Apply(context.TODO(), data)
-	mapVal, ok := result.(map[interface{}][]interface{})
+	mapVal, ok := result.([]map[interface{}][]interface{})
 	if !ok {
 		t.Fatal("unexpected type from GroupByFunc")
 	}
 
-	if len(mapVal) != 2 {
+	if len(mapVal[0]) != 2 {
 		t.Fatal("expecting map of size 2, but got", len(mapVal))
 	}
-	aaVal := mapVal["aa"]
+	aaVal := mapVal[0]["aa"]
 	if len(aaVal) != 5 {
 		t.Fatal("grouping failed, expected key 'aa' with 5 items, got", len(aaVal))
 	}
@@ -35,15 +35,15 @@ func TestBatchFuncs_GroupByPos_WithArray(t *testing.T) {
 		[4]string{"aa", "classic", "magic", "toxic"},
 	}
 	result := op.Apply(context.TODO(), data)
-	mapVal, ok := result.(map[interface{}][]interface{})
+	mapVal, ok := result.([]map[interface{}][]interface{})
 	if !ok {
 		t.Fatal("unexpected type from GroupByFunc")
 	}
 
-	if len(mapVal) != 2 {
+	if len(mapVal[0]) != 2 {
 		t.Fatal("expecting map of size 2, but got", len(mapVal))
 	}
-	aaVal := mapVal["aa"]
+	aaVal := mapVal[0]["aa"]
 	if len(aaVal) != 6 {
 		t.Fatal("grouping failed, expected key 'aa' with 6 items, got", len(aaVal))
 	}
@@ -59,20 +59,20 @@ func TestBatchFuncs_GroupByName(t *testing.T) {
 		{"Memphis", "plane", "propeller"},
 	}
 	val := op.Apply(context.TODO(), data)
-	group := val.(map[interface{}][]interface{})
-	planes := group["plane"]
+	group := val.([]map[interface{}][]interface{})
+	planes := group[0]["plane"]
 	if len(planes) != 3 {
 		t.Fatal("expecting group to have 3 planes, got ", len(planes))
 	}
 
-	if len(group["truck"]) != 1 {
-		t.Fatal("expecting group to have 1 truck, got ", len(group["truck"]))
+	if len(group[0]["truck"]) != 1 {
+		t.Fatal("expecting group to have 1 truck, got ", len(group[0]["truck"]))
 	}
 
 	// invalid field name
 	op = GroupByNameFunc("method")
 	val = op.Apply(context.TODO(), data)
-	if len(val.(map[interface{}][]interface{})) != 0 {
+	if len(val.([]map[interface{}][]interface{})[0]) != 0 {
 		t.Fatal("expecting a group of zero elements, but the result map has elements")
 	}
 
@@ -88,20 +88,20 @@ func TestBatchFuncs_GroupByKey(t *testing.T) {
 		{"vehicle": "titanic", "kind": "boat", "engine": "diesel"},
 	}
 	val := op.Apply(context.TODO(), data)
-	group := val.(map[interface{}][]interface{})
-	planes := group["plane"]
+	group := val.([]map[interface{}][]interface{})
+	planes := group[0]["plane"]
 	if len(planes) != 2 {
 		t.Fatal("expecting group to have 2 planes, got ", len(planes))
 	}
 
-	if len(group["boat"]) != 2 {
-		t.Fatal("expecting group to have 1 truck, got ", len(group["boat"]))
+	if len(group[0]["boat"]) != 2 {
+		t.Fatal("expecting group to have 1 truck, got ", len(group[0]["boat"]))
 	}
 
 	// invalid field name
 	op = GroupByNameFunc("type")
 	val = op.Apply(context.TODO(), data)
-	if len(val.(map[interface{}][]interface{})) != 0 {
+	if len(val.([]map[interface{}][]interface{})[0]) != 0 {
 		t.Fatal("expecting a group of zero elements, but the result map has elements")
 	}
 }
@@ -135,9 +135,9 @@ func TestBatchFuncs_SumByPos(t *testing.T) {
 	}
 
 	result := op.Apply(context.TODO(), data)
-	val := result.(map[int]float64)
+	val := result.([]map[int]float64)
 
-	if val[2] != 10 {
+	if val[0][2] != 10 {
 		t.Error("expecting 10, got ", result)
 	}
 }
@@ -155,9 +155,9 @@ func TestBatchFuncs_SumByName(t *testing.T) {
 		{"Memphis", "plane", "propeller", 48},
 	}
 	val := op.Apply(context.TODO(), data)
-	result := val.(map[string]float64)
+	result := val.([]map[string]float64)
 
-	if result["Size"] != 88 {
+	if result[0]["Size"] != 88 {
 		t.Error("expecting sum of 88, got ", val)
 	}
 }
@@ -182,13 +182,13 @@ func TestBatchFuncs_SumByName_All(t *testing.T) {
 		}{"Memphis", 8, []int{2, 4}},
 	}
 	val := op.Apply(context.TODO(), data)
-	result := val.(map[string]float64)
+	result := val.([]map[string]float64)
 
-	if result["Sizes"] != 14 {
+	if result[0]["Sizes"] != 14 {
 		t.Error("expecting sum of 14, got ", result)
 	}
 
-	if result["Engines"] != 11 {
+	if result[0]["Engines"] != 11 {
 		t.Error("expecting sum of 11, got ", result)
 	}
 
@@ -204,9 +204,9 @@ func TestBatchFuncs_SumByKey(t *testing.T) {
 		{"vehicle": 5},
 	}
 	val := op.Apply(context.TODO(), data)
-	result := val.(map[interface{}]float64)
+	result := val.([]map[interface{}]float64)
 
-	if result["weight"] != 13 {
+	if result[0]["weight"] != 13 {
 		t.Error("expecting sum 13, got ", val)
 	}
 }
@@ -221,13 +221,13 @@ func TestBatchFuncs_SumByKey_All(t *testing.T) {
 		{"vehicle": []int{5, 5, 2}},
 	}
 	val := op.Apply(context.TODO(), data)
-	result := val.(map[interface{}]float64)
+	result := val.([]map[interface{}]float64)
 
-	if result["vehicle"] != 18 {
-		t.Error("expecting sum 18, got ", result["vehicle"])
+	if result[0]["vehicle"] != 18 {
+		t.Error("expecting sum 18, got ", result[0]["vehicle"])
 	}
-	if result["weight"] != 13 {
-		t.Error("expecting sum 13, got ", result["weight"])
+	if result[0]["weight"] != 13 {
+		t.Error("expecting sum 13, got ", result[0]["weight"])
 	}
 }
 

@@ -14,7 +14,7 @@ import (
 
 func TestCsvCollector_New(t *testing.T) {
 	data := bytes.NewBufferString("")
-	csv := Csv(data).DelimChar('|').Headers([]string{"a", "b"})
+	csv := CSV(data).DelimChar('|').Headers([]string{"a", "b"})
 	if csv.snkParam == nil {
 		t.Fatal("CsvSnk not setting input writer")
 	}
@@ -34,7 +34,7 @@ func TestCsvCollector_IO(t *testing.T) {
 		close(in)
 	}()
 	data := bytes.NewBufferString("")
-	csv := Csv(data)
+	csv := CSV(data)
 	csv.SetInput(in)
 
 	// process
@@ -70,7 +70,7 @@ func TestCsvCollector_File(t *testing.T) {
 		f.Close()
 		os.Remove("./csv-test.out")
 	}()
-	csv := Csv(f)
+	csv := CSV(f)
 	csv.SetInput(in)
 
 	// process
@@ -115,7 +115,7 @@ func BenchmarkCsvCollector(b *testing.B) {
 	}()
 
 	data := bytes.NewBufferString("")
-	csv := Csv(data)
+	csv := CSV(data)
 	csv.SetInput(in)
 
 	// process

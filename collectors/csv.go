@@ -29,7 +29,7 @@ type CsvCollector struct {
 }
 
 // New creates a *CsvCollector value
-func Csv(sink interface{}) *CsvCollector {
+func CSV(sink interface{}) *CsvCollector {
 	csv := &CsvCollector{
 		snkParam:  sink,
 		delimChar: ',',
@@ -117,10 +117,11 @@ func (c *CsvCollector) Open(ctx context.Context) <-chan error {
 		}()
 
 		for item := range c.input {
+			fmt.Println("**** CSV Row:", item)
 			data, ok := item.([]string)
 
 			if !ok { // bad situation, fail fast
-				msg := fmt.Sprintf("Expecting []string, got unexpected type %T", data)
+				msg := fmt.Sprintf("expecting []string, got unexpected type %T", data)
 				c.log.Print(msg)
 				panic(msg)
 			}

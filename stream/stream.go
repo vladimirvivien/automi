@@ -152,7 +152,7 @@ func (s *Stream) setupSource() error {
 	}
 
 	// check specific type
-	switch src := s.srcPram.(type) {
+	switch src := s.srcParam.(type) {
 	case (api.Source):
 		s.source = src
 	case *os.File:

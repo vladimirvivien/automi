@@ -12,14 +12,9 @@ import (
 
 // GroupByPosFunc generates an api.Unary function that groups incoming batched items
 // by their position in a slice. The batch is expected to be of type:
-//   [][]T
-//
-// For each item i (in dimension-1):
-//  * select value at index [i][pos] as key
-//  * group slice [i][] using map[key][]T
-//  * return map as result
-//
-// This method should be called after a Batch operation upstream or it may fail.
+//   [][]T - where []T is a slice or array of data items
+// The function returns type
+//   []map[interface{}][]interface{}
 func GroupByPosFunc(pos int) api.UnFunc {
 	return api.UnFunc(func(ctx context.Context, param0 interface{}) interface{} {
 		dataType := reflect.TypeOf(param0)
@@ -36,7 +31,7 @@ func GroupByPosFunc(pos int) api.UnFunc {
 				if j != pos {
 					grp[key.Interface()] = append(
 						grp[key.Interface()],
-						row.Index(j),
+						row.Index(j).Interface(),
 					)
 				}
 			}
@@ -62,16 +57,17 @@ func GroupByPosFunc(pos int) api.UnFunc {
 			default: // TODO handle type mismatch
 			}
 		}
-		return group
+		return []map[interface{}][]interface{}{group}
 	})
 }
 
 // SumByPosFunc generates an api.UnFunc that sums incoming values from upstream batched
 // items based on their position.  The stream data is expected to be of types:
-//   []T - where T is an integer or floating point type
-//
-// The generated function accumulates the sum from the batch and returns it as
-// map[int]float64 {pos: sum}
+//   [][]T - where []T is a slice of integers or floating points
+// The function returns a value of type
+//   []map[int]float64
+// More specifically a value:
+//   []map[int]float64{{pos: sum}} where sum is the calculated sum.
 func SumByPosFunc(pos int) api.UnFunc {
 	return api.UnFunc(func(ctx context.Context, param0 interface{}) interface{} {
 		dataType := reflect.TypeOf(param0)
@@ -82,45 +78,35 @@ func SumByPosFunc(pos int) api.UnFunc {
 			return param0 // ignores the data
 		}
 
-		sum := float64(0)
-		updateSum := func(op0 *float64, item reflect.Value) {
-			if item.IsValid() {
-				if util.IsFloatValue(item) {
-					*op0 += item.Float()
-				}
-				if util.IsIntValue(item) {
-					*op0 += float64(item.Int())
-				}
-			}
-		}
+		result := make(map[int]float64)
 
-		// walk [][]interface{}
 		for i := 0; i < dataVal.Len(); i++ {
 			row := dataVal.Index(i)
 			switch row.Type().Kind() {
 			case reflect.Slice, reflect.Array:
-				posVal := row.Index(pos)
-				if posVal.Type().Kind() == reflect.Interface {
-					updateSum(&sum, posVal.Elem())
+				val := row.Index(pos)
+				result[pos] += sumAll(val)
+			case reflect.Interface:
+				elem := row.Elem()
+				switch elem.Type().Kind() {
+				case reflect.Slice, reflect.Array:
+					val := elem.Index(pos)
+					result[pos] += sumAll(val)
 				}
-				updateSum(&sum, posVal)
 			default: // TODO handle type mismatch
 			}
 		}
-		return map[int]float64{pos: sum}
+		return []map[int]float64{result}
 	})
 
 }
 
 // GroupByNameFunc generates an api.UnFunc that groups incoming batched items
 // by struct field name.  The batched data is expected to be of type:
-//  []T - where T is a struct
-//
-// The operation walks the slice and for each item t
-//   - if item t contains a field with identifier `name`:
-//     it puts t into a map of slice of t where t.name is the key
-//     map[t.name] = append(slice, t)
-// The map is returned  as result.
+//   []struct{T} - where T is the type of a struct fields identified by name
+// The function returns a type
+//   []map[interface{}][]interface{}
+// Where the map that uses the field values as key to group the items.
 func GroupByNameFunc(name string) api.UnFunc {
 	return api.UnFunc(func(ctx context.Context, param0 interface{}) interface{} {
 		dataType := reflect.TypeOf(param0)
@@ -160,7 +146,7 @@ func GroupByNameFunc(name string) api.UnFunc {
 			default: //TODO handle type mismatch
 			}
 		}
-		return group
+		return []map[interface{}][]interface{}{group}
 	})
 }
 
@@ -169,7 +155,9 @@ func GroupByNameFunc(name string) api.UnFunc {
 //   - []struct{F} - where field F is either an integer or floating point
 //   - []struct{V} - where field V is a slice of integers or floating points
 // The function returns value of type
-//   map[interface{}]float64{name:sum}
+//   map[string]float64
+// For instance
+//   []map[string]float64{{name:sum}}
 // Where sum is the total calculated sum for fields name.
 func SumByNameFunc(name string) api.UnFunc {
 	return api.UnFunc(func(ctx context.Context, param0 interface{}) interface{} {
@@ -219,20 +207,16 @@ func SumByNameFunc(name string) api.UnFunc {
 			}
 
 		}
-		return result
+		return []map[string]float64{result}
 	})
 }
 
 // GroupByKeyFunc generates an api.UnFunc that groups incoming batched items
 // by key value.  The batched data is expected to be in the following type:
-//  - []map[K]V - slice of map[K]V where K can be a valid map key type
-//
-// The operation walks the slice and for each item i
-//  - it looks for key value that matches the passed key
-//  - When a match is found:
-//    it stores i in a map of slace []T as map[key] = append(slice, i)
-//
-// The map is returned as function result.
+//   []map[K]V - slice of map[K]V
+// The batched data is grouped in a slice of map of type
+//   []map[interface{}][]interface{}
+// Where items with simlar K values are assigned the same key in the result map.
 func GroupByKeyFunc(key interface{}) api.UnFunc {
 	return api.UnFunc(func(ctx context.Context, param0 interface{}) interface{} {
 		dataType := reflect.TypeOf(param0)
@@ -272,7 +256,7 @@ func GroupByKeyFunc(key interface{}) api.UnFunc {
 			}
 		}
 
-		return group
+		return []map[interface{}][]interface{}{group}
 	})
 }
 
@@ -280,9 +264,11 @@ func GroupByKeyFunc(key interface{}) api.UnFunc {
 // by key value.  The batched data can be of the following types:
 //   []map[K]V - where V is either an integer or a floating point
 //   []map[K][]V - where []V is a slice of integers or floating points
-// The function returns value
-//   map[interface{}]float64{K: sum}
-// Where sum is the total calculated sum for a given key K.
+// The function returns type
+//   []map[interface{}]
+// For instance:
+//   []map[interface{}]float64{key: sum}
+// Where sum is the total calculated sum for a given key.
 // If key == nil, it returns sums for all keys.
 func SumByKeyFunc(key interface{}) api.UnFunc {
 	return api.UnFunc(func(ctx context.Context, param0 interface{}) interface{} {
@@ -299,7 +285,6 @@ func SumByKeyFunc(key interface{}) api.UnFunc {
 		// walk the slice
 		for i := 0; i < dataVal.Len(); i++ {
 			item := dataVal.Index(i)
-
 			if item.IsValid() {
 				switch item.Type().Kind() {
 				case reflect.Map:
@@ -332,7 +317,7 @@ func SumByKeyFunc(key interface{}) api.UnFunc {
 			}
 		}
 
-		return result
+		return []map[interface{}]float64{result}
 	})
 }
 
