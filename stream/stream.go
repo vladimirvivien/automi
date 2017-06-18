@@ -22,7 +22,7 @@ type Stream struct {
 	snkParam interface{}
 	source   api.Source
 	sink     api.Sink
-	drain    <-chan interface{}
+	drain    chan error
 	ops      []api.Operator
 	ctx      context.Context
 	log      *log.Logger
@@ -33,6 +33,7 @@ func New(src interface{}) *Stream {
 	s := &Stream{
 		srcParam: src,
 		ops:      make([]api.Operator, 0),
+		drain:    make(chan error),
 		ctx:      context.Background(),
 	}
 	s.log = autoctx.GetLogger(s.ctx)
@@ -70,32 +71,33 @@ func (s *Stream) ReStream() *Stream {
 // If there's an issue prior to execution, an error is returned
 // in the error channel.
 func (s *Stream) Open() <-chan error {
-	result := make(chan error, 1)
 	if err := s.initGraph(); err != nil {
-		result <- err
-		return result
+		s.drainErr(err)
+		return s.drain
 	}
 
 	// open stream
 	go func() {
 		// open source, if err bail
 		if err := s.source.Open(s.ctx); err != nil {
-			result <- err
+			s.drainErr(err)
 			return
 		}
 		//apply operators, if err bail
 		for _, op := range s.ops {
 			if err := op.Exec(); err != nil {
-				result <- err
+				s.drainErr(err)
 				return
 			}
 		}
-		// open sink, pipe result out
-		err := <-s.sink.Open(s.ctx)
-		result <- err
+		// open sink and block until stream is done
+		select {
+		case err := <-s.sink.Open(s.ctx):
+			s.drain <- err
+		}
 	}()
 
-	return result
+	return s.drain
 }
 
 // bindOps binds operator channels
@@ -216,4 +218,8 @@ func (s *Stream) setupSink() error {
 	}
 
 	return nil
+}
+
+func (s *Stream) drainErr(err error) {
+	go func() { s.drain <- err }()
 }

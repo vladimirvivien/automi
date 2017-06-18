@@ -15,7 +15,7 @@ func (s *Stream) Reduce(seed, f interface{}) *Stream {
 	operator := binary.New(s.ctx)
 	op, err := binary.ReduceFunc(f)
 	if err != nil {
-		panic(err)
+		s.drainErr(err)
 	}
 	operator.SetOperation(op)
 	operator.SetInitialState(seed)

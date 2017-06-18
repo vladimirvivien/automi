@@ -28,8 +28,8 @@ func TestStream_GroupByKey(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		val := snk.Get()[0].(map[interface{}][]interface{})
-		if len(val) != 3 {
+		val := snk.Get()[0].([]map[interface{}][]interface{})
+		if len(val[0]) != 3 {
 			t.Fatal("unxpected group size:", len(val))
 		}
 	case <-time.After(10 * time.Millisecond):
@@ -57,8 +57,8 @@ func TestStream_GroupByName(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		result := snk.Get()[0].(map[interface{}][]interface{})
-		if len(result) != 3 {
+		result := snk.Get()[0].([]map[interface{}][]interface{})
+		if len(result[0]) != 3 {
 			t.Fatal("unexpected group size:", len(result))
 		}
 	case <-time.After(10 * time.Millisecond):
@@ -86,8 +86,8 @@ func TestStream_GroupByPos(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		result := snk.Get()[0].(map[interface{}][]interface{})
-		if len(result) != 2 {
+		result := snk.Get()[0].([]map[interface{}][]interface{})
+		if len(result[0]) != 2 {
 			t.Fatal("unexpected group size:", len(result))
 		}
 	case <-time.After(10 * time.Millisecond):
@@ -252,10 +252,10 @@ func TestStream_SumByKey(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		result := snk.Get()[0].(map[interface{}]float64)
-		t.Log("Sum calculated:", result["Diameter"])
-		if result["Diameter"] <= 116464 {
-			t.Fatal("unexpected result:", result)
+		result := snk.Get()[0].([]map[interface{}]float64)
+		t.Log("Sum calculated:", result[0]["Diameter"])
+		if result[0]["Diameter"] <= 116464 {
+			t.Fatal("unexpected result:", result[0])
 		}
 	case <-time.After(10 * time.Millisecond):
 		t.Fatal("Took too long")
@@ -279,10 +279,10 @@ func TestStream_SumByName(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		result := snk.Get()[0].(map[string]float64)
-		t.Log("Sum calculated:", result)
-		if result["Diam"] <= 116464 {
-			t.Fatal("unexpected result:", result)
+		result := snk.Get()[0].([]map[string]float64)
+		t.Log("Sum calculated:", result[0])
+		if result[0]["Diam"] <= 116464 {
+			t.Fatal("unexpected result:", result[0])
 		}
 	case <-time.After(10 * time.Millisecond):
 		t.Fatal("Took too long")
@@ -303,9 +303,9 @@ func TestStream_SumByPos(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		result := snk.Get()[0].(map[int]float64)
-		if result[3] <= 116464 {
-			t.Fatal("unexpected result:", result)
+		result := snk.Get()[0].([]map[int]float64)
+		if result[0][3] <= 116464 {
+			t.Fatal("unexpected result:", result[0])
 		}
 	case <-time.After(10 * time.Millisecond):
 		t.Fatal("Took too long")

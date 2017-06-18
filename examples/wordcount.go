@@ -1,30 +1,28 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/vladimirvivien/automi/collectors"
-	"github.com/vladimirvivien/automi/emitters"
 	"github.com/vladimirvivien/automi/stream"
 )
 
 func main() {
-	//stream := stream.New([]string{
-	//	"Hello World",
-	//	"Hello Milkyway",
-	//	"Hello Universe",
-	//})
+	stream := stream.New([]string{
+		"Hello World",
+		"Hello Milkyway",
+		"Hello Universe",
+	})
 
-	f, err := os.Open("./twotw.txt")
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	//f, err := os.Open("./twotw.txt")
+	//if err != nil {
+	//	fmt.Println(err)
+	//	os.Exit(1)
+	//}
+	//stream := stream.New(emitters.Reader(f, bufio.ScanLines))
 
-	stream := stream.New(emitters.Reader(f, bufio.ScanLines))
 	stream.FlatMap(func(line string) []string {
 		return strings.Split(line, " ")
 	})
