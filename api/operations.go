@@ -27,3 +27,18 @@ type BinFunc func(context.Context, interface{}, interface{}) interface{}
 func (f BinFunc) Apply(ctx context.Context, op1, op2 interface{}) interface{} {
 	return f(ctx, op1, op2)
 }
+
+// Batch Operation types
+
+// BatchTrigger interface provides logic to trigger when batch is done.
+type BatchTrigger interface {
+	Done(ctx context.Context, item interface{}, index int64) bool
+}
+
+// BatchTriggerFunc a function type adapter that implements BatchTrigger
+type BatchTriggerFunc func(context.Context, interface{}, int64) bool
+
+// Done implements BatchOperation.Done
+func (f BatchTriggerFunc) Done(ctx context.Context, item interface{}, index int64) bool {
+	return f(ctx, item, index)
+}

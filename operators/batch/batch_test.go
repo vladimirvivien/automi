@@ -32,13 +32,13 @@ func TestBatchOp_GettersSetters(t *testing.T) {
 		t.Error("input not being set")
 	}
 
-	if o.GetOutput == nil {
+	if o.GetOutput() == nil {
 		t.Fatal("output not set")
 	}
 }
 
 func TestBatchOp_Exec_OneBatch(t *testing.T) {
-	ctx, _ := context.WithCancel(context.Background())
+	ctx := context.Background()
 	o := New(ctx)
 
 	in := make(chan interface{})
@@ -111,10 +111,9 @@ func TestBatchOp_Exec_OneBatch(t *testing.T) {
 }
 
 func TestBatchOp_Exec_MultipleBatches(t *testing.T) {
-	ctx, _ := context.WithCancel(context.Background())
+	ctx := context.Background()
 	o := New(ctx)
-	o.size = 4
-
+	o.SetTrigger(TriggerBySize(4))
 	in := make(chan interface{})
 	go func() {
 		in <- "A"
@@ -288,7 +287,6 @@ func BenchmarkBatchOp_Exec(b *testing.B) {
 
 	in := make(chan interface{}, size)
 	o.SetInput(in)
-	o.size = size
 	go func() {
 		for i := 0; i < N; i++ {
 			in <- testutil.GenWord()

@@ -8,6 +8,13 @@ import (
 
 func (s *Stream) Batch() *Stream {
 	operator := batch.New(s.ctx)
+	operator.SetTrigger(batch.TriggerAll())
+	return s.appendOp(operator)
+}
+
+func (s *Stream) BatchBySize(size int64) *Stream {
+	operator := batch.New(s.ctx)
+	operator.SetTrigger(batch.TriggerBySize(size))
 	return s.appendOp(operator)
 }
 

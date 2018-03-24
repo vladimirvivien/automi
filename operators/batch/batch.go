@@ -6,6 +6,7 @@ import (
 	"log"
 	"reflect"
 
+	"github.com/vladimirvivien/automi/api"
 	autoctx "github.com/vladimirvivien/automi/api/context"
 )
 
@@ -13,11 +14,11 @@ import (
 // on provided criteria.  The batched items are streamed on the
 // ouptut channel for downstream processing.
 type BatchOperator struct {
-	ctx    context.Context
-	input  <-chan interface{}
-	output chan interface{}
-	log    *log.Logger
-	size   int
+	ctx     context.Context
+	input   <-chan interface{}
+	output  chan interface{}
+	log     *log.Logger
+	trigger api.BatchTrigger
 }
 
 // New returns a new BatchOperator operator
@@ -27,7 +28,6 @@ func New(ctx context.Context) *BatchOperator {
 	op.ctx = ctx
 	op.log = log
 	op.output = make(chan interface{}, 1024)
-	op.size = 1024 * 10
 	return op
 }
 
@@ -39,6 +39,11 @@ func (op *BatchOperator) SetInput(in <-chan interface{}) {
 // GetOutput returns the output channel of the executer node
 func (op *BatchOperator) GetOutput() <-chan interface{} {
 	return op.output
+}
+
+// SetTrigger sets the batch operation to apply for this operator
+func (op *BatchOperator) SetTrigger(trigger api.BatchTrigger) {
+	op.trigger = trigger
 }
 
 // Exec is the execution starting point for the operator node.
@@ -66,29 +71,38 @@ func (op *BatchOperator) Exec() (err error) {
 			op.log.Print("component shutting down")
 		}()
 
-		counter := 0
+		// default to TriggerAll.
+		if op.trigger == nil {
+			op.trigger = TriggerAll()
+		}
+
+		var index int64 = 1
 		for {
 			select {
 			case item, opened := <-op.input:
 				if !opened {
 					return
 				}
+				// detect type of first item to create proper
+				// Slice type for batch.
 				if !batchValue.IsValid() {
 					batchType := op.makeBatchType(item)
-					batchValue = reflect.MakeSlice(reflect.SliceOf(batchType), 0, op.size)
+					batchValue = reflect.MakeSlice(reflect.SliceOf(batchType), 0, 1)
 				}
 
 				batchValue = reflect.Append(batchValue, reflect.ValueOf(item))
-				if counter < op.size-1 {
-					counter++
+				done := op.trigger.Done(op.ctx, item, index)
+				if !done {
+					index++
 					continue
 				}
-				if counter >= op.size-1 {
-					op.output <- batchValue.Interface()
-					counter = 0
-					batchType := op.makeBatchType(item)
-					batchValue = reflect.MakeSlice(reflect.SliceOf(batchType), 0, op.size)
-				}
+
+				// done
+				op.output <- batchValue.Interface()
+				index = 1
+				batchType := op.makeBatchType(item)
+				batchValue = reflect.MakeSlice(reflect.SliceOf(batchType), 0, 1)
+
 			}
 		}
 	}()

@@ -118,6 +118,14 @@ The following shows a fully realized stream with a source, operator, and sink de
     })
     <- strm.SinkTo(new(bytes.Buffer))
 ```
+# Batches
+Automi supports the notion of batches (or windows) that can be applied to a stream. A batch is
+an operator that collects items from a stream.  Then the batch releases the collected items, as 
+a group, based on trigger logic associated with the batch.  Batches allow operations that can only
+be applied on collections to take place (see batch operations below).  For intance, once a batch is
+realized, a `Sort` operation can be applied to the batched items.
+
+
 ## Operating on Batches
 Automi comes with several operators that are intended to process streamed items that have been batched (using the `Batch` operator) or are of slice type `[]T` where `T` is type of elements in the slice.  Automi comes with several batch operators that apply grouping, sorting, or a reductive operators on the streamed items.
 
