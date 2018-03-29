@@ -173,6 +173,7 @@ func (s *Stream) setupSource() error {
 	case reflect.Slice:
 		s.source = emitters.Slice(s.srcParam)
 	case reflect.Chan:
+		s.source = emitters.Chan(s.srcParam)
 	}
 
 	if s.source == nil {

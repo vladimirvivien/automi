@@ -14,14 +14,16 @@ func TestEmitter_Slice(t *testing.T) {
 	wait := make(chan struct{})
 	go func() {
 		defer close(wait)
-		for _ = range s.GetOutput() {
+		for range s.GetOutput() {
 			m.Lock()
 			count++
 			m.Unlock()
 		}
 	}()
 
-	s.Open(context.TODO())
+	if err := s.Open(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 
 	select {
 	case <-wait:
