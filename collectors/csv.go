@@ -117,7 +117,6 @@ func (c *CsvCollector) Open(ctx context.Context) <-chan error {
 		}()
 
 		for item := range c.input {
-			fmt.Println("**** CSV Row:", item)
 			data, ok := item.([]string)
 
 			if !ok { // bad situation, fail fast
