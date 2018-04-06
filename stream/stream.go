@@ -164,7 +164,7 @@ func (s *Stream) setupSource() error {
 		// assume csv file name
 		s.source = emitters.CSV(src)
 	case io.Reader:
-		s.source = emitters.Reader(src, nil)
+		s.source = emitters.Reader(src)
 	}
 
 	// check on type kind

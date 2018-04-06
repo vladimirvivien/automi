@@ -51,9 +51,8 @@ func (e *ReaderEmitter) Open(ctx context.Context) error {
 	go func() {
 		defer close(e.output)
 
-		buf := make([]byte, e.size)
-
 		for {
+			buf := make([]byte, e.size)
 			bytesRead, err := e.reader.Read(buf)
 
 			if bytesRead > 0 {

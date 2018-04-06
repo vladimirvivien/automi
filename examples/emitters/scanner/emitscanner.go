@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"strings"
 
@@ -19,12 +20,12 @@ func main() {
 	"request", "/i/d",  "00:BB:22:DD", "accepted"
 	"response", "/i/a", "00:BB:22:DD", "served"`
 
+	// stream data line-by-line
 	reader := strings.NewReader(data)
-	// setreams data as 50-byte chunks
-	stream := stream.New(emitters.Reader(reader).BufferSize(50))
+	stream := stream.New(emitters.Scanner(reader, bufio.ScanLines))
 
-	stream.Map(func(chunk []byte) string {
-		str := string(chunk)
+	stream.Map(func(chunk interface{}) string {
+		str := chunk.(string)
 		return str
 	})
 
