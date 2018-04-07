@@ -24,7 +24,7 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	stream := stream.New(emitters.Reader(f, bufio.ScanLines))
+	stream := stream.New(emitters.Scanner(f, bufio.ScanLines))
 
 	regSpaces := regexp.MustCompile(`\s+`)
 
