@@ -47,7 +47,7 @@ func TestUnaryOp_Params(t *testing.T) {
 		t.Fatal("Input not being set")
 	}
 
-	if o.GetOutput == nil {
+	if o.GetOutput() == nil {
 		t.Fatal("Output not set")
 	}
 }
