@@ -19,7 +19,7 @@ func TestStream_SliceSource(t *testing.T) {
 	})
 
 	count := 0
-	strm := New(src).SinkTo(collectors.Func(func(val interface{}) error {
+	strm := New(src).Into(collectors.Func(func(val interface{}) error {
 		count++
 		return nil
 	}))
@@ -54,7 +54,7 @@ func TestStream_ChannelSource(t *testing.T) {
 	}(data)
 
 	count := 0
-	strm := New(ch).SinkTo(collectors.Func(func(val interface{}) error {
+	strm := New(ch).Into(collectors.Func(func(val interface{}) error {
 		count++
 		return nil
 	}))
@@ -73,15 +73,17 @@ func TestStream_ChannelSource(t *testing.T) {
 
 func TestStream_ReaderSource(t *testing.T) {
 	data := `"request", "/i/a", "00:11:51:AA", "accepted"
-		"response", "/i/a/", "00:11:51:AA", "served"
-		"request", "/i/b", "00:11:22:33", "accepted"
-		"response", "/i/b", "00:11:22:33", "served"
-		"request", "/i/c", "00:11:51:AA", "accepted"`
+"response", "/i/a/", "00:11:51:AA", "served"
+"request", "/i/b", "00:11:22:33", "accepted"
+"response", "/i/b", "00:11:22:33", "served"
+"request", "/i/c", "00:11:51:AA", "accepted"`
+
+	expected := len(data)
+	counted := 0
 
 	reader := strings.NewReader(data)
-	count := 0
-	strm := New(reader).SinkTo(collectors.Func(func(val interface{}) error {
-		count++
+	strm := New(reader).Into(collectors.Func(func(val interface{}) error {
+		counted = len(val.([]byte))
 		return nil
 	}))
 	select {
@@ -89,8 +91,8 @@ func TestStream_ReaderSource(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if count != 5 {
-			t.Fatal("expecting count 5, got", count)
+		if counted != expected {
+			t.Fatalf("expecting count %d, got %d", expected, counted)
 		}
 	case <-time.After(10 * time.Millisecond):
 		t.Fatal("Took too long")

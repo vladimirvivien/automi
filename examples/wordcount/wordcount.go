@@ -53,7 +53,7 @@ func main() {
 	stream.Batch().GroupByPos(0).SumAllKeys()
 
 	// sink resunt to collector function
-	stream.SinkTo(collectors.Func(func(items interface{}) error {
+	stream.Into(collectors.Func(func(items interface{}) error {
 		words := items.([]map[interface{}]float64)
 		for _, wmap := range words {
 			for word, count := range wmap {

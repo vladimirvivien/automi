@@ -29,7 +29,7 @@ func main() {
 	})
 
 	// null is a noop collector
-	stream.SinkTo(collectors.Null())
+	stream.Into(collectors.Null())
 
 	if err := <-stream.Open(); err != nil {
 		fmt.Println(err)

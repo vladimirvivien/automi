@@ -29,7 +29,7 @@ func main() {
 
 	stream.Batch().SumByName("Male")
 
-	stream.SinkTo(collectors.Func(func(items interface{}) error {
+	stream.Into(collectors.Func(func(items interface{}) error {
 		total := items.([]map[string]float64)
 		fmt.Printf("Total male is %.0f\n", total[0]["Male"])
 		return nil

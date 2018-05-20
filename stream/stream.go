@@ -52,8 +52,8 @@ func (s *Stream) WithContext(ctx context.Context) *Stream {
 //	return s
 //}
 
-// SinkTo sets the terminal stream sink to use
-func (s *Stream) SinkTo(snk interface{}) *Stream {
+// Into sets the terminal stream sink to use
+func (s *Stream) Into(snk interface{}) *Stream {
 	s.snkParam = snk
 	return s
 }

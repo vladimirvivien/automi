@@ -30,7 +30,7 @@ func main() {
 	// Sort returns a []map[item-key-type]item-value-type
 	stream.Batch().SortByKey("Src")
 
-	stream.SinkTo(collectors.Func(func(data interface{}) error {
+	stream.Into(collectors.Func(func(data interface{}) error {
 		items := data.([]map[string]string)
 		for _, item := range items {
 			fmt.Printf("%v\n", item)

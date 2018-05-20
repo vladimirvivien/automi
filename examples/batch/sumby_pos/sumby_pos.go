@@ -26,7 +26,7 @@ func main() {
 
 	stream.Batch().SumByPos(1)
 
-	stream.SinkTo(collectors.Func(func(items interface{}) error {
+	stream.Into(collectors.Func(func(items interface{}) error {
 		total := items.([]map[int]float64)
 		fmt.Printf("Total female is %.0f\n", total[0][1])
 		return nil

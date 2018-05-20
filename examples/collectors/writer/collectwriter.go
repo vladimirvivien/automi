@@ -29,7 +29,7 @@ func main() {
 		return strings.Split(row, ",")
 	})
 
-	stream.SinkTo(sink)
+	stream.Into(sink)
 
 	if err := <-stream.Open(); err != nil {
 		fmt.Println(err)

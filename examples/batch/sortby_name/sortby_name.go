@@ -30,7 +30,7 @@ func main() {
 	// sort returns []log
 	stream.Batch().SortByName("Src")
 
-	stream.SinkTo(collectors.Func(func(data interface{}) error {
+	stream.Into(collectors.Func(func(data interface{}) error {
 		items := data.([]log)
 		for _, item := range items {
 			fmt.Printf("%v\n", item)

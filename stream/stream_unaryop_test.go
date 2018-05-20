@@ -14,7 +14,7 @@ func TestStream_Process(t *testing.T) {
 	snk := collectors.Slice()
 	strm := New(src).Process(func(s string) string {
 		return strings.ToUpper(s)
-	}).SinkTo(snk)
+	}).Into(snk)
 
 	select {
 	case err := <-strm.Open():
@@ -38,7 +38,7 @@ func TestStream_Filter(t *testing.T) {
 	strm := New(src).Filter(func(data string) bool {
 		return !strings.Contains(data, "O")
 	})
-	strm.SinkTo(snk)
+	strm.Into(snk)
 
 	select {
 	case err := <-strm.Open():
@@ -59,7 +59,7 @@ func TestStream_Map(t *testing.T) {
 	snk := collectors.Slice()
 	strm := New(src).Map(func(data string) int {
 		return len(data)
-	}).SinkTo(snk)
+	}).Into(snk)
 
 	count := 0
 
@@ -86,7 +86,7 @@ func TestStream_FlatMap(t *testing.T) {
 	snk := collectors.Slice()
 	strm := New(src).FlatMap(func(data string) []string {
 		return strings.Split(data, " ")
-	}).SinkTo(snk)
+	}).Into(snk)
 
 	count := 0
 	expected := 20

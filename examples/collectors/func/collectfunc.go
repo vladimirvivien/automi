@@ -28,7 +28,7 @@ func main() {
 		return strings.Split(row, ",")
 	})
 
-	stream.SinkTo(collectors.Func(func(items interface{}) error {
+	stream.Into(collectors.Func(func(items interface{}) error {
 		row := items.([]string)
 		fmt.Println(row[len(row)-1])
 		return nil

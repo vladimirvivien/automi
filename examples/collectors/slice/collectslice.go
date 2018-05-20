@@ -38,7 +38,7 @@ func main() {
 		return strings.Split(row, " ")
 	})
 
-	stream.SinkTo(slice)
+	stream.Into(slice)
 
 	if err := <-stream.Open(); err != nil {
 		fmt.Println(err)

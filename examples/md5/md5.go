@@ -56,7 +56,7 @@ func main() {
 	})
 
 	// sink the result
-	stream.SinkTo(collectors.Func(func(items interface{}) error {
+	stream.Into(collectors.Func(func(items interface{}) error {
 		sums := items.([3]interface{})
 		file := sums[0].(string)
 		md5Sum := sums[1].([md5.Size]byte)

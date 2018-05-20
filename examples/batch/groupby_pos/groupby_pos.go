@@ -24,7 +24,7 @@ func main() {
 
 	stream.Batch().GroupByPos(3)
 
-	stream.SinkTo(collectors.Func(func(data interface{}) error {
+	stream.Into(collectors.Func(func(data interface{}) error {
 		items := data.([]map[interface{}][]interface{})
 		for _, item := range items {
 			for k, v := range item {

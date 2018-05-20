@@ -21,7 +21,7 @@ func TestStream_GroupByKey(t *testing.T) {
 		{"Event": "response", "Src": "/i/d", "Device": "00:BB:22:DD", "Result": "served"},
 	})
 	snk := collectors.Slice()
-	strm := New(src).Batch().GroupByKey("Device").SinkTo(snk)
+	strm := New(src).Batch().GroupByKey("Device").Into(snk)
 
 	select {
 	case err := <-strm.Open():
@@ -50,7 +50,7 @@ func TestStream_GroupByName(t *testing.T) {
 		log{Event: "response", Src: "/i/d", Device: "00:BB:22:DD", Result: "served"},
 	})
 	snk := collectors.Slice()
-	strm := New(src).Batch().GroupByName("Device").SinkTo(snk)
+	strm := New(src).Batch().GroupByName("Device").Into(snk)
 
 	select {
 	case err := <-strm.Open():
@@ -79,7 +79,7 @@ func TestStream_GroupByPos(t *testing.T) {
 	})
 	snk := collectors.Slice()
 
-	strm := New(src).Batch().GroupByPos(3).SinkTo(snk)
+	strm := New(src).Batch().GroupByPos(3).Into(snk)
 
 	select {
 	case err := <-strm.Open():
@@ -99,7 +99,7 @@ func TestStream_Sort(t *testing.T) {
 	src := emitters.Slice([]int{12742, 4879, 50724, 116464, 12104})
 
 	snk := collectors.Slice()
-	strm := New(src).Batch().Sort().SinkTo(snk)
+	strm := New(src).Batch().Sort().Into(snk)
 
 	select {
 	case err := <-strm.Open():
@@ -124,7 +124,7 @@ func TestStream_SortByKey(t *testing.T) {
 	})
 
 	snk := collectors.Slice()
-	strm := New(src).Batch().SortByKey("Name").SinkTo(snk)
+	strm := New(src).Batch().SortByKey("Name").Into(snk)
 
 	select {
 	case err := <-strm.Open():
@@ -153,7 +153,7 @@ func TestStream_SortByName(t *testing.T) {
 	})
 
 	snk := collectors.Slice()
-	strm := New(src).Batch().SortByName("Name").SinkTo(snk)
+	strm := New(src).Batch().SortByName("Name").Into(snk)
 
 	select {
 	case err := <-strm.Open():
@@ -182,7 +182,7 @@ func TestStream_SortByPos(t *testing.T) {
 	})
 
 	snk := collectors.Slice()
-	strm := New(src).Batch().SortByPos(0).SinkTo(snk)
+	strm := New(src).Batch().SortByPos(0).Into(snk)
 
 	select {
 	case err := <-strm.Open():
@@ -212,7 +212,7 @@ func TestStream_SortWith(t *testing.T) {
 		items := batch.([]string)
 		return items[i] < items[j]
 	})
-	strm = strm.SinkTo(snk)
+	strm = strm.Into(snk)
 
 	select {
 	case err := <-strm.Open():
@@ -238,7 +238,7 @@ func TestStream_Sum(t *testing.T) {
 	})
 
 	snk := collectors.Slice()
-	strm := New(src).Batch().Sum().SinkTo(snk)
+	strm := New(src).Batch().Sum().Into(snk)
 
 	select {
 	case err := <-strm.Open():
@@ -264,7 +264,7 @@ func TestStream_SumByKey(t *testing.T) {
 	})
 
 	snk := collectors.Slice()
-	strm := New(src).Batch().SumByKey("Diameter").SinkTo(snk)
+	strm := New(src).Batch().SumByKey("Diameter").Into(snk)
 
 	select {
 	case err := <-strm.Open():
@@ -291,7 +291,7 @@ func TestStream_SumByName(t *testing.T) {
 	})
 
 	snk := collectors.Slice()
-	strm := New(src).Batch().SumByName("Diam").SinkTo(snk)
+	strm := New(src).Batch().SumByName("Diam").Into(snk)
 
 	select {
 	case err := <-strm.Open():
@@ -315,7 +315,7 @@ func TestStream_SumByPos(t *testing.T) {
 	})
 
 	snk := collectors.Slice()
-	strm := New(src).Batch().SumByPos(3).SinkTo(snk)
+	strm := New(src).Batch().SumByPos(3).Into(snk)
 
 	select {
 	case err := <-strm.Open():

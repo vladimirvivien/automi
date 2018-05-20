@@ -42,7 +42,7 @@ func main() {
 		return strings.Split(row, " ")
 	})
 
-	stream.SinkTo(csvSink)
+	stream.Into(csvSink)
 
 	if err := <-stream.Open(); err != nil {
 		fmt.Println(err)

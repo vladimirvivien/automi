@@ -29,7 +29,7 @@ func main() {
 	// sort returns [][]string
 	stream.Batch().SortByPos(3)
 
-	stream.SinkTo(collectors.Func(func(data interface{}) error {
+	stream.Into(collectors.Func(func(data interface{}) error {
 		items := data.([][]string)
 		for _, item := range items {
 			fmt.Printf("%v\n", item)

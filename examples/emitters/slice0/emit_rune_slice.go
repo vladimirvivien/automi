@@ -17,7 +17,7 @@ func main() {
 	}).Map(func(item rune) string {
 		return string(item) // map rune to string
 	}).Batch().Sort() // batch and sort result
-	strm.SinkTo(collectors.Writer(os.Stdout)) // send result to stdout
+	strm.Into(collectors.Writer(os.Stdout)) // send result to stdout
 
 	// open the stream
 	if err := <-strm.Open(); err != nil {

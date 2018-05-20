@@ -33,7 +33,7 @@ func main() {
 		return f
 	})
 	stream.Batch().Sum()
-	stream.SinkTo(collectors.Func(func(num interface{}) error {
+	stream.Into(collectors.Func(func(num interface{}) error {
 		total := num.(float64)
 		fmt.Printf("Total is %.2f\n", total)
 		return nil

@@ -34,7 +34,7 @@ func main() {
 	})
 
 	// sink result in a collector function which prints it
-	stream.SinkTo(collectors.Func(func(data interface{}) error {
+	stream.Into(collectors.Func(func(data interface{}) error {
 		e := data.(log)
 		fmt.Println(e)
 		return nil

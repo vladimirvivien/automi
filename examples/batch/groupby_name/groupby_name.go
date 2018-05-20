@@ -25,7 +25,7 @@ func main() {
 
 	stream.Batch().GroupByName("Src")
 
-	stream.SinkTo(collectors.Func(func(data interface{}) error {
+	stream.Into(collectors.Func(func(data interface{}) error {
 		items := data.([]map[interface{}][]interface{})
 		for _, item := range items {
 			for k, v := range item {

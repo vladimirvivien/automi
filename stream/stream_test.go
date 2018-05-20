@@ -30,7 +30,7 @@ func TestStream_BuilderMethods(t *testing.T) {
 	}
 
 	st := New([]interface{}{"Hello", "World", "!!!"}).
-		SinkTo(collectors.Slice()).
+		Into(collectors.Slice()).
 		Transform(api.UnFunc(op))
 
 	if st.srcParam == nil {
@@ -54,13 +54,13 @@ func TestStream_InitGraph(t *testing.T) {
 		return nil
 	})
 
-	strm := New(src).SinkTo(snk)
+	strm := New(src).Into(snk)
 
 	if err := strm.initGraph(); err != nil {
 		t.Fatal(err)
 	}
 
-	strm = New(src).Transform(op1).Transform(op2).SinkTo(snk)
+	strm = New(src).Transform(op1).Transform(op2).Into(snk)
 	if err := strm.initGraph(); err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +72,7 @@ func TestStream_InitGraph(t *testing.T) {
 
 func TestStream_Open_NoOp(t *testing.T) {
 	snk := collectors.Slice()
-	st := New([]string{"Hello", "World"}).SinkTo(snk)
+	st := New([]string{"Hello", "World"}).Into(snk)
 	select {
 	case err := <-st.Open():
 		if err != nil {
@@ -104,7 +104,7 @@ func TestStream_Open_WithOp(t *testing.T) {
 		return nil
 	})
 
-	strm := New(src).Transform(op1).Transform(op2).SinkTo(snk)
+	strm := New(src).Transform(op1).Transform(op2).Into(snk)
 	select {
 	case err := <-strm.Open():
 		if err != nil {

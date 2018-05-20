@@ -46,7 +46,7 @@ func main() {
 	})
 
 	// stream []string to sink out
-	stream.SinkTo("./result.txt")
+	stream.Into("./result.txt")
 
 	if err := <-stream.Open(); err != nil {
 		fmt.Println(err)

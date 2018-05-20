@@ -12,7 +12,7 @@ func TestStream_Reduce(t *testing.T) {
 	snk := collectors.Slice()
 	strm := New(emitters.Slice([]int{1, 2, 3, 4, 5})).Reduce(0, func(op1, op2 int) int {
 		return op1 + op2
-	}).SinkTo(snk)
+	}).Into(snk)
 
 	actual := 15
 
