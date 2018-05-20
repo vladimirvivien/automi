@@ -95,6 +95,25 @@ func TestStream_GroupByPos(t *testing.T) {
 	}
 }
 
+func TestStream_Sort(t *testing.T) {
+	src := emitters.Slice([]int{12742, 4879, 50724, 116464, 12104})
+
+	snk := collectors.Slice()
+	strm := New(src).Batch().Sort().SinkTo(snk)
+
+	select {
+	case err := <-strm.Open():
+		if err != nil {
+			t.Fatal(err)
+		}
+		result := snk.Get()[0].([]int)
+		if result[0] != 4879 && result[1] != 12104 && result[2] != 12742 && result[3] != 50724 {
+			t.Fatal("unexpected sort order", result)
+		}
+	case <-time.After(10 * time.Millisecond):
+		t.Fatal("Took too long")
+	}
+}
 func TestStream_SortByKey(t *testing.T) {
 	src := emitters.Slice([]map[string]string{
 		{"Name": "Mercury", "Diameter": "4879"},

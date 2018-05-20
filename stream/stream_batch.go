@@ -62,6 +62,19 @@ func (s *Stream) GroupByPos(pos int) *Stream {
 	return s.appendOp(operator)
 }
 
+// Sort sorts incoming items that are batched as []T where
+// value T is comparable.  The operator returns sorted slice []T.
+//
+// See Also
+//
+// See also the operator function SortFunc in
+//   "github.com/vladimirvivien/automi/operators/batch"
+func (s *Stream) Sort() *Stream {
+	operator := unary.New(s.ctx)
+	operator.SetOperation(batch.SortFunc())
+	return s.appendOp(operator)
+}
+
 // SortByKey sorts incoming items that are batched as type []map[K]V
 // where K is a comparable type specified by param key and used to
 // sort the slice.  The opertor returns a sorted []map[K]V.

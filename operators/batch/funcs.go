@@ -378,6 +378,35 @@ func SumFunc() api.UnFunc {
 	})
 }
 
+// SortFunc generates an api.UnFunc that sorts batched data from upstream.
+// The batched items are expected to be in the following type:
+//   []T - where T is comparable type (string, numeric, etc)
+//
+// with each iteration i for batch v:
+//   - check v[i] to be of type string, integers, float
+//   - Use package sort and a Less function to compare v[i] and v[i+1]
+// The function returns the sorted slice
+func SortFunc() api.UnFunc {
+	return api.UnFunc(func(ctx context.Context, param0 interface{}) interface{} {
+		dataType := reflect.TypeOf(param0)
+		dataVal := reflect.ValueOf(param0)
+
+		// validate expected type
+		if dataType.Kind() != reflect.Slice && dataType.Kind() != reflect.Array {
+			return param0 // ignores the data
+		}
+
+		// use sort.Sort() to sepecify a Less function
+		sort.Slice(dataVal.Interface(), func(i, j int) bool {
+			itemI := dataVal.Index(i)
+			itemJ := dataVal.Index(j)
+			return util.IsLess(itemI, itemJ)
+		})
+
+		return dataVal.Interface()
+	})
+}
+
 // SortByPosFunc generates a api.UnFunc that sorts batched data from upstream.
 // The batched items are expected to be in the following type:
 //   [][]T - where T is comparable type

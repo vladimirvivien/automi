@@ -231,6 +231,18 @@ func TestBatchFuncs_SumByKey_All(t *testing.T) {
 	}
 }
 
+func TestBatchFuncs_Sort(t *testing.T) {
+	op := SortFunc()
+	data := []string{"Spirit", "Voyager", "BigFoot", "Enola", "Memphis"}
+	val := op.Apply(context.TODO(), data)
+
+	sorted := val.([]string)
+
+	if sorted[0] != "BigFoot" && sorted[1] != "Enola" && sorted[2] != "Memphis" {
+		t.Fatal("unexpected sort order for result: ", sorted)
+	}
+}
+
 func TestBatchFuncs_SortByPos(t *testing.T) {
 	op := SortByPosFunc(0)
 	data := [][]string{
