@@ -1,5 +1,5 @@
-Automi
-======
+# Automi
+
 A stream API for the Go programming language (alpha)
 
 [![GoDoc](https://godoc.org/github.com/vladimirvivien/automi?status.svg)](https://godoc.org/github.com/vladimirvivien/automi)
@@ -18,11 +18,11 @@ The Automi API expresses a stream with four primitives including:
 
 Automi streams use Go channels internally to route data.  This means Automi streams automatically support features such as buffering, automatic back-pressure queuing, and concurrency safety.
 
-# Using Automi
+## Using Automi
 
 This section explores several examples which show the ease-of-use of Automi.  All examples are found in the [./example](./examples) directory.
 
-## A simple rune filter
+### A simple rune filter
 
 This example shows how simple it is to compose and express stream operations with Automi. This example uses a slice of runes, as collector source, for a stream.  It then filters  out unwanted rune values, sort the remaining items, and lastly prints the characters.
 
@@ -79,6 +79,7 @@ func main(){
 ```
 
 #### Collect the stream
+
 `Stream.Into` - routes the stream to a collector. This example uses an io.Writer collector which is used to output the collected streamed items to `os.Stdout`.
 
 ```go
@@ -103,6 +104,7 @@ func main(){
 ...
 }
 ```
+
 ## Stream from an io.Reader
 
 The next example shows how to use Automi to stream data from an emitter that implements`io.Reader`.  While the example uses an in-memory source, this should work with any value that implements io.Reader including file and network sources.
@@ -147,4 +149,4 @@ func main() {
 }
 ```
 
-See complete example [here]("./examples/emitters/reader/emitreader.go").
+See complete example [here](./examples/emitters/reader/emitreader.go).

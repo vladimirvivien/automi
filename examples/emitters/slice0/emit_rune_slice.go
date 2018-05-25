@@ -10,7 +10,7 @@ import (
 
 func main() {
 	// create stream with emitter of rune slice
-	strm := stream.New([]rune("B世!ぽ@opqDQRS#$%^&*()ᅖ4x5Њ8yzUd90E12a3ᇳFGHmIザJuKLMᇙNO6PTnVWXѬYZbcef7ghijCklrAstvw"))
+	strm := stream.New([]rune(`B世!ぽ@opqDQRS#$%^&*()ᅖ4x5Њ8yzUd90E12a3ᇳFGHmIザJuKLMᇙNO6PTnVWXѬYZbcef7ghijCklrAstvw`))
 
 	strm.Filter(func(item rune) bool {
 		return item >= 65 && item < (65+26) // remove unwanted chars
