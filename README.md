@@ -261,5 +261,6 @@ Automi comes with a set of built-in components to get you started with stream pr
 * [ ] Add type-specific operators to streams
 * [ ] Performance optimization
 
+
 ## Licence
 Apache 2.0
