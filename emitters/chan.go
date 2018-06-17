@@ -3,10 +3,11 @@ package emitters
 import (
 	"context"
 	"errors"
-	"log"
 	"reflect"
 
+	"github.com/go-faces/logger"
 	autoctx "github.com/vladimirvivien/automi/api/context"
+	"github.com/vladimirvivien/automi/util"
 )
 
 // ChanEmitter is an emitter that takes in a channel and
@@ -14,7 +15,7 @@ import (
 type ChanEmitter struct {
 	channel interface{}
 	output  chan interface{}
-	log     *log.Logger
+	log     logger.Interface
 }
 
 // Chan creates new slice source
@@ -38,7 +39,7 @@ func (c *ChanEmitter) Open(ctx context.Context) error {
 		return errors.New("ChanEmitter requires channel")
 	}
 	c.log = autoctx.GetLogger(ctx)
-	c.log.Print("opening channel emitter")
+	util.Log(c.log, "opening channel emitter")
 	chanVal := reflect.ValueOf(c.channel)
 
 	if !chanVal.IsValid() {
@@ -48,7 +49,7 @@ func (c *ChanEmitter) Open(ctx context.Context) error {
 	go func() {
 		defer func() {
 			close(c.output)
-			c.log.Println("closing slice emitter")
+			util.Log(c.log, "closing slice emitter")
 		}()
 
 		for {

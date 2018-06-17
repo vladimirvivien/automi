@@ -3,11 +3,12 @@ package batch
 import (
 	"context"
 	"fmt"
-	"log"
 	"reflect"
 
+	"github.com/go-faces/logger"
 	"github.com/vladimirvivien/automi/api"
 	autoctx "github.com/vladimirvivien/automi/api/context"
+	"github.com/vladimirvivien/automi/util"
 )
 
 // BatchOperator is an executor that batches incoming streamed items based
@@ -17,7 +18,7 @@ type BatchOperator struct {
 	ctx     context.Context
 	input   <-chan interface{}
 	output  chan interface{}
-	log     *log.Logger
+	log     logger.Interface
 	trigger api.BatchTrigger
 }
 
@@ -27,6 +28,7 @@ func New(ctx context.Context) *BatchOperator {
 	op := new(BatchOperator)
 	op.ctx = ctx
 	op.log = log
+	util.Log(op.log, "starting batch operator")
 	op.output = make(chan interface{}, 1024)
 	return op
 }
@@ -63,12 +65,12 @@ func (op *BatchOperator) Exec() (err error) {
 	go func() {
 		var batchValue reflect.Value
 		defer func() {
+			util.Log(op.log, "closing batch operator")
 			// push any straggler items in batch
 			if batchValue.IsValid() && batchValue.Len() > 0 {
 				op.output <- batchValue.Interface()
 			}
 			close(op.output)
-			op.log.Print("component shutting down")
 		}()
 
 		// default to TriggerAll.

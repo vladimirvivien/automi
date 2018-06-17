@@ -6,10 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 
+	"github.com/go-faces/logger"
 	autoctx "github.com/vladimirvivien/automi/api/context"
+	"github.com/vladimirvivien/automi/util"
 )
 
 // CsvCollector represents a node that can collect items streamed as
@@ -25,10 +26,10 @@ type CsvCollector struct {
 	input     <-chan interface{}
 	snkWriter io.Writer
 	csvWriter *csv.Writer
-	log       *log.Logger
+	log       logger.Interface
 }
 
-// New creates a *CsvCollector value
+// CSV creates a *CsvCollector value
 func CSV(sink interface{}) *CsvCollector {
 	csv := &CsvCollector{
 		snkParam:  sink,
@@ -61,7 +62,7 @@ func (c *CsvCollector) init(ctx context.Context) error {
 		return fmt.Errorf("Input attribute not set")
 	}
 
-	c.log.Println("opening csv collector node")
+	util.Log(c.log, "opening csv collector node")
 
 	// establish defaults
 	if c.delimChar == 0 {
@@ -80,10 +81,10 @@ func (c *CsvCollector) init(ctx context.Context) error {
 		if err := c.csvWriter.Write(c.headers); err != nil {
 			return err
 		}
-		c.log.Print("wrote headers [", c.headers, "]")
+		util.Log(c.log, "wrote headers [", c.headers, "]")
 	}
 
-	c.log.Print("component initialized")
+	util.Log(c.log, "component initialized")
 
 	return nil
 }
@@ -98,7 +99,7 @@ func (c *CsvCollector) Open(ctx context.Context) <-chan error {
 
 	go func() {
 		defer func() {
-			c.log.Print("closing csv collector")
+			util.Log(c.log, "closing csv collector")
 			// flush remaining bits
 			c.csvWriter.Flush()
 			if e := c.csvWriter.Error(); e != nil {
@@ -121,14 +122,14 @@ func (c *CsvCollector) Open(ctx context.Context) <-chan error {
 
 			if !ok { // bad situation, fail fast
 				msg := fmt.Sprintf("expecting []string, got unexpected type %T", data)
-				c.log.Print(msg)
+				util.Log(c.log, msg)
 				panic(msg)
 			}
 
 			if e := c.csvWriter.Write(data); e != nil {
 				//TODO distinguish error values for better handling
 				perr := fmt.Errorf("Unable to write record to file: %s ", e)
-				c.log.Print(perr)
+				util.Log(c.log, perr)
 				continue
 			}
 
@@ -136,7 +137,7 @@ func (c *CsvCollector) Open(ctx context.Context) <-chan error {
 			c.csvWriter.Flush()
 			if e := c.csvWriter.Error(); e != nil {
 				perr := fmt.Errorf("IO flush error: %s", e)
-				c.log.Print(perr)
+				util.Log(c.log, perr)
 			}
 
 			select {
@@ -155,12 +156,12 @@ func (c *CsvCollector) setupSink() error {
 		return errors.New("missing CSV sink")
 	}
 	if wtr, ok := c.snkParam.(io.Writer); ok {
-		c.log.Println("using raw io.Writer as csv sink")
+		util.Log(c.log, "using raw io.Writer as csv sink")
 		c.snkWriter = wtr
 	}
 
 	if wtr, ok := c.snkParam.(*os.File); ok {
-		c.log.Println("using file", wtr, "as csv sink")
+		util.Log(c.log, "using file", wtr, "as csv sink")
 		c.snkWriter = wtr
 	}
 
@@ -169,7 +170,7 @@ func (c *CsvCollector) setupSink() error {
 		if err != nil {
 			return err
 		}
-		c.log.Println("setting up file", f.Name(), "as csv sink")
+		util.Log(c.log, "setting up file", f.Name(), "as csv sink")
 		c.snkWriter = f
 		c.file = f // so we can close it
 	}

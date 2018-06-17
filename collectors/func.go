@@ -3,9 +3,10 @@ package collectors
 import (
 	"context"
 	"errors"
-	"log"
 
+	"github.com/go-faces/logger"
 	autoctx "github.com/vladimirvivien/automi/api/context"
+	"github.com/vladimirvivien/automi/util"
 )
 
 // CollectorFunc is a function used to colllect
@@ -19,7 +20,7 @@ type CollectorFunc func(interface{}) error
 //   CollectorFunc
 type FuncCollector struct {
 	input <-chan interface{}
-	log   *log.Logger
+	log   logger.Interface
 	f     CollectorFunc
 }
 
@@ -38,7 +39,7 @@ func (c *FuncCollector) SetInput(in <-chan interface{}) {
 // Open is the starting point that starts the collector
 func (c *FuncCollector) Open(ctx context.Context) <-chan error {
 	c.log = autoctx.GetLogger(ctx)
-	c.log.Print("opening func collector")
+	util.Log(c.log, "opening func collector")
 	result := make(chan error)
 
 	if c.input == nil {
@@ -53,14 +54,14 @@ func (c *FuncCollector) Open(ctx context.Context) <-chan error {
 
 	go func() {
 		defer func() {
-			c.log.Println("closing func collector")
+			util.Log(c.log, "closing func collector")
 			close(result)
 		}()
 
 		for val := range c.input {
 			if err := c.f(val); err != nil {
 				// TODO proper error handling
-				c.log.Print(err)
+				util.Log(c.log, err)
 			}
 		}
 	}()

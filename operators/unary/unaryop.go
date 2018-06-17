@@ -3,11 +3,12 @@ package unary
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 
+	"github.com/go-faces/logger"
 	"github.com/vladimirvivien/automi/api"
 	autoctx "github.com/vladimirvivien/automi/api/context"
+	"github.com/vladimirvivien/automi/util"
 )
 
 type packed struct {
@@ -25,7 +26,7 @@ type UnaryOperator struct {
 	concurrency int
 	input       <-chan interface{}
 	output      chan interface{}
-	log         *log.Logger
+	log         logger.Interface
 	cancelled   bool
 	mutex       sync.RWMutex
 }
@@ -42,7 +43,7 @@ func New(ctx context.Context) *UnaryOperator {
 	o.concurrency = 1
 	o.output = make(chan interface{}, 1024)
 
-	o.log.Printf("Component initialized")
+	util.Log(o.log, "unary operator initialized")
 	return o
 }
 
@@ -81,12 +82,10 @@ func (o *UnaryOperator) Exec() (err error) {
 		o.concurrency = 1
 	}
 
-	o.log.Print("Execution started")
-
 	go func() {
 		defer func() {
+			util.Log(o.log, "unary operator closing")
 			close(o.output)
-			o.log.Print("Shuttingdown component")
 		}()
 
 		var barrier sync.WaitGroup
@@ -109,11 +108,11 @@ func (o *UnaryOperator) Exec() (err error) {
 		select {
 		case <-wait:
 			if o.cancelled {
-				o.log.Printf("Component cancelling...")
+				util.Log(o.log, "unary operator cancelled")
 				return
 			}
 		case <-o.ctx.Done():
-			o.log.Print("UnaryOp done.")
+			util.Log(o.log, "unary operator done")
 			return
 		}
 	}()
@@ -122,7 +121,7 @@ func (o *UnaryOperator) Exec() (err error) {
 
 func (o *UnaryOperator) doProc(ctx context.Context) {
 	if o.op == nil {
-		o.log.Print("No operation defined for UnaryOp")
+		util.Log(o.log, "unary operator missing operation")
 		return
 	}
 	exeCtx, cancel := context.WithCancel(ctx)
@@ -141,7 +140,7 @@ func (o *UnaryOperator) doProc(ctx context.Context) {
 			case nil:
 				continue
 			case error, api.ProcError:
-				o.log.Print(val)
+				util.Log(o.log, val)
 				continue
 			default:
 				o.output <- val
@@ -149,7 +148,7 @@ func (o *UnaryOperator) doProc(ctx context.Context) {
 
 		// is cancelling
 		case <-ctx.Done():
-			o.log.Println("Cancelling....")
+			util.Log(o.log, "unary operator cancelling")
 			o.mutex.Lock()
 			cancel()
 			o.cancelled = true

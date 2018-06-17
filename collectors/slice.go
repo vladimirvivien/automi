@@ -2,15 +2,16 @@ package collectors
 
 import (
 	"context"
-	"log"
 
+	"github.com/go-faces/logger"
 	autoctx "github.com/vladimirvivien/automi/api/context"
+	"github.com/vladimirvivien/automi/util"
 )
 
 type SliceCollector struct {
 	slice []interface{}
 	input <-chan interface{}
-	log   *log.Logger
+	log   logger.Interface
 }
 
 func Slice() *SliceCollector {
@@ -27,13 +28,13 @@ func (s *SliceCollector) Get() []interface{} {
 
 func (s *SliceCollector) Open(ctx context.Context) <-chan error {
 	s.log = autoctx.GetLogger(ctx)
-	s.log.Print("opening slice collector")
+	util.Log(s.log, "opening slice collector")
 	result := make(chan error)
 
 	go func() {
 		defer func() {
 			close(result)
-			s.log.Print("closing slice collector")
+			util.Log(s.log, "closing slice collector")
 		}()
 		for val := range s.input {
 			s.slice = append(s.slice, val)

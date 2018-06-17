@@ -3,30 +3,25 @@ package context
 import (
 	"context"
 	"fmt"
-	"log"
-	"os"
+
+	"github.com/go-faces/logger"
 )
 
-const (
-	loggerKey = iota
-	auxChKey
-)
+type ctxKey int
 
 var (
-	logger *log.Logger = log.New(os.Stderr, log.Prefix(), log.Flags())
+	logKey   ctxKey = 1
+	auxChKey ctxKey = 2
 )
 
-// WithLogger sets a logger value in the cotext.
-func WithLogger(ctx context.Context, logger *log.Logger) context.Context {
-	return context.WithValue(ctx, loggerKey, logger)
+// WithLogger sets an interface.logger value in context
+func WithLogger(ctx context.Context, log logger.Interface) context.Context {
+	return context.WithValue(ctx, logKey, log)
 }
 
-// GetLogger returns the logger if one is found, or create one.
-func GetLogger(ctx context.Context) *log.Logger {
-	l, ok := ctx.Value(loggerKey).(*log.Logger)
-	if l == nil || !ok {
-		return logger
-	}
+// GetLogger returns a logger.Interface from provided context.
+func GetLogger(ctx context.Context) logger.Interface {
+	l, _ := ctx.Value(logKey).(logger.Interface)
 	return l
 }
 

@@ -4,15 +4,16 @@ import (
 	"context"
 	"errors"
 	"io"
-	"log"
 	"os"
 	"reflect"
 
+	"github.com/go-faces/logger"
 	"github.com/vladimirvivien/automi/api"
 	autoctx "github.com/vladimirvivien/automi/api/context"
 	"github.com/vladimirvivien/automi/collectors"
 	"github.com/vladimirvivien/automi/emitters"
 	streamop "github.com/vladimirvivien/automi/operators/stream"
+	"github.com/vladimirvivien/automi/util"
 )
 
 // Stream represents a stream unto  which executor nodes can be
@@ -25,7 +26,7 @@ type Stream struct {
 	drain    chan error
 	ops      []api.Operator
 	ctx      context.Context
-	log      *log.Logger
+	log      logger.Interface
 }
 
 // New creates a new *Stream value
@@ -40,7 +41,9 @@ func New(src interface{}) *Stream {
 	return s
 }
 
-// WithContext sets a context.Context to use
+// WithContext sets a context.Context to use.
+// Provide a context with a logger.Interface to turn on logging.
+// i.e. log.New(os.Stderr, log.Prefix(), log.Flags())
 func (s *Stream) WithContext(ctx context.Context) *Stream {
 	s.ctx = ctx
 	return s
@@ -102,7 +105,7 @@ func (s *Stream) Open() <-chan error {
 
 // bindOps binds operator channels
 func (s *Stream) bindOps() {
-	s.log.Print("binding operators")
+	util.Log(s.log, "binding operators")
 	if s.ops == nil {
 		return
 	}
@@ -117,7 +120,7 @@ func (s *Stream) bindOps() {
 
 // initGraph initialize stream graph source + ops +
 func (s *Stream) initGraph() error {
-	s.log.Print("Preparing stream operator graph")
+	util.Log(s.log, "preparing stream operator graph")
 
 	// setup source type
 	if err := s.setupSource(); err != nil {
@@ -131,7 +134,7 @@ func (s *Stream) initGraph() error {
 
 	// if there are no ops, link source to sink
 	if len(s.ops) == 0 && s.sink != nil {
-		s.log.Print("No operator nodes found, binding source to sink directly")
+		util.Log(s.log, "no operator nodes found, binding source to sink directly")
 		s.sink.SetInput(s.source.GetOutput())
 		return nil
 	}

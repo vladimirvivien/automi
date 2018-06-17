@@ -2,14 +2,15 @@ package collectors
 
 import (
 	"context"
-	"log"
 
+	"github.com/go-faces/logger"
 	autoctx "github.com/vladimirvivien/automi/api/context"
+	"github.com/vladimirvivien/automi/util"
 )
 
 type NullCollector struct {
 	input <-chan interface{}
-	log   *log.Logger
+	log   logger.Interface
 }
 
 func Null() *NullCollector {
@@ -24,15 +25,14 @@ func (s *NullCollector) SetInput(in <-chan interface{}) {
 func (s *NullCollector) Open(ctx context.Context) <-chan error {
 	result := make(chan error)
 	s.log = autoctx.GetLogger(ctx)
-
-	s.log.Print("opening null collector")
+	util.Log(s.log, "opening null collector")
 
 	go func() {
 		defer func() {
 			close(result)
-			s.log.Print("closing null collector")
+			util.Log(s.log, "closing null collector")
 		}()
-		for _ = range s.input {
+		for range s.input {
 		}
 	}()
 	return result

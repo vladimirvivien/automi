@@ -251,6 +251,7 @@ Automi comes with a set of built-in components to get you started with stream pr
 
 ### Future
 
+* [ ] Internal type hierarchy refactoring
 * [ ] Error propagation and handling strategies
 * [ ] Automatically turn on batch when batch operators are invoked
 * [ ] Stream emitter - source from another stream

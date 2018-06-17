@@ -2,6 +2,7 @@ package emitters
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -10,8 +11,6 @@ import (
 	"time"
 
 	"github.com/vladimirvivien/automi/testutil"
-
-	"golang.org/x/net/context"
 )
 
 func TestEmitter_CSVBuilder(t *testing.T) {

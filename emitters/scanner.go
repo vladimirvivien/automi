@@ -5,9 +5,10 @@ import (
 	"context"
 	"errors"
 	"io"
-	"log"
 
+	"github.com/go-faces/logger"
 	autoctx "github.com/vladimirvivien/automi/api/context"
+	"github.com/vladimirvivien/automi/util"
 )
 
 // ScannerEmitter takes an io.Reader as its source and emits
@@ -19,7 +20,7 @@ type ScannerEmitter struct {
 	spltrParam bufio.SplitFunc
 	scanner    *bufio.Scanner
 	output     chan interface{}
-	log        *log.Logger
+	log        logger.Interface
 }
 
 // Scanner returns a *ScannerEmitter that wraps io.Reader into
@@ -45,12 +46,15 @@ func (e *ScannerEmitter) Open(ctx context.Context) error {
 		return err
 	}
 	e.log = autoctx.GetLogger(ctx)
-	e.log.Print("opening io.Reader emitter")
+	util.Log(e.log, "opening Reader emitter")
 
 	// use scanner to tokenize reader stream
 	// the text value of token is sent downstream
 	go func() {
-		defer close(e.output)
+		defer func() {
+			util.Log(e.log, "closing Reader emitter")
+			close(e.output)
+		}()
 
 		for e.scanner.Scan() {
 			//TODO: handle scanner errors

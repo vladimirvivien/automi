@@ -3,11 +3,12 @@ package binary
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 
+	"github.com/go-faces/logger"
 	"github.com/vladimirvivien/automi/api"
 	autoctx "github.com/vladimirvivien/automi/api/context"
+	"github.com/vladimirvivien/automi/util"
 )
 
 // BinaryOperator represents an operator that knows how to run a
@@ -19,7 +20,7 @@ type BinaryOperator struct {
 	concurrency int
 	input       <-chan interface{}
 	output      chan interface{}
-	log         *log.Logger
+	log         logger.Interface
 	cancelled   bool
 	mutex       sync.RWMutex
 }
@@ -35,7 +36,7 @@ func New(ctx context.Context) *BinaryOperator {
 	o.concurrency = 1
 	o.output = make(chan interface{}, 1024)
 
-	o.log.Printf("component initialized")
+	util.Log(o.log, "binary operator initialized")
 	return o
 }
 
@@ -79,13 +80,11 @@ func (o *BinaryOperator) Exec() (err error) {
 		o.concurrency = 1
 	}
 
-	o.log.Print("execution started")
-
 	go func() {
 		defer func() {
 			o.output <- o.state
 			close(o.output)
-			o.log.Print("shuttingdown component")
+			util.Log(o.log, "closing binary operator")
 		}()
 
 		var barrier sync.WaitGroup
@@ -108,11 +107,11 @@ func (o *BinaryOperator) Exec() (err error) {
 		select {
 		case <-wait:
 			if o.cancelled {
-				o.log.Printf("component cancelling...")
+				util.Log(o.log, "binary operator cancelled")
 				return
 			}
 		case <-o.ctx.Done():
-			o.log.Print("binaryOp done.")
+			util.Log(o.log, "binary operator done")
 			return
 		}
 	}()

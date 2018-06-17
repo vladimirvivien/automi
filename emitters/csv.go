@@ -6,10 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 
+	"github.com/go-faces/logger"
 	autoctx "github.com/vladimirvivien/automi/api/context"
+	"github.com/vladimirvivien/automi/util"
 )
 
 // CsvEmitter implements an Emitter node that gets its content from the
@@ -26,7 +27,7 @@ type CsvEmitter struct {
 	file      *os.File
 	srcReader io.Reader
 	csvReader *csv.Reader
-	log       *log.Logger
+	log       logger.Interface
 	output    chan interface{}
 }
 
@@ -65,9 +66,8 @@ func (c *CsvEmitter) HasHeaders() *CsvEmitter {
 // init internal initialization method
 func (c *CsvEmitter) init(ctx context.Context) error {
 	// extract logger
-	log := autoctx.GetLogger(ctx)
-	c.log = log
-	c.log.Println("opening csv emitter node")
+	c.log = autoctx.GetLogger(ctx)
+	util.Log(c.log, "opening csv emitter node")
 
 	// establish defaults
 	if c.delimChar == 0 {
@@ -102,7 +102,7 @@ func (c *CsvEmitter) init(ctx context.Context) error {
 			c.fieldCount = len(c.headers)
 		}
 	}
-	c.log.Print("csv source initialized")
+	util.Log(c.log, "csv source initialized")
 
 	return nil
 }
@@ -124,10 +124,10 @@ func (c *CsvEmitter) Open(ctx context.Context) (err error) {
 			if c.file != nil {
 				err = c.file.Close()
 				if err != nil {
-					c.log.Print(err)
+					util.Log(c.log, err)
 				}
 			}
-			c.log.Print("csv emitter closed")
+			util.Log(c.log, "csv emitter closed")
 		}()
 
 		for {
@@ -137,7 +137,7 @@ func (c *CsvEmitter) Open(ctx context.Context) (err error) {
 					return
 				}
 				//TODO route error
-				c.log.Print(fmt.Errorf("Error reading row: %s", err))
+				util.Log(c.log, fmt.Errorf("Error reading row: %s", err))
 				continue
 			}
 
@@ -157,11 +157,11 @@ func (c *CsvEmitter) setupSource() error {
 		return errors.New("missing CSV source")
 	}
 	if rdr, ok := c.srcParam.(io.Reader); ok {
-		c.log.Println("using raw io.Reader as csv source")
+		util.Log(c.log, "using raw io.Reader as csv source")
 		c.srcReader = rdr
 	}
 	if rdr, ok := c.srcParam.(*os.File); ok {
-		c.log.Println("using file", rdr, "as csv source")
+		util.Log(c.log, "using file", rdr, "as csv source")
 		c.srcReader = rdr
 	}
 	if rdr, ok := c.srcParam.(string); ok {
@@ -169,7 +169,7 @@ func (c *CsvEmitter) setupSource() error {
 		if err != nil {
 			return err
 		}
-		c.log.Println("setting up file", f.Name(), "as csv source")
+		util.Log(c.log, "setting up file", f.Name(), "as csv source")
 		c.srcReader = f
 		c.file = f // so we can close it
 	}

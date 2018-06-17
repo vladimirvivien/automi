@@ -15,9 +15,6 @@ func TestBatchOp_New(t *testing.T) {
 	if s.output == nil {
 		t.Error("missing output")
 	}
-	if s.log == nil {
-		t.Error("missing logger")
-	}
 	if s.ctx == nil {
 		t.Error("context not set")
 	}

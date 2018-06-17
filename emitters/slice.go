@@ -3,10 +3,11 @@ package emitters
 import (
 	"context"
 	"errors"
-	"log"
 	"reflect"
 
+	"github.com/go-faces/logger"
 	autoctx "github.com/vladimirvivien/automi/api/context"
+	"github.com/vladimirvivien/automi/util"
 )
 
 // SliceEmitter is an emitter that takes in a slice and
@@ -14,7 +15,7 @@ import (
 type SliceEmitter struct {
 	slice  interface{}
 	output chan interface{}
-	log    *log.Logger
+	log    logger.Interface
 }
 
 // SliceSrc creates new slice source
@@ -38,7 +39,7 @@ func (s *SliceEmitter) Open(ctx context.Context) error {
 		return errors.New("SliceEmitter requires slice")
 	}
 	s.log = autoctx.GetLogger(ctx)
-	s.log.Print("opening slice emitter")
+	util.Log(s.log, "opening slice emitter")
 	sliceVal := reflect.ValueOf(s.slice)
 
 	if !sliceVal.IsValid() {
@@ -47,8 +48,8 @@ func (s *SliceEmitter) Open(ctx context.Context) error {
 
 	go func() {
 		defer func() {
+			util.Log(s.log, "closing slice emitter")
 			close(s.output)
-			s.log.Println("closing slice emitter")
 		}()
 		for i := 0; i < sliceVal.Len(); i++ {
 			val := sliceVal.Index(i)

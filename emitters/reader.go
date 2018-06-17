@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"io"
-	"log"
 
+	"github.com/go-faces/logger"
 	autoctx "github.com/vladimirvivien/automi/api/context"
+	"github.com/vladimirvivien/automi/util"
 )
 
 // ReaderEmitter takes an io.Reader as its source and emits a slice of
@@ -15,7 +16,7 @@ type ReaderEmitter struct {
 	reader io.Reader
 	size   int
 	output chan interface{}
-	log    *log.Logger
+	log    logger.Interface
 }
 
 // Reader returns a *ReaderEmitter which can be used to emit bytes
@@ -46,7 +47,7 @@ func (e *ReaderEmitter) Open(ctx context.Context) error {
 
 	// grab logger
 	e.log = autoctx.GetLogger(ctx)
-	e.log.Print("opening io.Reader emitter")
+	util.Log(e.log, "opening io.Reader emitter")
 
 	go func() {
 		defer close(e.output)
@@ -65,7 +66,7 @@ func (e *ReaderEmitter) Open(ctx context.Context) error {
 			if err != nil {
 				if err != io.EOF {
 					// TODO handle error
-					e.log.Println(err)
+					util.Log(e.log, err)
 				}
 				return
 			}

@@ -3,11 +3,12 @@ package stream
 import (
 	"context"
 	"fmt"
-	"log"
 	"reflect"
 
+	"github.com/go-faces/logger"
 	autoctx "github.com/vladimirvivien/automi/api/context"
 	"github.com/vladimirvivien/automi/api/tuple"
+	"github.com/vladimirvivien/automi/util"
 )
 
 // StreamOperator is an operator takes streamed items of type
@@ -17,7 +18,7 @@ type StreamOperator struct {
 	ctx    context.Context
 	input  <-chan interface{}
 	output chan interface{}
-	log    *log.Logger
+	log    logger.Interface
 }
 
 // New creates a *StreamOperator value
@@ -29,7 +30,7 @@ func New(ctx context.Context) *StreamOperator {
 	r.log = log
 	r.output = make(chan interface{}, 1024)
 
-	r.log.Print("component initialized")
+	util.Log(r.log, "stream operator initialized")
 	return r
 }
 
@@ -52,8 +53,8 @@ func (r *StreamOperator) Exec() (err error) {
 
 	go func() {
 		defer func() {
+			util.Log(r.log, "stream operator closing")
 			close(r.output)
-			r.log.Print("component shutting down")
 		}()
 		for {
 			select {
