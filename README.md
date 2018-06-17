@@ -245,7 +245,9 @@ Automi comes with a set of built-in components to get you started with stream pr
 
 * [ ] Fix log - ability to turn off
 * [ ] Remove dead code
+* [ ] Add copyright to source files
 * [ ] Doc wiki
+* [x] Dependency mgmt
 
 ### Future
 
