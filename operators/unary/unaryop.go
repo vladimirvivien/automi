@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/go-faces/logger"
 	"github.com/vladimirvivien/automi/api"
 	autoctx "github.com/vladimirvivien/automi/api/context"
 	"github.com/vladimirvivien/automi/util"
@@ -26,7 +25,7 @@ type UnaryOperator struct {
 	concurrency int
 	input       <-chan interface{}
 	output      chan interface{}
-	log         logger.Interface
+	logf        api.LogFunc
 	cancelled   bool
 	mutex       sync.RWMutex
 }
@@ -34,16 +33,14 @@ type UnaryOperator struct {
 // NewUnary creates *UnaryOperator value
 func New(ctx context.Context) *UnaryOperator {
 	// extract logger
-	log := autoctx.GetLogger(ctx)
-
 	o := new(UnaryOperator)
 	o.ctx = ctx
-	o.log = log
+	o.logf = autoctx.GetLogFunc(ctx)
 
 	o.concurrency = 1
 	o.output = make(chan interface{}, 1024)
 
-	util.Log(o.log, "unary operator initialized")
+	util.Logfn(o.logf, "Unary operator started")
 	return o
 }
 
@@ -84,7 +81,7 @@ func (o *UnaryOperator) Exec() (err error) {
 
 	go func() {
 		defer func() {
-			util.Log(o.log, "unary operator closing")
+			util.Logfn(o.logf, "Unary operator done")
 			close(o.output)
 		}()
 
@@ -108,11 +105,10 @@ func (o *UnaryOperator) Exec() (err error) {
 		select {
 		case <-wait:
 			if o.cancelled {
-				util.Log(o.log, "unary operator cancelled")
+				util.Logfn(o.logf, "Unary operator cancelled")
 				return
 			}
 		case <-o.ctx.Done():
-			util.Log(o.log, "unary operator done")
 			return
 		}
 	}()
@@ -121,7 +117,7 @@ func (o *UnaryOperator) Exec() (err error) {
 
 func (o *UnaryOperator) doProc(ctx context.Context) {
 	if o.op == nil {
-		util.Log(o.log, "unary operator missing operation")
+		util.Logfn(o.logf, "Unary operator missing operation")
 		return
 	}
 	exeCtx, cancel := context.WithCancel(ctx)
@@ -140,7 +136,7 @@ func (o *UnaryOperator) doProc(ctx context.Context) {
 			case nil:
 				continue
 			case error, api.ProcError:
-				util.Log(o.log, val)
+				util.Logfn(o.logf, val)
 				continue
 			default:
 				o.output <- val
@@ -148,7 +144,7 @@ func (o *UnaryOperator) doProc(ctx context.Context) {
 
 		// is cancelling
 		case <-ctx.Done():
-			util.Log(o.log, "unary operator cancelling")
+			util.Logfn(o.logf, "unary operator cancelling")
 			o.mutex.Lock()
 			cancel()
 			o.cancelled = true

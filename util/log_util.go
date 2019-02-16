@@ -1,17 +1,12 @@
 package util
 
-import "github.com/go-faces/logger"
+import (
+	"github.com/vladimirvivien/automi/api"
+)
 
-func Log(log logger.Interface, msg ...interface{}) {
-	if log == nil {
-		return
+// Logfn if f is not nil, invokes f(msg)
+func Logfn(f api.LogFunc, msg interface{}) {
+	if f != nil {
+		f(msg)
 	}
-	log.Print(msg...)
-}
-
-func Logf(log logger.Interface, format string, v ...interface{}) {
-	if log == nil {
-		return
-	}
-	log.Printf(format, v...)
 }

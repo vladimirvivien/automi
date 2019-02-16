@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/go-faces/logger"
 	"github.com/vladimirvivien/automi/api"
 	autoctx "github.com/vladimirvivien/automi/api/context"
 	"github.com/vladimirvivien/automi/util"
@@ -20,7 +19,7 @@ type BinaryOperator struct {
 	concurrency int
 	input       <-chan interface{}
 	output      chan interface{}
-	log         logger.Interface
+	logf        api.LogFunc
 	cancelled   bool
 	mutex       sync.RWMutex
 }
@@ -28,15 +27,13 @@ type BinaryOperator struct {
 // New creates a new binary operator
 func New(ctx context.Context) *BinaryOperator {
 	// extract logger
-	log := autoctx.GetLogger(ctx)
-
 	o := new(BinaryOperator)
 	o.ctx = ctx
-	o.log = log
+	o.logf = autoctx.GetLogFunc(ctx)
 	o.concurrency = 1
 	o.output = make(chan interface{}, 1024)
 
-	util.Log(o.log, "binary operator initialized")
+	util.Logfn(o.logf, "Binary operator started")
 	return o
 }
 
@@ -84,7 +81,7 @@ func (o *BinaryOperator) Exec() (err error) {
 		defer func() {
 			o.output <- o.state
 			close(o.output)
-			util.Log(o.log, "closing binary operator")
+			util.Logfn(o.logf, "Binary operator done")
 		}()
 
 		var barrier sync.WaitGroup
@@ -107,11 +104,10 @@ func (o *BinaryOperator) Exec() (err error) {
 		select {
 		case <-wait:
 			if o.cancelled {
-				util.Log(o.log, "binary operator cancelled")
+				util.Logfn(o.logf, "Binary operator cancelled")
 				return
 			}
 		case <-o.ctx.Done():
-			util.Log(o.log, "binary operator done")
 			return
 		}
 	}()
@@ -121,7 +117,7 @@ func (o *BinaryOperator) Exec() (err error) {
 // doProc is a helper function that executes the operation
 func (o *BinaryOperator) doProc(ctx context.Context) {
 	if o.op == nil {
-		o.log.Print("no operation defined for BinaryOperator")
+		util.Logfn(o.logf, "Binary operator has no operation")
 		return
 	}
 	exeCtx, cancel := context.WithCancel(ctx)
@@ -140,13 +136,13 @@ func (o *BinaryOperator) doProc(ctx context.Context) {
 			case nil:
 				continue
 			case error, api.ProcError:
-				o.log.Print(val)
+				util.Logfn(o.logf, val)
 				continue
 			}
 
 		// is cancelling
 		case <-ctx.Done():
-			o.log.Println("cancelling....")
+			util.Logfn(o.logf, "Binary operator cancelling")
 			o.mutex.Lock()
 			cancel()
 			o.cancelled = true

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/go-faces/logger"
+	"github.com/vladimirvivien/automi/api"
 	autoctx "github.com/vladimirvivien/automi/api/context"
 	"github.com/vladimirvivien/automi/util"
 )
@@ -20,7 +20,7 @@ type CollectorFunc func(interface{}) error
 //   CollectorFunc
 type FuncCollector struct {
 	input <-chan interface{}
-	log   logger.Interface
+	logf  api.LogFunc
 	f     CollectorFunc
 }
 
@@ -38,8 +38,8 @@ func (c *FuncCollector) SetInput(in <-chan interface{}) {
 
 // Open is the starting point that starts the collector
 func (c *FuncCollector) Open(ctx context.Context) <-chan error {
-	c.log = autoctx.GetLogger(ctx)
-	util.Log(c.log, "opening func collector")
+	c.logf = autoctx.GetLogFunc(ctx)
+	util.Logfn(c.logf, "Opening func collector")
 	result := make(chan error)
 
 	if c.input == nil {
@@ -54,14 +54,14 @@ func (c *FuncCollector) Open(ctx context.Context) <-chan error {
 
 	go func() {
 		defer func() {
-			util.Log(c.log, "closing func collector")
+			util.Logfn(c.logf, "Closing func collector")
 			close(result)
 		}()
 
 		for val := range c.input {
 			if err := c.f(val); err != nil {
 				// TODO proper error handling
-				util.Log(c.log, err)
+				util.Logfn(c.logf, err)
 			}
 		}
 	}()

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/go-faces/logger"
+	"github.com/vladimirvivien/automi/api"
 	autoctx "github.com/vladimirvivien/automi/api/context"
 	"github.com/vladimirvivien/automi/api/tuple"
 	"github.com/vladimirvivien/automi/util"
@@ -18,19 +18,17 @@ type StreamOperator struct {
 	ctx    context.Context
 	input  <-chan interface{}
 	output chan interface{}
-	log    logger.Interface
+	logf   api.LogFunc
 }
 
 // New creates a *StreamOperator value
 func New(ctx context.Context) *StreamOperator {
-	log := autoctx.GetLogger(ctx)
-
 	r := new(StreamOperator)
 	r.ctx = ctx
-	r.log = log
+	r.logf = autoctx.GetLogFunc(ctx)
 	r.output = make(chan interface{}, 1024)
 
-	util.Log(r.log, "stream operator initialized")
+	util.Logfn(r.logf, "Stream operator started")
 	return r
 }
 
@@ -53,7 +51,7 @@ func (r *StreamOperator) Exec() (err error) {
 
 	go func() {
 		defer func() {
-			util.Log(r.log, "stream operator closing")
+			util.Logfn(r.logf, "Stream operator done")
 			close(r.output)
 		}()
 		for {

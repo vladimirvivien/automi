@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/go-faces/logger"
 	"github.com/vladimirvivien/automi/api"
 	autoctx "github.com/vladimirvivien/automi/api/context"
 	"github.com/vladimirvivien/automi/util"
@@ -18,17 +17,16 @@ type BatchOperator struct {
 	ctx     context.Context
 	input   <-chan interface{}
 	output  chan interface{}
-	log     logger.Interface
+	logf    api.LogFunc
 	trigger api.BatchTrigger
 }
 
 // New returns a new BatchOperator operator
 func New(ctx context.Context) *BatchOperator {
-	log := autoctx.GetLogger(ctx)
 	op := new(BatchOperator)
 	op.ctx = ctx
-	op.log = log
-	util.Log(op.log, "starting batch operator")
+	op.logf = autoctx.GetLogFunc(ctx)
+	util.Logfn(op.logf, "Opening batch operator")
 	op.output = make(chan interface{}, 1024)
 	return op
 }
@@ -65,7 +63,7 @@ func (op *BatchOperator) Exec() (err error) {
 	go func() {
 		var batchValue reflect.Value
 		defer func() {
-			util.Log(op.log, "closing batch operator")
+			util.Logfn(op.logf, "Closing batch operator")
 			// push any straggler items in batch
 			if batchValue.IsValid() && batchValue.Len() > 0 {
 				op.output <- batchValue.Interface()

@@ -47,7 +47,7 @@ func isBinaryFuncForm(ftype reflect.Type) error {
 			return fmt.Errorf("binary function requires two params")
 		}
 		if ftype.NumOut() != 1 {
-			return fmt.Errorf("binary fun must return one param")
+			return fmt.Errorf("binary func must return one param")
 		}
 	default:
 		return fmt.Errorf("binary func must be of type func(S,T)R")

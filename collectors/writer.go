@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/go-faces/logger"
+	"github.com/vladimirvivien/automi/api"
 	autoctx "github.com/vladimirvivien/automi/api/context"
 	"github.com/vladimirvivien/automi/util"
 )
@@ -16,7 +16,7 @@ type WriterCollector struct {
 	wrtParam io.Writer
 	writer   *bufio.Writer
 	input    <-chan interface{}
-	log      logger.Interface
+	logf     api.LogFunc
 }
 
 func Writer(writer io.Writer) *WriterCollector {
@@ -30,8 +30,8 @@ func (c *WriterCollector) SetInput(in <-chan interface{}) {
 }
 
 func (c *WriterCollector) Open(ctx context.Context) <-chan error {
-	c.log = autoctx.GetLogger(ctx)
-	util.Log(c.log, "opening io.Writer collector")
+	c.logf = autoctx.GetLogFunc(ctx)
+	util.Logfn(c.logf, "Opening io.Writer collector")
 	result := make(chan error)
 
 	if err := c.setupWriter(); err != nil {
@@ -46,7 +46,7 @@ func (c *WriterCollector) Open(ctx context.Context) <-chan error {
 				return
 			}
 			close(result)
-			util.Log(c.log, "closing io.Writer collector")
+			util.Logfn(c.logf, "Closing io.Writer collector")
 		}()
 
 		for val := range c.input {
@@ -55,7 +55,7 @@ func (c *WriterCollector) Open(ctx context.Context) <-chan error {
 				fmt.Fprint(c.writer, data)
 			case []byte:
 				if _, err := c.writer.Write(data); err != nil {
-					util.Log(c.log, err)
+					util.Logfn(c.logf, err)
 					//TODO runtime error handling
 					continue
 				}

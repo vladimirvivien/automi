@@ -7,7 +7,6 @@ import (
 	"os"
 	"reflect"
 
-	"github.com/go-faces/logger"
 	"github.com/vladimirvivien/automi/api"
 	autoctx "github.com/vladimirvivien/automi/api/context"
 	"github.com/vladimirvivien/automi/collectors"
@@ -26,7 +25,8 @@ type Stream struct {
 	drain    chan error
 	ops      []api.Operator
 	ctx      context.Context
-	log      logger.Interface
+	logf     api.LogFunc
+	errf     api.ErrorFunc
 }
 
 // New creates a new *Stream value
@@ -37,15 +37,35 @@ func New(src interface{}) *Stream {
 		drain:    make(chan error),
 		ctx:      context.Background(),
 	}
-	s.log = autoctx.GetLogger(s.ctx)
+
 	return s
 }
 
 // WithContext sets a context.Context to use.
-// Provide a context with a logger.Interface to turn on logging.
-// i.e. log.New(os.Stderr, log.Prefix(), log.Flags())
 func (s *Stream) WithContext(ctx context.Context) *Stream {
 	s.ctx = ctx
+	return s
+}
+
+//GetContext returns internal Stream context
+func (s *Stream) GetContext() context.Context {
+	return s.ctx
+}
+
+// WithLogFunc sets a function that will receive internal log events
+// at runtime.  Supported log function type: func(interface{})
+func (s *Stream) WithLogFunc(fn api.LogFunc) *Stream {
+	s.logf = fn
+	s.ctx = autoctx.WithLogFunc(s.ctx, fn)
+	return s
+}
+
+// WithErrorFunc sets a function that will be invoked when the
+// operator indicates it wants to signal an error by defining an
+// operator function of the form func(data)error.
+func (s *Stream) WithErrorFunc(fn api.ErrorFunc) *Stream {
+	s.errf = fn
+	s.ctx = autoctx.WithErrorFunc(s.ctx, fn)
 	return s
 }
 
@@ -79,6 +99,8 @@ func (s *Stream) Open() <-chan error {
 		return s.drain
 	}
 
+	util.Logfn(s.logf, "Opening stream")
+
 	// open stream
 	go func() {
 		// open source, if err bail
@@ -93,9 +115,11 @@ func (s *Stream) Open() <-chan error {
 				return
 			}
 		}
-		// open sink and block until stream is done
+
+		// open stream sink, after log sink is ready.
 		select {
 		case err := <-s.sink.Open(s.ctx):
+			util.Logfn(s.logf, "Closing stream")
 			s.drain <- err
 		}
 	}()
@@ -105,7 +129,7 @@ func (s *Stream) Open() <-chan error {
 
 // bindOps binds operator channels
 func (s *Stream) bindOps() {
-	util.Log(s.log, "binding operators")
+	util.Logfn(s.logf, "Binding operators")
 	if s.ops == nil {
 		return
 	}
@@ -120,7 +144,7 @@ func (s *Stream) bindOps() {
 
 // initGraph initialize stream graph source + ops +
 func (s *Stream) initGraph() error {
-	util.Log(s.log, "preparing stream operator graph")
+	util.Logfn(s.logf, "Initializing operators")
 
 	// setup source type
 	if err := s.setupSource(); err != nil {
@@ -134,7 +158,7 @@ func (s *Stream) initGraph() error {
 
 	// if there are no ops, link source to sink
 	if len(s.ops) == 0 && s.sink != nil {
-		util.Log(s.log, "no operator nodes found, binding source to sink directly")
+		util.Logfn(s.logf, "No operators in stream, binding source to sink directly")
 		s.sink.SetInput(s.source.GetOutput())
 		return nil
 	}
