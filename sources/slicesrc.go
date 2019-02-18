@@ -15,7 +15,7 @@ type SliceSrc struct {
 	log    *log.Logger
 }
 
-// SliceSrc creates new slice source
+// Slice creates new slice source
 func Slice(elems ...interface{}) *SliceSrc {
 	return &SliceSrc{
 		src:    elems,
@@ -23,7 +23,7 @@ func Slice(elems ...interface{}) *SliceSrc {
 	}
 }
 
-// GetOuptut returns the output channel of this source node
+// GetOutput returns the output channel of this source node
 func (s *SliceSrc) GetOutput() <-chan interface{} {
 	return s.output
 }

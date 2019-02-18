@@ -19,7 +19,7 @@ type StreamOp struct {
 	log    *log.Logger
 }
 
-// NewSteamOp creates a *StreamOp value
+// NewStreamOp creates a *StreamOp value
 func NewStreamOp(ctx context.Context) *StreamOp {
 	log := autoctx.GetLogger(ctx)
 
