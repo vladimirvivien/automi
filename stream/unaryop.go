@@ -30,7 +30,7 @@ type UnaryOp struct {
 	mutex       sync.RWMutex
 }
 
-// NewUnary creates *UnaryOp value
+// NewUnaryOp creates *UnaryOp value
 func NewUnaryOp(ctx context.Context) *UnaryOp {
 	// extract logger
 	log := autoctx.GetLogger(ctx)

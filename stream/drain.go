@@ -26,7 +26,7 @@ func (s *Drain) SetInput(in <-chan interface{}) {
 	s.input = in
 }
 
-// GetOuput returns output channel for stream node
+// GetOutput returns output channel for stream node
 func (s *Drain) GetOutput() <-chan interface{} {
 	return s.output
 }

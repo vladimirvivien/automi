@@ -23,7 +23,7 @@ type BinaryOp struct {
 	mutex       sync.RWMutex
 }
 
-// NewBinOp creates a new binary operation executor
+// NewBinaryOp creates a new binary operation executor
 func NewBinaryOp(ctx context.Context) *BinaryOp {
 	// extract logger
 	log := autoctx.GetLogger(ctx)
