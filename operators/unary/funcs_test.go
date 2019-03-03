@@ -3,28 +3,79 @@ package unary
 import (
 	"bytes"
 	"context"
+	"reflect"
+	"strings"
 	"testing"
 )
 
 func TestUnaryFunc_Process(t *testing.T) {
-	op, err := ProcessFunc(func(item int) int {
-		return item * 2
-	})
-
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name           string
+		procFunc       interface{}
+		input          interface{}
+		expected       interface{}
+		ctx            context.Context
+		funcShouldFail bool
+		opShouldFail   bool
+	}{
+		{
+			name: "unary funcForm1, OK",
+			procFunc: func(item int) int {
+				return item * 2
+			},
+			input:    6,
+			expected: 12,
+		},
+		{
+			name: "unary funcForm1, procFunc fail",
+			procFunc: func(item string) string {
+				return strings.ToUpper(item)
+			},
+			input:        "hello",
+			expected:     "BELLO",
+			opShouldFail: true,
+		},
+		{
+			name: "unary funcForm2, OK",
+			ctx:  context.Background(),
+			procFunc: func(ctx context.Context, item string) string {
+				return strings.ToUpper(item)
+			},
+			input:    "hello",
+			expected: "HELLO",
+		},
+		{
+			name: "unary with two returns",
+			procFunc: func(item string) (string, int) {
+				return item, 0
+			},
+			funcShouldFail: true,
+		},
 	}
 
-	sum := 0
-	ctx := context.TODO()
-	for _, v := range []int{2, 4, 6, 8} {
-		result := op.Apply(ctx, v)
-		sum += result.(int)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			op, err := ProcessFunc(test.procFunc)
+			if test.funcShouldFail && err == nil {
+				t.Errorf("expecting failure, but error is nil")
+			}
+			switch {
+			case !test.funcShouldFail:
+				if err != nil {
+					t.Fatal(err)
+				}
+				result := op.Apply(test.ctx, test.input)
+				if !test.opShouldFail && !reflect.DeepEqual(result, test.expected) {
+					t.Errorf("expecting %v got %v", test.expected, result)
+				}
+			case test.opShouldFail:
+				if err == nil {
+					t.Fatal("expecting failure, but error is nil")
+				}
+			}
+		})
 	}
 
-	if sum != 40 {
-		t.Fatal("unexpected result from ProcessFunc:", sum)
-	}
 }
 
 func TestUnaryFunc_Filter(t *testing.T) {

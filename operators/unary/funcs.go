@@ -36,16 +36,7 @@ func ProcessFunc(f interface{}) (api.UnFunc, error) {
 	fnval := reflect.ValueOf(f)
 
 	return api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
-		var result reflect.Value
-		switch funcForm {
-		case unaryFuncForm1:
-			arg0 := reflect.ValueOf(data)
-			result = fnval.Call([]reflect.Value{arg0})[0]
-		case unaryFuncForm2:
-			arg0 := reflect.ValueOf(ctx)
-			arg1 := reflect.ValueOf(data)
-			result = fnval.Call([]reflect.Value{arg0, arg1})[0]
-		}
+		result := callOpFunc(fnval, ctx, data, funcForm)
 		return result.Interface()
 	}), nil
 }
@@ -74,16 +65,7 @@ func FilterFunc(f interface{}) (api.UnFunc, error) {
 
 	fnval := reflect.ValueOf(f)
 	return api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
-		var result reflect.Value
-		switch funcForm {
-		case unaryFuncForm1:
-			arg0 := reflect.ValueOf(data)
-			result = fnval.Call([]reflect.Value{arg0})[0]
-		case unaryFuncForm2:
-			arg0 := reflect.ValueOf(ctx)
-			arg1 := reflect.ValueOf(data)
-			result = fnval.Call([]reflect.Value{arg0, arg1})[0]
-		}
+		result := callOpFunc(fnval, ctx, data, funcForm)
 		predicate := result.Bool()
 		if !predicate {
 			return nil
@@ -130,8 +112,12 @@ func FlatMapFunc(f interface{}) (api.UnFunc, error) {
 			result = fnval.Call([]reflect.Value{arg0})[0]
 		case unaryFuncForm2:
 			arg0 := reflect.ValueOf(ctx)
-			arg1 := reflect.ValueOf(data)
-			result = fnval.Call([]reflect.Value{arg0, arg1})[0]
+			if arg0.IsValid() {
+				result = fnval.Call([]reflect.Value{arg0})[0]
+			} else {
+				arg1 := reflect.ValueOf(data)
+				result = fnval.Call([]reflect.Value{arg0, arg1})[0]
+			}
 		}
 		return result.Interface()
 	}), nil
@@ -143,23 +129,40 @@ func isUnaryFuncForm(ftype reflect.Type) (unaryFuncForm, error) {
 	if ftype.NumOut() != 1 {
 		return unaryFuncUnsupported, fmt.Errorf("unary func must return one param")
 	}
-	// enforce f with sig fn(in)out
+
 	switch ftype.Kind() {
 	case reflect.Func:
 		switch ftype.NumIn() {
 		case 1:
-			// do nothing
+			// f(in)out, ok
 			return unaryFuncForm1, nil
 		case 2:
 			// func(context,in)out
 			param0 := ftype.In(0)
 			if param0.Kind() != reflect.Interface {
-				return unaryFuncUnsupported, fmt.Errorf("unary func must be of type func(T)R or func(context.Context, T)R")
+				return unaryFuncUnsupported, fmt.Errorf("unary must be type func(T)R or func(context.Context, T)R")
 			}
 			return unaryFuncForm2, nil
 		}
 	}
 	return unaryFuncUnsupported, fmt.Errorf("unary func must be of type func(T)R or func(context.Context,T)R")
+}
+
+func callOpFunc(fnval reflect.Value, ctx context.Context, data interface{}, funcForm unaryFuncForm) reflect.Value {
+	var result reflect.Value
+	switch funcForm {
+	case unaryFuncForm1:
+		arg0 := reflect.ValueOf(data)
+		result = fnval.Call([]reflect.Value{arg0})[0]
+	case unaryFuncForm2:
+		arg0 := reflect.ValueOf(ctx)
+		arg1 := reflect.ValueOf(data)
+		if !arg0.IsValid() {
+			arg0 = reflect.ValueOf(context.Background())
+		}
+		result = fnval.Call([]reflect.Value{arg0, arg1})[0]
+	}
+	return result
 }
 
 func isArgContext(val reflect.Value) bool {
