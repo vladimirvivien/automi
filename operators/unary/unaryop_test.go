@@ -2,6 +2,7 @@ package unary
 
 import (
 	"context"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -11,90 +12,122 @@ import (
 )
 
 func TestUnaryOp_New(t *testing.T) {
-	o := New(context.Background())
-
-	if o.output == nil {
-		t.Fatal("Missing output")
+	tests := []struct {
+		name   string
+		ctx    context.Context
+		in     <-chan interface{}
+		op     api.UnOperation
+		concur int
+	}{
+		{
+			name: "new op1",
+			ctx:  context.Background(),
+			op: api.UnFunc(func(context.Context, interface{}) interface{} {
+				return nil
+			}),
+			concur: 2,
+		},
+		{
+			name:   "new op2",
+			ctx:    context.Background(),
+			concur: 2,
+			in:     make(chan interface{}),
+		},
 	}
 
-	if o.op != nil {
-		t.Fatal("Processing element should be nil")
-	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			o := New(test.ctx)
 
-	if o.concurrency != 1 {
-		t.Fatal("Concurrency should be initialized to 1.")
+			if !reflect.DeepEqual(test.ctx, o.ctx) {
+				t.Fatal("Missing context")
+			}
+
+			if o.GetOutput() == nil {
+				t.Fatal("default output should not be nil")
+			}
+
+			if o.op != nil {
+				t.Fatal("Processing element should be nil")
+			}
+
+			if o.concurrency != 1 {
+				t.Fatal("Concurrency should be initialized to 1.")
+			}
+
+			o.SetOperation(test.op)
+			if (test.op != nil) && (o.op == nil) {
+				t.Fatal("operation not set properly")
+			}
+
+			o.SetConcurrency(test.concur)
+			if test.concur != o.concurrency {
+				t.Fatal("unexpected concurrency value set:", o.concurrency)
+			}
+
+			o.SetInput(test.in)
+			if test.in != nil && o.input == nil {
+				t.Fatal("unexpected input set:", o.input)
+			}
+		})
 	}
 }
-func TestUnaryOp_Params(t *testing.T) {
-	o := New(context.Background())
-	op := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
-		return nil
-	})
-	in := make(chan interface{})
 
-	o.SetOperation(op)
-	if o.op == nil {
-		t.Fatal("process Elem not set")
+func TestUnaryOp_NoError(t *testing.T) {
+	tests := []struct {
+		name   string
+		data   func() <-chan interface{}
+		op     api.UnOperation
+		tester func(*testing.T, <-chan interface{})
+	}{
+		{
+			name: "normal proc",
+			data: func() <-chan interface{} {
+				in := make(chan interface{})
+				go func() {
+					in <- []string{"A", "B", "C"}
+					in <- []string{"D", "E"}
+					in <- []string{"G"}
+					close(in)
+				}()
+				return in
+			},
+			op: api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
+				values := data.([]string)
+				return len(values)
+			}),
+			tester: func(t *testing.T, out <-chan interface{}) {
+				for data := range out {
+					val := data.(int)
+					if val != 3 && val != 2 && val != 1 {
+						t.Fatalf("Expecting values 3, 2, or 1, but got %d", val)
+					}
+				}
+			},
+		},
 	}
 
-	o.SetConcurrency(4)
-	if o.concurrency != 4 {
-		t.Fatal("Concurrency not being set")
-	}
+	for _, test := range tests {
+		o := New(context.Background())
+		o.SetInput(test.data())
+		o.SetOperation(test.op)
 
-	o.SetInput(in)
-	if o.input == nil {
-		t.Fatal("Input not being set")
-	}
+		wait := make(chan struct{})
+		tc := test
+		go func() {
+			defer close(wait)
+			tc.tester(t, o.GetOutput())
+		}()
 
-	if o.GetOutput() == nil {
-		t.Fatal("Output not set")
-	}
-}
-
-func TestUnaryOp_Exec(t *testing.T) {
-	ctx, _ := context.WithCancel(context.Background())
-	o := New(ctx)
-
-	op := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
-		values := data.([]string)
-		t.Logf("Processing data %v, sending %d", values, len(values))
-		return len(values)
-	})
-	o.SetOperation(op)
-
-	in := make(chan interface{})
-	go func() {
-		in <- []string{"A", "B", "C"}
-		in <- []string{"D", "E"}
-		in <- []string{"G"}
-		close(in)
-	}()
-	o.SetInput(in)
-
-	wait := make(chan struct{})
-	go func() {
-		defer close(wait)
-		for data := range o.GetOutput() {
-			val, ok := data.(int)
-			t.Logf("Got value %v", val)
-			if !ok {
-				t.Fatalf("Expecting type int, got %T, value %v", val, val)
-			}
-			if val != 3 && val != 2 && val != 1 {
-				t.Fatalf("Expecting values 3, 2, or 1, but got %d", val)
-			}
+		if err := o.Exec(); err != nil {
+			t.Fatal(err)
 		}
-	}()
 
-	if err := o.Exec(); err != nil {
-		t.Fatal(err)
-	}
-
-	select {
-	case <-wait:
-	case <-time.After(50 * time.Millisecond):
-		t.Fatal("Took too long...")
+		select {
+		case <-wait:
+		case <-time.After(50 * time.Millisecond):
+			t.Fatal("Took too long...")
+		}
 	}
 }
 

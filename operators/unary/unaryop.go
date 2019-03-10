@@ -26,6 +26,7 @@ type UnaryOperator struct {
 	input       <-chan interface{}
 	output      chan interface{}
 	logf        api.LogFunc
+	errf        api.ErrorFunc
 	cancelled   bool
 	mutex       sync.RWMutex
 }
@@ -36,6 +37,7 @@ func New(ctx context.Context) *UnaryOperator {
 	o := new(UnaryOperator)
 	o.ctx = ctx
 	o.logf = autoctx.GetLogFunc(ctx)
+	o.errf = autoctx.GetErrFunc(ctx)
 
 	o.concurrency = 1
 	o.output = make(chan interface{}, 1024)
@@ -127,6 +129,7 @@ func (o *UnaryOperator) doProc(ctx context.Context) {
 		// process incoming item
 		case item, opened := <-o.input:
 			if !opened {
+				cancel()
 				return
 			}
 
@@ -135,9 +138,25 @@ func (o *UnaryOperator) doProc(ctx context.Context) {
 			switch val := result.(type) {
 			case nil:
 				continue
-			case error, api.ProcError:
+			case api.StreamError:
 				util.Logfn(o.logf, val)
+				autoctx.Err(o.errf, val)
+				o.output <- val.Item()
 				continue
+			case api.PanicStreamError:
+				util.Logfn(o.logf, val)
+				autoctx.Err(o.errf, api.StreamError(val))
+				panic(val)
+			case api.CancelStreamError:
+				util.Logfn(o.logf, val)
+				autoctx.Err(o.errf, api.StreamError(val))
+				func() {
+					o.mutex.Lock()
+					defer o.mutex.Unlock()
+					cancel()
+					o.cancelled = true
+				}()
+
 			default:
 				o.output <- val
 			}
@@ -145,10 +164,12 @@ func (o *UnaryOperator) doProc(ctx context.Context) {
 		// is cancelling
 		case <-ctx.Done():
 			util.Logfn(o.logf, "unary operator cancelling")
-			o.mutex.Lock()
-			cancel()
-			o.cancelled = true
-			o.mutex.Unlock()
+			func() {
+				o.mutex.Lock()
+				defer o.mutex.Unlock()
+				cancel()
+				o.cancelled = true
+			}()
 			return
 		}
 	}

@@ -49,6 +49,15 @@ func WithErrorFunc(ctx context.Context, errFunc api.ErrorFunc) context.Context {
 	return context.WithValue(ctx, errFuncKey, errFunc)
 }
 
+// GetErrFunc returns the error handling function stored in the context.
+func GetErrFunc(ctx context.Context) api.ErrorFunc {
+	fn, ok := ctx.Value(errFuncKey).(api.ErrorFunc)
+	if !ok {
+		return nil
+	}
+	return fn
+}
+
 // HandleErr used to invoke registered error handler to handle error.
 func HandleErr(ctx context.Context, err error) error {
 	val := ctx.Value(errFuncKey)
@@ -63,4 +72,10 @@ func HandleErr(ctx context.Context, err error) error {
 		fn(err)
 	}
 	return nil
+}
+
+func Err(fn api.ErrorFunc, err api.StreamError) {
+	if fn != nil {
+		fn(err)
+	}
 }

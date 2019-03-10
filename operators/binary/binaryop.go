@@ -20,6 +20,7 @@ type BinaryOperator struct {
 	input       <-chan interface{}
 	output      chan interface{}
 	logf        api.LogFunc
+	errf        api.ErrorFunc
 	cancelled   bool
 	mutex       sync.RWMutex
 }
@@ -30,6 +31,7 @@ func New(ctx context.Context) *BinaryOperator {
 	o := new(BinaryOperator)
 	o.ctx = ctx
 	o.logf = autoctx.GetLogFunc(ctx)
+	o.errf = autoctx.GetErrFunc(ctx)
 	o.concurrency = 1
 	o.output = make(chan interface{}, 1024)
 
@@ -135,8 +137,9 @@ func (o *BinaryOperator) doProc(ctx context.Context) {
 			switch val := o.state.(type) {
 			case nil:
 				continue
-			case error, api.ProcError:
+			case api.StreamError:
 				util.Logfn(o.logf, val)
+				autoctx.Err(o.errf, val)
 				continue
 			}
 

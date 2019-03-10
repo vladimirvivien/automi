@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 )
 
 type Emitter interface {
@@ -52,18 +51,6 @@ type Operator interface {
 	Exec() error
 }
 
-type ProcError struct {
-	Err      error
-	ProcName string
-}
-
-func (e ProcError) Error() string {
-	if e.ProcName != "" {
-		return fmt.Sprintf("[%s] %v", e.ProcName, e.Err)
-	}
-	return e.Err.Error()
-}
-
 // LogFunc represents a function to handle log events
 type LogFunc func(interface{})
 
@@ -72,20 +59,27 @@ type ErrorFunc func(StreamError)
 
 // StreamError is used to signal runtime stream error
 type StreamError struct {
-	Err    error
-	OpName string
-	ItemID int64
+	err  string     // Error message
+	item StreamItem // Item that caused error
 }
 
 func (e StreamError) Error() string {
-	return e.Err.Error()
+	return e.err
+}
+
+func (e StreamError) Item() interface{} {
+	return e.item
+}
+
+func Error(msg string, item StreamItem) StreamError {
+	return StreamError{err: msg, item: item}
 }
 
 // PanicStreamError signals that the stream should panic immediately
 type PanicStreamError StreamError
 
 func (e PanicStreamError) Error() string {
-	return e.Err.Error()
+	return e.err
 }
 
 // CancelStreamError signals that all stream activities should stop
@@ -93,7 +87,7 @@ func (e PanicStreamError) Error() string {
 type CancelStreamError StreamError
 
 func (e CancelStreamError) Error() string {
-	return e.Err.Error()
+	return e.err
 }
 
 // StreamItem can be used to provide a rich repressentation of streaming data.
@@ -101,8 +95,7 @@ func (e CancelStreamError) Error() string {
 // including context, metadata, and error.
 type StreamItem struct {
 	Index    int64             // index of the item in the stream
-	Context  context.Context   // context of the stream
 	Data     interface{}       // data being stream
 	MetaData map[string]string // user-provided stream metadat
-	Error    StreamError       // any error from previous step
+	Context  context.Context   // stream context
 }
