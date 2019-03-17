@@ -141,7 +141,9 @@ func (o *UnaryOperator) doProc(ctx context.Context) {
 			case api.StreamError:
 				util.Logfn(o.logf, val)
 				autoctx.Err(o.errf, val)
-				o.output <- val.Item()
+				if item := val.Item(); item != nil {
+					o.output <- *item
+				}
 				continue
 			case api.PanicStreamError:
 				util.Logfn(o.logf, val)
@@ -156,6 +158,10 @@ func (o *UnaryOperator) doProc(ctx context.Context) {
 					cancel()
 					o.cancelled = true
 				}()
+			case error:
+				util.Logfn(o.logf, val)
+				autoctx.Err(o.errf, api.Error(val.Error()))
+				continue
 
 			default:
 				o.output <- val

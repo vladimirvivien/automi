@@ -59,19 +59,23 @@ type ErrorFunc func(StreamError)
 
 // StreamError is used to signal runtime stream error
 type StreamError struct {
-	err  string     // Error message
-	item StreamItem // Item that caused error
+	err  string      // Error message
+	item *StreamItem // Item that caused error
 }
 
 func (e StreamError) Error() string {
 	return e.err
 }
 
-func (e StreamError) Item() interface{} {
+func (e StreamError) Item() *StreamItem {
 	return e.item
 }
 
-func Error(msg string, item StreamItem) StreamError {
+func Error(msg string) StreamError {
+	return StreamError{err: msg}
+}
+
+func ErrorWithItem(msg string, item *StreamItem) StreamError {
 	return StreamError{err: msg, item: item}
 }
 
@@ -95,7 +99,7 @@ func (e CancelStreamError) Error() string {
 // including context, metadata, and error.
 type StreamItem struct {
 	Index    int64             // index of the item in the stream
-	Data     interface{}       // data being stream
+	Item     interface{}       // data item being stream
 	MetaData map[string]string // user-provided stream metadat
 	Context  context.Context   // stream context
 }

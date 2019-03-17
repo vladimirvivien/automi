@@ -105,20 +105,7 @@ func FlatMapFunc(f interface{}) (api.UnFunc, error) {
 
 	fnval := reflect.ValueOf(f)
 	return api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
-		var result reflect.Value
-		switch funcForm {
-		case unaryFuncForm1:
-			arg0 := reflect.ValueOf(data)
-			result = fnval.Call([]reflect.Value{arg0})[0]
-		case unaryFuncForm2:
-			arg0 := reflect.ValueOf(ctx)
-			if arg0.IsValid() {
-				result = fnval.Call([]reflect.Value{arg0})[0]
-			} else {
-				arg1 := reflect.ValueOf(data)
-				result = fnval.Call([]reflect.Value{arg0, arg1})[0]
-			}
-		}
+		result := callOpFunc(fnval, ctx, data, funcForm)
 		return result.Interface()
 	}), nil
 }
