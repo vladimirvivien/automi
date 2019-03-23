@@ -3,15 +3,19 @@
 ## 0.1 Alpha - Tasks
 
 * [x] Refactor log - implement logging with handler func
-* [ ] Error propagation and handling strategies
-* [ ] Support ability to pass context to user-defined operation functions
-* [ ] Add copyright to source files
-* [ ] Doc wiki
+* [x] Error propagation and handling strategies
+* [x] Support ability to pass context to user-defined operation functions
 * [x] Dependency mgmt
-* [ ] Fix tests with `-race` failure
+* [x] Fix tests with `-race` failure
+* [ ] HTTP example
+* [ ] Examples with error handling
+* [ ] Examples with logging
+* [ ] Reset/squash commit history
+* [ ] Merge to main
 
 ## 0.2 Alpha - Tasks
-
+* [ ] Add copyright to source files
+* [ ] Doc wiki
 * [ ] Remove dead code
 * [ ] Context cancellation check for all components
 * [ ] Internal type hierarchy refactoring
