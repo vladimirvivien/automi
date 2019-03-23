@@ -10,7 +10,7 @@ import (
 )
 
 func TestStreamOp_New(t *testing.T) {
-	s := New(context.Background())
+	s := New()
 
 	if s.output == nil {
 		t.Fatal("Missing output")
@@ -18,7 +18,7 @@ func TestStreamOp_New(t *testing.T) {
 }
 
 func TestStreamOp_Params(t *testing.T) {
-	o := New(context.Background())
+	o := New()
 	in := make(chan interface{})
 
 	o.SetInput(in)
@@ -32,8 +32,7 @@ func TestStreamOp_Params(t *testing.T) {
 }
 
 func TestStreamOp_Exec(t *testing.T) {
-	ctx, _ := context.WithCancel(context.Background())
-	o := New(ctx)
+	o := New()
 
 	in := make(chan interface{})
 	go func() {
@@ -57,7 +56,7 @@ func TestStreamOp_Exec(t *testing.T) {
 		}
 	}()
 
-	if err := o.Exec(); err != nil {
+	if err := o.Exec(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -72,8 +71,7 @@ func TestStreamOp_Exec(t *testing.T) {
 }
 
 func BenchmarkStreamOp_Exec(b *testing.B) {
-	ctx := context.Background()
-	o := New(ctx)
+	o := New()
 	N := b.N
 
 	chanSize := func() int {
@@ -111,7 +109,7 @@ func BenchmarkStreamOp_Exec(b *testing.B) {
 		}
 	}()
 
-	if err := o.Exec(); err != nil {
+	if err := o.Exec(context.TODO()); err != nil {
 		b.Fatal("Error during execution:", err)
 	}
 

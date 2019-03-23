@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -215,6 +216,125 @@ func TestStream_UnaryOpertors(t *testing.T) {
 				test.tester(test.sink)
 			case <-time.After(50 * time.Millisecond):
 				t.Fatal("Waited too long ...")
+			}
+		})
+	}
+}
+
+//TODO
+func TestStream_UnaryOpertorsErrorHandling(t *testing.T) {
+	tests := []struct {
+		name         string
+		stream       func() *Stream
+		errHandler   func(*int) api.ErrorFunc
+		expectedErrs int
+	}{
+		{
+			name: "error with error type",
+			stream: func() *Stream {
+				src := emitters.Slice([]string{"hello", "world"})
+				snk := collectors.Slice()
+				strm := New(src)
+				strm.Process(func(s string) interface{} {
+					if s == "world" {
+						return errors.New("unsupported data")
+					}
+					return s
+				}).Into(snk)
+				return strm
+			},
+			errHandler: func(counter *int) api.ErrorFunc {
+				return func(err api.StreamError) {
+					t.Log("received error")
+					*counter++
+				}
+			},
+			expectedErrs: 1,
+		},
+		{
+			name: "error with StreamError type",
+			stream: func() *Stream {
+				src := emitters.Slice([]string{"hello", "world"})
+				snk := collectors.Slice()
+				strm := New(src)
+				strm.Process(func(s string) interface{} {
+					if s == "world" || s == "hello" {
+						return api.Error("unsupported data")
+					}
+					return s
+				}).Into(snk)
+				return strm
+			},
+			errHandler: func(counter *int) api.ErrorFunc {
+				return func(err api.StreamError) {
+					t.Log("received error")
+					*counter++
+				}
+			},
+			expectedErrs: 2,
+		},
+		{
+			name: "error with CancelStreamError type",
+			stream: func() *Stream {
+				src := emitters.Slice([]string{"hello", "world"})
+				snk := collectors.Slice()
+				strm := New(src)
+				strm.Process(func(s string) interface{} {
+					if s == "world" {
+						return api.CancellationError("cancel stream")
+					}
+					return s
+				}).Into(snk)
+				return strm
+			},
+			errHandler: func(counter *int) api.ErrorFunc {
+				return func(err api.StreamError) {
+					t.Log("received error")
+					*counter++
+				}
+			},
+			expectedErrs: 1,
+		},
+		// {
+		// 	name: "error with PanicStreamError type",
+		// 	stream: func() *Stream {
+		// 		src := emitters.Slice([]string{"hello", "boom", "world"})
+		// 		snk := collectors.Slice()
+		// 		strm := New(src)
+		// 		strm.Process(func(s string) interface{} {
+		// 			if s == "boom" {
+		// 				return api.PanickingError("panic stream")
+		// 			}
+		// 			return s
+		// 		}).Into(snk)
+		// 		return strm
+		// 	},
+		// 	errHandler: func(counter *int) api.ErrorFunc {
+		// 		return func(err api.StreamError) {
+		// 			t.Log("received error")
+		// 			*counter++
+		// 		}
+		// 	},
+		// 	expectedErrs: 1,
+		// },
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			counter := 0
+			strm := test.stream()
+			strm.WithErrorFunc(test.errHandler(&counter))
+			select {
+			case err := <-strm.Open():
+				if err != nil {
+					t.Fatal(err)
+				}
+			case <-time.After(50 * time.Millisecond):
+				t.Fatal("Waited too long ...")
+			}
+
+			if counter != test.expectedErrs {
+				t.Fatal("expected error count mismatched:", counter)
 			}
 		})
 	}

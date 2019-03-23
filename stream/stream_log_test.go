@@ -36,7 +36,7 @@ func TestStream_Log(t *testing.T) {
 
 	strm := New(src).WithContext(ctx)
 	strm.Process(func(val string) error {
-		if err := autoctx.Log(strm.GetContext(), "Processing"); err != nil {
+		if err := autoctx.Log(strm.ctx, "Processing"); err != nil {
 			t.Fatal(err)
 		}
 		return nil
@@ -76,7 +76,7 @@ func TestStream_Log_With_Logger(t *testing.T) {
 
 	strm := New(src).WithContext(ctx)
 	strm.Process(func(val string) error {
-		if err := autoctx.Log(strm.GetContext(), "Processing"); err != nil {
+		if err := autoctx.Log(strm.ctx, "Processing"); err != nil {
 			t.Fatal(err)
 		}
 		return nil

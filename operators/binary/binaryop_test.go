@@ -10,7 +10,7 @@ import (
 )
 
 func TestBinaryOp_New(t *testing.T) {
-	o := New(context.Background())
+	o := New()
 
 	if o.output == nil {
 		t.Fatal("Missing output")
@@ -25,7 +25,7 @@ func TestBinaryOp_New(t *testing.T) {
 	}
 }
 func TestBinaryOp_Params(t *testing.T) {
-	o := New(context.Background())
+	o := New()
 	op := api.BinFunc(func(ctx context.Context, op1, op2 interface{}) interface{} {
 		return nil
 	})
@@ -52,8 +52,7 @@ func TestBinaryOp_Params(t *testing.T) {
 }
 
 func TestBinaryOp_Exec(t *testing.T) {
-	ctx, _ := context.WithCancel(context.Background())
-	o := New(ctx)
+	o := New()
 
 	o.SetInitialState(0)
 	op := api.BinFunc(func(ctx context.Context, op1, op2 interface{}) interface{} {
@@ -75,7 +74,7 @@ func TestBinaryOp_Exec(t *testing.T) {
 	}()
 	o.SetInput(in)
 
-	if err := o.Exec(); err != nil {
+	if err := o.Exec(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -92,7 +91,7 @@ func TestBinaryOp_Exec(t *testing.T) {
 
 func BenchmarkBinaryOp_Exec(b *testing.B) {
 	ctx := context.Background()
-	o := New(ctx)
+	o := New()
 	N := b.N
 
 	chanSize := func() int {
@@ -121,7 +120,7 @@ func BenchmarkBinaryOp_Exec(b *testing.B) {
 
 	// process output
 
-	if err := o.Exec(); err != nil {
+	if err := o.Exec(ctx); err != nil {
 		b.Fatal("Error during execution:", err)
 	}
 

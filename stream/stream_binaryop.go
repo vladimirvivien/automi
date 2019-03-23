@@ -12,7 +12,7 @@ import "github.com/vladimirvivien/automi/operators/binary"
 // If reductive operations are called after open-ended emitters
 // (i.e. network service), they may never end.
 func (s *Stream) Reduce(seed, f interface{}) *Stream {
-	operator := binary.New(s.ctx)
+	operator := binary.New()
 	op, err := binary.ReduceFunc(f)
 	if err != nil {
 		s.drainErr(err)

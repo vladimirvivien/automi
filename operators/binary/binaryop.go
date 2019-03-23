@@ -13,7 +13,6 @@ import (
 // BinaryOperator represents an operator that knows how to run a
 // binary operations such as aggregation, reduction, etc.
 type BinaryOperator struct {
-	ctx         context.Context
 	op          api.BinOperation
 	state       interface{}
 	concurrency int
@@ -26,16 +25,11 @@ type BinaryOperator struct {
 }
 
 // New creates a new binary operator
-func New(ctx context.Context) *BinaryOperator {
+func New() *BinaryOperator {
 	// extract logger
 	o := new(BinaryOperator)
-	o.ctx = ctx
-	o.logf = autoctx.GetLogFunc(ctx)
-	o.errf = autoctx.GetErrFunc(ctx)
 	o.concurrency = 1
 	o.output = make(chan interface{}, 1024)
-
-	util.Logfn(o.logf, "Binary operator started")
 	return o
 }
 
@@ -68,7 +62,11 @@ func (o *BinaryOperator) GetOutput() <-chan interface{} {
 }
 
 // Exec executes the associated operation
-func (o *BinaryOperator) Exec() (err error) {
+func (o *BinaryOperator) Exec(ctx context.Context) (err error) {
+	o.logf = autoctx.GetLogFunc(ctx)
+	o.errf = autoctx.GetErrFunc(ctx)
+	util.Logfn(o.logf, "Binary operator starting")
+
 	if o.input == nil {
 		err = fmt.Errorf("No input channel found")
 		return
@@ -93,7 +91,7 @@ func (o *BinaryOperator) Exec() (err error) {
 		for i := 0; i < o.concurrency; i++ { // workers
 			go func(wg *sync.WaitGroup) {
 				defer wg.Done()
-				o.doProc(o.ctx)
+				o.doProc(ctx)
 			}(&barrier)
 		}
 
@@ -109,7 +107,7 @@ func (o *BinaryOperator) Exec() (err error) {
 				util.Logfn(o.logf, "Binary operator cancelled")
 				return
 			}
-		case <-o.ctx.Done():
+		case <-ctx.Done():
 			return
 		}
 	}()

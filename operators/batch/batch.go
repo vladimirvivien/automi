@@ -14,7 +14,6 @@ import (
 // on provided criteria.  The batched items are streamed on the
 // ouptut channel for downstream processing.
 type BatchOperator struct {
-	ctx     context.Context
 	input   <-chan interface{}
 	output  chan interface{}
 	logf    api.LogFunc
@@ -22,11 +21,8 @@ type BatchOperator struct {
 }
 
 // New returns a new BatchOperator operator
-func New(ctx context.Context) *BatchOperator {
+func New() *BatchOperator {
 	op := new(BatchOperator)
-	op.ctx = ctx
-	op.logf = autoctx.GetLogFunc(ctx)
-	util.Logfn(op.logf, "Opening batch operator")
 	op.output = make(chan interface{}, 1024)
 	return op
 }
@@ -50,7 +46,10 @@ func (op *BatchOperator) SetTrigger(trigger api.BatchTrigger) {
 // The batch operator batches N size items from upstream into
 // a slice []T.  When the slice reaches size N, the slice is sent
 // downstream for processing.
-func (op *BatchOperator) Exec() (err error) {
+func (op *BatchOperator) Exec(ctx context.Context) (err error) {
+	op.logf = autoctx.GetLogFunc(ctx)
+	util.Logfn(op.logf, "Batch operator starting")
+
 	if op.input == nil {
 		err = fmt.Errorf("No input channel found")
 		return
@@ -91,7 +90,7 @@ func (op *BatchOperator) Exec() (err error) {
 				}
 
 				batchValue = reflect.Append(batchValue, reflect.ValueOf(item))
-				done := op.trigger.Done(op.ctx, item, index)
+				done := op.trigger.Done(ctx, item, index)
 				if !done {
 					index++
 					continue

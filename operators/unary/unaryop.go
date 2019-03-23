@@ -20,7 +20,6 @@ func pack(vals ...interface{}) packed {
 
 // UnaryOp is an executor node that can execute a unary operation (i.e. transformation, etc)
 type UnaryOperator struct {
-	ctx         context.Context
 	op          api.UnOperation
 	concurrency int
 	input       <-chan interface{}
@@ -32,17 +31,13 @@ type UnaryOperator struct {
 }
 
 // NewUnary creates *UnaryOperator value
-func New(ctx context.Context) *UnaryOperator {
+func New() *UnaryOperator {
 	// extract logger
 	o := new(UnaryOperator)
-	o.ctx = ctx
-	o.logf = autoctx.GetLogFunc(ctx)
-	o.errf = autoctx.GetErrFunc(ctx)
 
 	o.concurrency = 1
 	o.output = make(chan interface{}, 1024)
 
-	util.Logfn(o.logf, "Unary operator started")
 	return o
 }
 
@@ -70,7 +65,11 @@ func (o *UnaryOperator) GetOutput() <-chan interface{} {
 }
 
 // Exec is the entry point for the executor
-func (o *UnaryOperator) Exec() (err error) {
+func (o *UnaryOperator) Exec(ctx context.Context) (err error) {
+	o.logf = autoctx.GetLogFunc(ctx)
+	o.errf = autoctx.GetErrFunc(ctx)
+	util.Logfn(o.logf, "Unary operator started")
+
 	if o.input == nil {
 		err = fmt.Errorf("No input channel found")
 		return
@@ -94,7 +93,7 @@ func (o *UnaryOperator) Exec() (err error) {
 		for i := 0; i < o.concurrency; i++ { // workers
 			go func(wg *sync.WaitGroup) {
 				defer wg.Done()
-				o.doProc(o.ctx)
+				o.doProc(ctx)
 			}(&barrier)
 		}
 
@@ -110,7 +109,7 @@ func (o *UnaryOperator) Exec() (err error) {
 				util.Logfn(o.logf, "Unary operator cancelled")
 				return
 			}
-		case <-o.ctx.Done():
+		case <-ctx.Done():
 			return
 		}
 	}()

@@ -9,7 +9,7 @@ import (
 // unary operations to streamed elements (i.e. filter, map, etc)
 // It is exposed here for completeness, use the other more specific methods.
 func (s *Stream) Transform(op api.UnOperation) *Stream {
-	operator := unary.New(s.ctx)
+	operator := unary.New()
 	operator.SetOperation(op)
 	s.ops = append(s.ops, operator)
 	return s

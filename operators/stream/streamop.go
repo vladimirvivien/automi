@@ -15,20 +15,15 @@ import (
 // map, array, or slice and unpacks and emits each item individually
 // downstream.
 type StreamOperator struct {
-	ctx    context.Context
 	input  <-chan interface{}
 	output chan interface{}
 	logf   api.LogFunc
 }
 
 // New creates a *StreamOperator value
-func New(ctx context.Context) *StreamOperator {
+func New() *StreamOperator {
 	r := new(StreamOperator)
-	r.ctx = ctx
-	r.logf = autoctx.GetLogFunc(ctx)
 	r.output = make(chan interface{}, 1024)
-
-	util.Logfn(r.logf, "Stream operator started")
 	return r
 }
 
@@ -43,7 +38,10 @@ func (r *StreamOperator) GetOutput() <-chan interface{} {
 }
 
 // Exec is the execution starting point for the executor node.
-func (r *StreamOperator) Exec() (err error) {
+func (r *StreamOperator) Exec(ctx context.Context) (err error) {
+	r.logf = autoctx.GetLogFunc(ctx)
+	util.Logfn(r.logf, "Stream operator starting")
+
 	if r.input == nil {
 		err = fmt.Errorf("No input channel found")
 		return

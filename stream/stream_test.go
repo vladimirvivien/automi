@@ -16,9 +16,6 @@ func TestStream_New(t *testing.T) {
 	if st.ops == nil {
 		t.Fatal("Ops slice not initialized")
 	}
-	if st.ctx == nil {
-		t.Fatal("unitialized context")
-	}
 	if st.srcParam == nil {
 		t.Fatal("src param not initialized")
 	}

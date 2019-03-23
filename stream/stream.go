@@ -35,7 +35,6 @@ func New(src interface{}) *Stream {
 		srcParam: src,
 		ops:      make([]api.Operator, 0),
 		drain:    make(chan error),
-		ctx:      context.Background(),
 	}
 
 	return s
@@ -47,25 +46,18 @@ func (s *Stream) WithContext(ctx context.Context) *Stream {
 	return s
 }
 
-//GetContext returns internal Stream context
-func (s *Stream) GetContext() context.Context {
-	return s.ctx
-}
-
 // WithLogFunc sets a function that will receive internal log events
 // at runtime.  Supported log function type: func(interface{})
 func (s *Stream) WithLogFunc(fn api.LogFunc) *Stream {
 	s.logf = fn
-	s.ctx = autoctx.WithLogFunc(s.ctx, fn)
 	return s
 }
 
-// WithErrorFunc sets a function that will be invoked when the
-// operator indicates it wants to signal an error by defining an
-// operator function of the form func(data)error.
+// WithErrorFunc sets a function of type func(StreamError) that will be
+// invoked when an operator indicates it wants to signal an error by
+// defining an operator function of the form func(data)error.
 func (s *Stream) WithErrorFunc(fn api.ErrorFunc) *Stream {
 	s.errf = fn
-	s.ctx = autoctx.WithErrorFunc(s.ctx, fn)
 	return s
 }
 
@@ -85,7 +77,7 @@ func (s *Stream) Into(snk interface{}) *Stream {
 // and emmits their elements as individual channel items to downstream
 // operations.  Items of other types are ignored.
 func (s *Stream) ReStream() *Stream {
-	sop := streamop.New(s.ctx)
+	sop := streamop.New()
 	s.ops = append(s.ops, sop)
 	return s
 }
@@ -94,6 +86,8 @@ func (s *Stream) ReStream() *Stream {
 // If there's an issue prior to execution, an error is returned
 // in the error channel.
 func (s *Stream) Open() <-chan error {
+	s.prepareContext() // ensure context is set
+
 	if err := s.initGraph(); err != nil {
 		s.drainErr(err)
 		return s.drain
@@ -110,7 +104,7 @@ func (s *Stream) Open() <-chan error {
 		}
 		//apply operators, if err bail
 		for _, op := range s.ops {
-			if err := op.Exec(); err != nil {
+			if err := op.Exec(s.ctx); err != nil {
 				s.drainErr(err)
 				return
 			}
@@ -125,6 +119,16 @@ func (s *Stream) Open() <-chan error {
 	}()
 
 	return s.drain
+}
+
+// prepareContext setups internal context before
+// stream starts execution.
+func (s *Stream) prepareContext() {
+	if s.ctx == nil {
+		s.ctx = context.TODO()
+	}
+	s.ctx = autoctx.WithLogFunc(s.ctx, s.logf)
+	s.ctx = autoctx.WithErrorFunc(s.ctx, s.errf)
 }
 
 // bindOps binds operator channels

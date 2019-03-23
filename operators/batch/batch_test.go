@@ -10,18 +10,15 @@ import (
 )
 
 func TestBatchOp_New(t *testing.T) {
-	s := New(context.Background())
+	s := New()
 
 	if s.output == nil {
 		t.Error("missing output")
 	}
-	if s.ctx == nil {
-		t.Error("context not set")
-	}
 }
 
 func TestBatchOp_GettersSetters(t *testing.T) {
-	o := New(context.Background())
+	o := New()
 	in := make(chan interface{})
 
 	o.SetInput(in)
@@ -35,8 +32,8 @@ func TestBatchOp_GettersSetters(t *testing.T) {
 }
 
 func TestBatchOp_Exec_OneBatch(t *testing.T) {
-	ctx := context.Background()
-	o := New(ctx)
+
+	o := New()
 
 	in := make(chan interface{})
 	go func() {
@@ -90,7 +87,7 @@ func TestBatchOp_Exec_OneBatch(t *testing.T) {
 		}
 	}()
 
-	if err := o.Exec(); err != nil {
+	if err := o.Exec(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -108,8 +105,7 @@ func TestBatchOp_Exec_OneBatch(t *testing.T) {
 }
 
 func TestBatchOp_Exec_MultipleBatches(t *testing.T) {
-	ctx := context.Background()
-	o := New(ctx)
+	o := New()
 	o.SetTrigger(TriggerBySize(4))
 	in := make(chan interface{})
 	go func() {
@@ -148,7 +144,7 @@ func TestBatchOp_Exec_MultipleBatches(t *testing.T) {
 		}
 	}()
 
-	if err := o.Exec(); err != nil {
+	if err := o.Exec(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -163,7 +159,7 @@ func TestBatchOp_Exec_MultipleBatches(t *testing.T) {
 }
 
 func TestBatchOp_BatchSlice(t *testing.T) {
-	o := New(context.TODO())
+	o := New()
 
 	in := make(chan interface{})
 	go func() {
@@ -184,7 +180,7 @@ func TestBatchOp_BatchSlice(t *testing.T) {
 		}
 	}()
 
-	if err := o.Exec(); err != nil {
+	if err := o.Exec(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -200,7 +196,7 @@ func TestBatchOp_BatchSlice(t *testing.T) {
 }
 
 func TestBatchOp_BatchMap(t *testing.T) {
-	o := New(context.TODO())
+	o := New()
 
 	in := make(chan interface{})
 	go func() {
@@ -221,7 +217,7 @@ func TestBatchOp_BatchMap(t *testing.T) {
 		}
 	}()
 
-	if err := o.Exec(); err != nil {
+	if err := o.Exec(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -236,7 +232,7 @@ func TestBatchOp_BatchMap(t *testing.T) {
 }
 
 func TestBatchOp_BatchStruct(t *testing.T) {
-	o := New(context.TODO())
+	o := New()
 	type log struct{ Event, Req string }
 	in := make(chan interface{})
 	go func() {
@@ -257,7 +253,7 @@ func TestBatchOp_BatchStruct(t *testing.T) {
 		}
 	}()
 
-	if err := o.Exec(); err != nil {
+	if err := o.Exec(context.TODO()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -273,7 +269,7 @@ func TestBatchOp_BatchStruct(t *testing.T) {
 
 func BenchmarkBatchOp_Exec(b *testing.B) {
 	ctx := context.Background()
-	o := New(ctx)
+	o := New()
 	N := b.N
 	size := func() int {
 		if N == 1 {
@@ -307,7 +303,7 @@ func BenchmarkBatchOp_Exec(b *testing.B) {
 	}()
 
 	b.Logf("Benchmark N: %d, chan size %d; batch size %d", N, size, expected)
-	if err := o.Exec(); err != nil {
+	if err := o.Exec(ctx); err != nil {
 		b.Fatal("Error during execution:", err)
 	}
 

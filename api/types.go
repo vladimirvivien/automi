@@ -48,7 +48,7 @@ type Sink interface {
 type Operator interface {
 	Collector
 	Emitter
-	Exec() error
+	Exec(context.Context) error
 }
 
 // LogFunc represents a function to handle log events
@@ -67,14 +67,17 @@ func (e StreamError) Error() string {
 	return e.err
 }
 
+// Item returns the StreamItem associated with the error
 func (e StreamError) Item() *StreamItem {
 	return e.item
 }
 
+// Error returns a StreamError
 func Error(msg string) StreamError {
 	return StreamError{err: msg}
 }
 
+// ErrorWithItem returns a StreamError with provided StreamItem
 func ErrorWithItem(msg string, item *StreamItem) StreamError {
 	return StreamError{err: msg, item: item}
 }
@@ -86,12 +89,22 @@ func (e PanicStreamError) Error() string {
 	return e.err
 }
 
+// PanickingError returns a PanicStreamError
+func PanickingError(msg string) PanicStreamError {
+	return PanicStreamError(Error(msg))
+}
+
 // CancelStreamError signals that all stream activities should stop
 // and the streaming should gracefully end
 type CancelStreamError StreamError
 
 func (e CancelStreamError) Error() string {
 	return e.err
+}
+
+//CancellationError returns a CancelStreamError
+func CancellationError(msg string) CancelStreamError {
+	return CancelStreamError(Error(msg))
 }
 
 // StreamItem can be used to provide a rich repressentation of streaming data.

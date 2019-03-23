@@ -2,7 +2,6 @@ package unary
 
 import (
 	"context"
-	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -38,11 +37,7 @@ func TestUnaryOp_New(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			o := New(test.ctx)
-
-			if !reflect.DeepEqual(test.ctx, o.ctx) {
-				t.Fatal("Missing context")
-			}
+			o := New()
 
 			if o.GetOutput() == nil {
 				t.Fatal("default output should not be nil")
@@ -258,7 +253,7 @@ func TestUnaryOp_Exec(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			o := New(context.Background())
+			o := New()
 			o.SetInput(test.data())
 			o.SetOperation(test.op)
 
@@ -269,7 +264,7 @@ func TestUnaryOp_Exec(t *testing.T) {
 				tc.tester(t, o.GetOutput())
 			}()
 
-			if err := o.Exec(); err != nil {
+			if err := o.Exec(context.TODO()); err != nil {
 				t.Fatal(err)
 			}
 
@@ -283,8 +278,7 @@ func TestUnaryOp_Exec(t *testing.T) {
 }
 
 func BenchmarkUnaryOp_Exec(b *testing.B) {
-	ctx := context.Background()
-	o := New(ctx)
+	o := New()
 	N := b.N
 
 	chanSize := func() int {
@@ -322,7 +316,7 @@ func BenchmarkUnaryOp_Exec(b *testing.B) {
 		}
 	}()
 
-	if err := o.Exec(); err != nil {
+	if err := o.Exec(context.TODO()); err != nil {
 		b.Fatal("Error during execution:", err)
 	}
 
