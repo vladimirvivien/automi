@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/md5"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -14,6 +15,7 @@ import (
 // Uses filepath.Walk to emit visited paths from root
 // Both visited paths and produced error are returned
 // as a tuple of type [2]interface{}{path,error}
+// To run: go run md5.go -p ./..
 func emitPathsFor(root string) <-chan [2]interface{} {
 	paths := make(chan [2]interface{})
 	go func() {
@@ -30,7 +32,11 @@ func emitPathsFor(root string) <-chan [2]interface{} {
 }
 
 func main() {
-	stream := stream.New(emitPathsFor("./"))
+	var rootPath string
+	flag.StringVar(&rootPath, "p", "./", "Root path to start scanning")
+	flag.Parse()
+
+	stream := stream.New(emitPathsFor(rootPath))
 
 	// filter out errored walk results
 	stream.Filter(func(walkResult [2]interface{}) bool {
@@ -60,7 +66,7 @@ func main() {
 		sums := items.([3]interface{})
 		file := sums[0].(string)
 		md5Sum := sums[1].([md5.Size]byte)
-		fmt.Printf("file %-24s md5 (%-16x)\n", file, md5Sum)
+		fmt.Printf("file %-64s md5 (%-16x)\n", file, md5Sum)
 		return nil
 	}))
 

@@ -67,10 +67,8 @@ func (e *ReaderEmitter) Open(ctx context.Context) error {
 				}
 			}
 			if err != nil {
-				if err != io.EOF {
-					// TODO handle error
-					util.Logfn(e.logf, err)
-				}
+				// Any error closes channel
+				// TODO better error handling
 				return
 			}
 		}

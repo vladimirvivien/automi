@@ -18,11 +18,18 @@
 * [ ] Doc wiki
 * [ ] Remove dead code
 * [ ] Context cancellation check for all components
+* [ ] Add Stream.Notify() to catch os/signal notify
 * [ ] Internal type hierarchy refactoring
 * [ ] Automatically turn on batch when batch operators are invoked
+
+## 0.3 Alpha - Tasks
 * [ ] Stream emitter - source from another stream
 * [ ] Stream collector - sink into another stream
 * [ ] New stream operators (join, split, broadcast, etc)
 * [ ] Parallelization operator
 * [ ] Add type-specific operators to streams (i.e. `SortInt()`)
+
+## 0.4 Alpha
 * [ ] Performance optimization ??
+
+## 0.5 Beta

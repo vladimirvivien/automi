@@ -1,9 +1,7 @@
 package collectors
 
 import (
-	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 
@@ -13,15 +11,14 @@ import (
 )
 
 type WriterCollector struct {
-	wrtParam io.Writer
-	writer   *bufio.Writer
-	input    <-chan interface{}
-	logf     api.LogFunc
+	writer io.Writer
+	input  <-chan interface{}
+	logf   api.LogFunc
 }
 
 func Writer(writer io.Writer) *WriterCollector {
 	return &WriterCollector{
-		wrtParam: writer,
+		writer: writer,
 	}
 }
 
@@ -34,17 +31,8 @@ func (c *WriterCollector) Open(ctx context.Context) <-chan error {
 	util.Logfn(c.logf, "Opening io.Writer collector")
 	result := make(chan error)
 
-	if err := c.setupWriter(); err != nil {
-		go func() { result <- err }()
-		return result
-	}
-
 	go func() {
 		defer func() {
-			if err := c.writer.Flush(); err != nil {
-				go func() { result <- err }()
-				return
-			}
 			close(result)
 			util.Logfn(c.logf, "Closing io.Writer collector")
 		}()
@@ -68,13 +56,4 @@ func (c *WriterCollector) Open(ctx context.Context) <-chan error {
 	}()
 
 	return result
-}
-
-func (c *WriterCollector) setupWriter() error {
-	if c.wrtParam == nil {
-		return errors.New("missing io.Writer parameter")
-	}
-	c.writer = bufio.NewWriter(c.wrtParam)
-
-	return nil
 }
