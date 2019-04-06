@@ -48,10 +48,13 @@ func (r *StreamOperator) Exec(ctx context.Context) (err error) {
 	}
 
 	go func() {
+		exeCtx, cancel := context.WithCancel(ctx)
 		defer func() {
-			util.Logfn(r.logf, "Stream operator done")
+			util.Logfn(r.logf, "Stream operator closing")
+			cancel()
 			close(r.output)
 		}()
+
 		for {
 			select {
 			case item, opened := <-r.input:
@@ -66,17 +69,32 @@ func (r *StreamOperator) Exec(ctx context.Context) (err error) {
 				case reflect.Array, reflect.Slice:
 					for i := 0; i < itemVal.Len(); i++ {
 						j := itemVal.Index(i)
-						r.output <- j.Interface()
+
+						select {
+						case r.output <- j.Interface():
+						case <-exeCtx.Done():
+							return
+						}
 					}
 				// unpack map as tuple.KV{key, value}
 				case reflect.Map:
 					for _, key := range itemVal.MapKeys() {
 						val := itemVal.MapIndex(key)
-						r.output <- tuple.KV{key.Interface(), val.Interface()}
+						select {
+						case r.output <- tuple.KV{key.Interface(), val.Interface()}:
+						case <-exeCtx.Done():
+							return
+						}
 					}
 				default:
-					r.output <- item
+					select {
+					case r.output <- item:
+					case <-exeCtx.Done():
+						return
+					}
 				}
+			case <-exeCtx.Done():
+				return
 			}
 		}
 	}()

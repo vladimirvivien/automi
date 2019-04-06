@@ -26,7 +26,6 @@ type UnaryOperator struct {
 	output      chan interface{}
 	logf        api.LogFunc
 	errf        api.ErrorFunc
-	cancelled   bool
 	mutex       sync.RWMutex
 }
 
@@ -75,60 +74,34 @@ func (o *UnaryOperator) Exec(ctx context.Context) (err error) {
 		return
 	}
 
-	// validate p
-	if o.concurrency < 1 {
-		o.concurrency = 1
-	}
-
 	go func() {
 		defer func() {
 			util.Logfn(o.logf, "Unary operator done")
 			close(o.output)
 		}()
 
-		var barrier sync.WaitGroup
-		wgDelta := o.concurrency
-		barrier.Add(wgDelta)
-
-		for i := 0; i < o.concurrency; i++ { // workers
-			go func(wg *sync.WaitGroup) {
-				defer wg.Done()
-				o.doProc(ctx)
-			}(&barrier)
-		}
-
-		wait := make(chan struct{})
-		go func() {
-			defer close(wait)
-			barrier.Wait()
-		}()
-
-		select {
-		case <-wait:
-			if o.cancelled {
-				util.Logfn(o.logf, "Unary operator cancelled")
-				return
-			}
-		case <-ctx.Done():
-			return
-		}
+		o.doOp(ctx)
 	}()
 	return nil
 }
 
-func (o *UnaryOperator) doProc(ctx context.Context) {
+func (o *UnaryOperator) doOp(ctx context.Context) {
 	if o.op == nil {
 		util.Logfn(o.logf, "Unary operator missing operation")
 		return
 	}
 	exeCtx, cancel := context.WithCancel(ctx)
 
+	defer func() {
+		util.Logfn(o.logf, "unary operator done, cancelling future items")
+		cancel()
+	}()
+
 	for {
 		select {
 		// process incoming item
 		case item, opened := <-o.input:
 			if !opened {
-				cancel()
 				return
 			}
 
@@ -141,7 +114,11 @@ func (o *UnaryOperator) doProc(ctx context.Context) {
 				util.Logfn(o.logf, val)
 				autoctx.Err(o.errf, val)
 				if item := val.Item(); item != nil {
-					o.output <- *item
+					select {
+					case o.output <- *item:
+					case <-exeCtx.Done():
+						return
+					}
 				}
 				continue
 			case api.PanicStreamError:
@@ -151,30 +128,22 @@ func (o *UnaryOperator) doProc(ctx context.Context) {
 			case api.CancelStreamError:
 				util.Logfn(o.logf, val)
 				autoctx.Err(o.errf, api.StreamError(val))
-				func() {
-					o.mutex.Lock()
-					defer o.mutex.Unlock()
-					cancel()
-					o.cancelled = true
-				}()
+				return
 			case error:
 				util.Logfn(o.logf, val)
 				autoctx.Err(o.errf, api.Error(val.Error()))
 				continue
 
 			default:
-				o.output <- val
+				select {
+				case o.output <- val:
+				case <-exeCtx.Done():
+					return
+				}
 			}
 
 		// is cancelling
-		case <-ctx.Done():
-			util.Logfn(o.logf, "unary operator cancelling")
-			func() {
-				o.mutex.Lock()
-				defer o.mutex.Unlock()
-				cancel()
-				o.cancelled = true
-			}()
+		case <-exeCtx.Done():
 			return
 		}
 	}

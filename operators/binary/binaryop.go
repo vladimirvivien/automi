@@ -3,7 +3,6 @@ package binary
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/vladimirvivien/automi/api"
 	autoctx "github.com/vladimirvivien/automi/api/context"
@@ -20,8 +19,6 @@ type BinaryOperator struct {
 	output      chan interface{}
 	logf        api.LogFunc
 	errf        api.ErrorFunc
-	cancelled   bool
-	mutex       sync.RWMutex
 }
 
 // New creates a new binary operator
@@ -72,55 +69,29 @@ func (o *BinaryOperator) Exec(ctx context.Context) (err error) {
 		return
 	}
 
-	// validate p
-	if o.concurrency < 1 {
-		o.concurrency = 1
-	}
-
 	go func() {
 		defer func() {
 			o.output <- o.state
 			close(o.output)
 			util.Logfn(o.logf, "Binary operator done")
 		}()
-
-		var barrier sync.WaitGroup
-		wgDelta := o.concurrency
-		barrier.Add(wgDelta)
-
-		for i := 0; i < o.concurrency; i++ { // workers
-			go func(wg *sync.WaitGroup) {
-				defer wg.Done()
-				o.doProc(ctx)
-			}(&barrier)
-		}
-
-		wait := make(chan struct{})
-		go func() {
-			defer close(wait)
-			barrier.Wait()
-		}()
-
-		select {
-		case <-wait:
-			if o.cancelled {
-				util.Logfn(o.logf, "Binary operator cancelled")
-				return
-			}
-		case <-ctx.Done():
-			return
-		}
+		o.doOp(ctx)
 	}()
 	return nil
 }
 
 // doProc is a helper function that executes the operation
-func (o *BinaryOperator) doProc(ctx context.Context) {
+func (o *BinaryOperator) doOp(ctx context.Context) {
 	if o.op == nil {
 		util.Logfn(o.logf, "Binary operator has no operation")
 		return
 	}
 	exeCtx, cancel := context.WithCancel(ctx)
+
+	defer func() {
+		util.Logfn(o.logf, "Binary operator cancelling")
+		cancel()
+	}()
 
 	for {
 		select {
@@ -142,12 +113,7 @@ func (o *BinaryOperator) doProc(ctx context.Context) {
 			}
 
 		// is cancelling
-		case <-ctx.Done():
-			util.Logfn(o.logf, "Binary operator cancelling")
-			o.mutex.Lock()
-			cancel()
-			o.cancelled = true
-			o.mutex.Unlock()
+		case <-exeCtx.Done():
 			return
 		}
 	}

@@ -61,12 +61,15 @@ func (op *BatchOperator) Exec(ctx context.Context) (err error) {
 
 	go func() {
 		var batchValue reflect.Value
+		exeCtx, cancel := context.WithCancel(ctx)
+
 		defer func() {
 			util.Logfn(op.logf, "Closing batch operator")
 			// push any straggler items in batch
 			if batchValue.IsValid() && batchValue.Len() > 0 {
 				op.output <- batchValue.Interface()
 			}
+			cancel()
 			close(op.output)
 		}()
 
@@ -96,12 +99,18 @@ func (op *BatchOperator) Exec(ctx context.Context) (err error) {
 					continue
 				}
 
-				// done
-				op.output <- batchValue.Interface()
-				index = 1
-				batchType := op.makeBatchType(item)
-				batchValue = reflect.MakeSlice(reflect.SliceOf(batchType), 0, 1)
+				// done batching, push downstream
+				select {
+				case op.output <- batchValue.Interface():
+					index = 1
+					batchType := op.makeBatchType(item)
+					batchValue = reflect.MakeSlice(reflect.SliceOf(batchType), 0, 1)
+				case <-exeCtx.Done():
+					return
+				}
 
+			case <-exeCtx.Done():
+				return
 			}
 		}
 	}()

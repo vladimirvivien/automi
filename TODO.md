@@ -2,7 +2,6 @@
 
 ## 0.1 Alpha - Tasks
 
-* [ ] Refactor Stream.New to Stream.From.
 * [x] Refactor log - implement logging with handler func
 * [x] Error propagation and handling strategies
 * [x] Support ability to pass context to user-defined operation functions
@@ -11,6 +10,7 @@
 * [x] net/htt examples
 * [x] Examples with error handling
 * [x] Examples with logging
+* [x] Context cancellation check for all operators
 * [ ] Reset/squash commit history
 * [ ] Merge to main
 
@@ -18,7 +18,6 @@
 * [ ] Add copyright to source files
 * [ ] Doc wiki
 * [ ] Remove dead code
-* [ ] Context cancellation check for all components
 * [ ] Add Stream.Notify() to catch os/signal notify
 * [ ] Internal type hierarchy refactoring
 * [ ] Automatically turn on batch when batch operators are invoked
