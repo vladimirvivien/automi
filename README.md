@@ -26,9 +26,9 @@ Now, let us explore some examples to see how easy it is to use Automi to stream 
 
 >See all examples in the [./example](./examples) directory.
 
-### Example: streaming runes
+### Example: streaming from a slice into stdout
 
-This example shows how to compose and express stream operations with Automi to stream and filter rune values. It uses a slice of runes, as an emitter, which provides the source for the stream.  Then, stream operators are applied to filter out unwanted rune values and then sort the remaining items. Lastly, a collector is used to collect the streamed items to print them.
+This first example shows how easy it is to compose and express stream operations with Automi.  In this example, rune values are emitted from a slice and are streamed invidividually.  Stream operator method `Filter` is applied to filter out unwanted rune values and the `Sort` operator method sorts the remaining items. Lastly, a `collector` is used to collect the result into an io.Writer and piped to `stdout`.
 
 ```go
 func main() {
@@ -50,18 +50,16 @@ func main() {
 
 > See the full [source code](./examples/emitters/slice0).
 
-Let's decompose the program to see how it works!
+##### How it works
 
-#### Create the stream
+1. Create the stream with an emitter source. Automi supports several types of sources including channels, io.Reader, slices, etc. (see list of emitters below).  Each element in the slice will be streamed individually.
 
 ```go
 strm := stream.New([]rune(`B世!ぽ@opqDQRS#$%^&*()ᅖ...O6PTnVWXѬYZbcef7ghijCklrAstvw`))
 ```
 
-`stream.New` creates a new stream with a specified emitter that will emit elements on the stream.  This example uses an emitter that sources a slice of runes to emit random rune values on the stream.
 
-
-#### Apply stream operations
+2. Apply user-provided or built-in stream operations as shown below:
 
 ```go
 strm.Filter(func(item rune) bool {
@@ -71,23 +69,13 @@ strm.Filter(func(item rune) bool {
 }).Batch().Sort()
 ```
 
-Next, operations are applied to the stream: 
-
-* `Stream.Filter()` takes a function which is use to filter out stream elements.  Our example filters out non-capitalized latin alpha characters. 
-* `Stream.Map()` maps each streamed rune to its correspoding to string value
-* `Stream.Batch().Sort()` batches and sorts the streamed runes  
-
-
-#### Collect the stream
+3. Collect the result.  In this example, the result is collected into an `io.Writer` which further streams the data into standard output:
 
 ```go
 strm.Into(collectors.Writer(os.Stdout))
 ```
 
-`Stream.Into` routes the stream to a collector. This example uses an io.Writer collector used to output the collected streamed items to `os.Stdout`.
-
-
-#### Open the stream
+4. Lastly, open the stream once it is properly composed:
 
 ```go
 if err := <-strm.Open(); err != nil {
@@ -96,13 +84,9 @@ if err := <-strm.Open(); err != nil {
 }  
 ```
 
-`Stream.Open` opens the stream once it is composed (above).  This starts the emitter and executes the operations attached the stream.
+### Example: streaming from an `io.Reader` into collector function
 
-### Example: streaming from `io.Reader`
-
-The next example shows how to use Automi to stream data from an emitter that implements`io.Reader`.  While the example uses an in-memory source, this should work with any value that implements `io.Reader` including `os.File` for streaming file content and `net.Conn` for streaming content from connected sources.
-
-> See the code comment for detail on how Automi is used.
+The next example shows how to use Automi to stream data from an `io.Reader` emitting buffered string values from an in-memory source in 50-byte chunks.  The data is processed with a `Map` and `Filter` opertor methods and the result is sent to a user-provided collector function which prints the result.
 
 ```go
 func main() {
@@ -110,32 +94,24 @@ func main() {
 "response", "/i/a/", "00:11:51:AA", "served"
 "response", "/i/a", "00:BB:22:DD", "served"...`
 
-    // create io.Reader
-	reader := strings.NewReader(data)
+ 	reader := strings.NewReader(data)
     
-	// create stream with reader emitter,
-	// buffers data as 50-byte chunks.
+	// create stream from a buffered io.Reader emitter,
+	// emitting 50-byte chunks.
 	stream := stream.New(emitters.Reader(reader).BufferSize(50))
-
-    // map each 50-byte slice chunk to string
 	stream.Map(func(chunk []byte) string {
 		str := string(chunk)
 		return str
 	})
-
-	// filter out string chunks with the word `request` in it
 	stream.Filter(func(e string) bool {
 		return (strings.Contains(e, `"response"`))
 	})
-
-	// route result in a collector function which prints it
 	stream.Into(collectors.Func(func(data interface{}) error {
 		e := data.(string)
 		fmt.Println(e)
 		return nil
 	}))
 
-	// open the stream
 	if err := <-stream.Open(); err != nil {
 		fmt.Println(err)
 		return
@@ -145,10 +121,8 @@ func main() {
 
 > See complete example [here](./examples/emitters/reader/emitreader.go).
 
-### Example: streaming with CSV files
-The following example streams the content of a CSV file, process each row as a streamed element, then write the result to another CSV file. 
-
-**Note**: the example also showcases the use of custom types for stream values with type mapping and filtering operations.
+### Example: streaming using CSV files
+The following example streams data from a CSV source file. Each row is mapped to a custom type, filtered, then mapped to a slice of strings which is then collected into another CSV file. 
 
 ```go
 type scientist struct {
@@ -173,19 +147,12 @@ func main() {
             BornYear:  yr,
         }
     })
-
-    // Filter out scientists born after 1930
     stream.Filter(func(cs scientist) bool {
         return (cs.BornYear > 1930)
     })
-
-    // Map scientist value to []string
     stream.Map(func(cs scientist) []string {
         return []string{cs.FirstName, cs.LastName, cs.Title}
     })
-
-    // Route each streamed []string element
-    // to a CSV file collector
     stream.Into("./result.txt")
 
     // open the stream
@@ -196,6 +163,38 @@ func main() {
     fmt.Println("wrote result to file result.txt")
 }
 ```
+
+> See complete example [here](./examples/customtype/process.go).
+
+### Example: streaming HTTP requests and responses
+The following example shows how to use Automi to stream and process data using HTTP requests and responses.  The following HTTP server program streams data from the request Body, encodes it using base64, and streams the result into the HTTP response:
+
+```go
+func main() {
+
+	http.HandleFunc(
+		"/",
+		func(resp http.ResponseWriter, req *http.Request) {
+			resp.Header().Add("Content-Type", "text/html")
+			resp.WriteHeader(http.StatusOK)
+
+			strm := stream.New(req.Body)
+			strm.Process(func(data []byte) string {
+				return base64.StdEncoding.EncodeToString(data)
+			}).Into(resp)
+
+			if err := <-strm.Open(); err != nil {
+				resp.WriteHeader(http.StatusInternalServerError)
+				log.Printf("Stream error: %s", err)
+			}
+		},
+	)
+
+	log.Println("Server listening on :4040")
+	http.ListenAndServe(":4040", nil)
+}
+```
+> See complete example [here](./examples/net/http/httpsvr.go).
 
 ## More Examples
 [Examples](./examples) - View a long list of examples that cover all aspects of using Automi.

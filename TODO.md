@@ -2,14 +2,15 @@
 
 ## 0.1 Alpha - Tasks
 
+* [ ] Refactor Stream.New to Stream.From.
 * [x] Refactor log - implement logging with handler func
 * [x] Error propagation and handling strategies
 * [x] Support ability to pass context to user-defined operation functions
 * [x] Dependency mgmt
 * [x] Fix tests with `-race` failure
-* [ ] HTTP example
-* [ ] Examples with error handling
-* [ ] Examples with logging
+* [x] net/htt examples
+* [x] Examples with error handling
+* [x] Examples with logging
 * [ ] Reset/squash commit history
 * [ ] Merge to main
 
