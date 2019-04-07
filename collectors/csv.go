@@ -27,6 +27,7 @@ type CsvCollector struct {
 	snkWriter io.Writer
 	csvWriter *csv.Writer
 	logf      api.LogFunc
+	errf      api.ErrorFunc
 }
 
 // CSV creates a *CsvCollector value
@@ -57,6 +58,7 @@ func (c *CsvCollector) SetInput(in <-chan interface{}) {
 func (c *CsvCollector) init(ctx context.Context) error {
 	//extract log function
 	c.logf = autoctx.GetLogFunc(ctx)
+	c.errf = autoctx.GetErrFunc(ctx)
 
 	if c.input == nil {
 		return fmt.Errorf("Input attribute not set")
@@ -99,6 +101,8 @@ func (c *CsvCollector) Open(ctx context.Context) <-chan error {
 			// flush remaining bits
 			c.csvWriter.Flush()
 			if e := c.csvWriter.Error(); e != nil {
+				util.Logfn(c.logf, e)
+				autoctx.Err(c.errf, api.Error(e.Error()))
 				go func() { result <- e }()
 				return
 			}
@@ -106,6 +110,8 @@ func (c *CsvCollector) Open(ctx context.Context) <-chan error {
 			// close file
 			if c.file != nil {
 				if e := c.file.Close(); e != nil {
+					util.Logfn(c.logf, e)
+					autoctx.Err(c.errf, api.Error(e.Error()))
 					go func() { result <- e }()
 					return
 				}
@@ -124,6 +130,7 @@ func (c *CsvCollector) Open(ctx context.Context) <-chan error {
 				if !ok { // bad situation, fail fast
 					msg := fmt.Sprintf("expecting []string, got unexpected type %T", data)
 					util.Logfn(c.logf, msg)
+					autoctx.Err(c.errf, api.Error(msg))
 					panic(msg)
 				}
 
@@ -131,6 +138,7 @@ func (c *CsvCollector) Open(ctx context.Context) <-chan error {
 					//TODO distinguish error values for better handling
 					perr := fmt.Errorf("Unable to write record to file: %s ", e)
 					util.Logfn(c.logf, perr)
+					autoctx.Err(c.errf, api.Error(perr.Error()))
 					continue
 				}
 
@@ -139,6 +147,7 @@ func (c *CsvCollector) Open(ctx context.Context) <-chan error {
 				if e := c.csvWriter.Error(); e != nil {
 					perr := fmt.Errorf("IO flush error: %s", e)
 					util.Logfn(c.logf, perr)
+					autoctx.Err(c.errf, api.Error(perr.Error()))
 				}
 
 			case <-ctx.Done():

@@ -22,6 +22,7 @@ type ScannerEmitter struct {
 	scanner    *bufio.Scanner
 	output     chan interface{}
 	logf       api.LogFunc
+	errf       api.ErrorFunc
 }
 
 // Scanner returns a *ScannerEmitter that wraps io.Reader into
@@ -47,6 +48,8 @@ func (e *ScannerEmitter) Open(ctx context.Context) error {
 		return err
 	}
 	e.logf = autoctx.GetLogFunc(ctx)
+	e.errf = autoctx.GetErrFunc(ctx)
+
 	util.Logfn(e.logf, "Scanner emitter starting")
 
 	// use scanner to tokenize reader stream
@@ -62,6 +65,7 @@ func (e *ScannerEmitter) Open(ctx context.Context) error {
 		for e.scanner.Scan() {
 			if err := e.scanner.Err(); err != nil {
 				util.Logfn(e.logf, fmt.Errorf("Scanner emitter error: %s", err))
+				autoctx.Err(e.errf, api.Error(err.Error()))
 			}
 			select {
 			case e.output <- e.scanner.Text():

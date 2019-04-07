@@ -18,6 +18,7 @@ type ReaderEmitter struct {
 	size   int
 	output chan interface{}
 	logf   api.LogFunc
+	errf   api.ErrorFunc
 }
 
 // Reader returns a *ReaderEmitter which can be used to emit bytes
@@ -46,8 +47,9 @@ func (e *ReaderEmitter) Open(ctx context.Context) error {
 		return err
 	}
 
-	// grab logger
 	e.logf = autoctx.GetLogFunc(ctx)
+	e.errf = autoctx.GetErrFunc(ctx)
+
 	util.Logfn(e.logf, "Opening io.Reader emitter")
 
 	go func() {
@@ -72,6 +74,7 @@ func (e *ReaderEmitter) Open(ctx context.Context) error {
 			if err != nil {
 				// Any error closes channel
 				util.Logfn(e.logf, fmt.Errorf("Error reading: %s", err))
+				autoctx.Err(e.errf, api.Error(err.Error()))
 				return
 			}
 		}

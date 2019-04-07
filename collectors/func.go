@@ -21,6 +21,7 @@ type CollectorFunc func(interface{}) error
 type FuncCollector struct {
 	input <-chan interface{}
 	logf  api.LogFunc
+	errf  api.ErrorFunc
 	f     CollectorFunc
 }
 
@@ -39,16 +40,21 @@ func (c *FuncCollector) SetInput(in <-chan interface{}) {
 // Open is the starting point that starts the collector
 func (c *FuncCollector) Open(ctx context.Context) <-chan error {
 	c.logf = autoctx.GetLogFunc(ctx)
+	c.errf = autoctx.GetErrFunc(ctx)
+
 	util.Logfn(c.logf, "Opening func collector")
 	result := make(chan error)
 
 	if c.input == nil {
-		go func() { result <- errors.New("func collector missing input") }()
+		go func() { result <- errors.New("Func collector missing input") }()
 		return result
 	}
 
 	if c.f == nil {
-		go func() { result <- errors.New("func collector missing function") }()
+		err := errors.New("Func collector missing function")
+		util.Logfn(c.logf, err)
+		autoctx.Err(c.errf, api.Error(err.Error()))
+		go func() { result <- err }()
 		return result
 	}
 
@@ -65,8 +71,8 @@ func (c *FuncCollector) Open(ctx context.Context) <-chan error {
 					return
 				}
 				if err := c.f(item); err != nil {
-					// TODO proper error handling (with StreamError)
 					util.Logfn(c.logf, err)
+					autoctx.Err(c.errf, api.Error(err.Error()))
 				}
 			case <-ctx.Done():
 				return

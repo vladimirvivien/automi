@@ -14,6 +14,7 @@ type WriterCollector struct {
 	writer io.Writer
 	input  <-chan interface{}
 	logf   api.LogFunc
+	errf   api.ErrorFunc
 }
 
 func Writer(writer io.Writer) *WriterCollector {
@@ -28,6 +29,8 @@ func (c *WriterCollector) SetInput(in <-chan interface{}) {
 
 func (c *WriterCollector) Open(ctx context.Context) <-chan error {
 	c.logf = autoctx.GetLogFunc(ctx)
+	c.errf = autoctx.GetErrFunc(ctx)
+
 	util.Logfn(c.logf, "Opening io.Writer collector")
 	result := make(chan error)
 
@@ -45,17 +48,27 @@ func (c *WriterCollector) Open(ctx context.Context) <-chan error {
 				}
 				switch data := val.(type) {
 				case string:
-					fmt.Fprint(c.writer, data)
+					_, err := fmt.Fprint(c.writer, data)
+					if err != nil {
+						util.Logfn(c.logf, err)
+						autoctx.Err(c.errf, api.Error(err.Error()))
+						continue
+					}
 				case []byte:
 					if _, err := c.writer.Write(data); err != nil {
 						util.Logfn(c.logf, err)
-						//TODO runtime error handling
+						autoctx.Err(c.errf, api.Error(err.Error()))
 						continue
 					}
 				default:
 					// other types are serialized using string representation
 					// extracted by fmt
-					fmt.Fprintf(c.writer, "%v", data)
+					_, err := fmt.Fprintf(c.writer, "%v", data)
+					if err != nil {
+						util.Logfn(c.logf, err)
+						autoctx.Err(c.errf, api.Error(err.Error()))
+						continue
+					}
 				}
 			case <-ctx.Done():
 				return

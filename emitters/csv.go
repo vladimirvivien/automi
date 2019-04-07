@@ -28,6 +28,7 @@ type CsvEmitter struct {
 	srcReader io.Reader
 	csvReader *csv.Reader
 	logf      api.LogFunc
+	errf      api.ErrorFunc
 	output    chan interface{}
 }
 
@@ -65,8 +66,9 @@ func (c *CsvEmitter) HasHeaders() *CsvEmitter {
 
 // init internal initialization method
 func (c *CsvEmitter) init(ctx context.Context) error {
-	// extract logger
 	c.logf = autoctx.GetLogFunc(ctx)
+	c.errf = autoctx.GetErrFunc(ctx)
+
 	util.Logfn(c.logf, "Opening CSV emitter")
 
 	// establish defaults
@@ -114,6 +116,7 @@ func (c *CsvEmitter) GetOutput() <-chan interface{} {
 // Open starting point that opens the source to start emitting data
 func (c *CsvEmitter) Open(ctx context.Context) (err error) {
 	if err = c.init(ctx); err != nil {
+		util.Logfn(c.logf, err)
 		return
 	}
 
@@ -121,14 +124,15 @@ func (c *CsvEmitter) Open(ctx context.Context) (err error) {
 		exeCtx, cancel := context.WithCancel(ctx)
 		defer func() {
 			util.Logfn(c.logf, "CSV emitter closing")
-			cancel()
-			close(c.output)
 			if c.file != nil {
 				err = c.file.Close()
 				if err != nil {
 					util.Logfn(c.logf, err)
+					autoctx.Err(c.errf, api.Error(err.Error()))
 				}
 			}
+			cancel()
+			close(c.output)
 		}()
 
 		for {
@@ -138,6 +142,7 @@ func (c *CsvEmitter) Open(ctx context.Context) (err error) {
 					return
 				}
 				util.Logfn(c.logf, fmt.Errorf("Error reading row: %s", err))
+				autoctx.Err(c.errf, api.Error(err.Error()))
 				continue
 			}
 

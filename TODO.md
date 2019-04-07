@@ -15,12 +15,16 @@
 * [ ] Merge to main
 
 ## 0.2 Alpha - Tasks
-* [ ] Add copyright to source files
-* [ ] Doc wiki
-* [ ] Remove dead code
+* [ ] Signal stream cancellation from error handler ErrorFunc
+* [ ] Add Stream.OnOpen(func(ctx)) hook to trigger before stream starts
 * [ ] Add Stream.Notify() to catch os/signal notify
 * [ ] Internal type hierarchy refactoring
 * [ ] Automatically turn on batch when batch operators are invoked
+* [ ] Change collectors signature to return StreamError instead of error
+* [ ] Add copyright to source files
+* [ ] Doc wiki
+* [ ] Remove dead code
+
 
 ## 0.3 Alpha - Tasks
 * [ ] Stream emitter - source from another stream
