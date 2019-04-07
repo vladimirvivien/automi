@@ -43,17 +43,23 @@ func (s *SliceEmitter) Open(ctx context.Context) error {
 	sliceVal := reflect.ValueOf(s.slice)
 
 	if !sliceVal.IsValid() {
-		return errors.New("invalid slice for SliceEmitter")
+		return errors.New("Invalid slice for SliceEmitter")
 	}
 
 	go func() {
+		exeCtx, cancel := context.WithCancel(ctx)
 		defer func() {
-			util.Logfn(s.logf, "Closing slice emitter")
+			util.Logfn(s.logf, "Slice emitter closing")
+			cancel()
 			close(s.output)
 		}()
 		for i := 0; i < sliceVal.Len(); i++ {
 			val := sliceVal.Index(i)
-			s.output <- val.Interface()
+			select {
+			case s.output <- val.Interface():
+			case <-exeCtx.Done():
+				return
+			}
 		}
 	}()
 	return nil

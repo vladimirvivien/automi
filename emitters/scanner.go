@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/vladimirvivien/automi/api"
@@ -46,22 +47,25 @@ func (e *ScannerEmitter) Open(ctx context.Context) error {
 		return err
 	}
 	e.logf = autoctx.GetLogFunc(ctx)
-	util.Logfn(e.logf, "Opening Reader emitter")
+	util.Logfn(e.logf, "Scanner emitter starting")
 
 	// use scanner to tokenize reader stream
 	// the text value of token is sent downstream
 	go func() {
+		exeCtx, cancel := context.WithCancel(ctx)
 		defer func() {
-			util.Logfn(e.logf, "Closing Reader emitter")
+			util.Logfn(e.logf, "Scanner emitter closing")
+			cancel()
 			close(e.output)
 		}()
 
 		for e.scanner.Scan() {
-			//TODO: handle scanner errors
-
+			if err := e.scanner.Err(); err != nil {
+				util.Logfn(e.logf, fmt.Errorf("Scanner emitter error: %s", err))
+			}
 			select {
 			case e.output <- e.scanner.Text():
-			case <-ctx.Done():
+			case <-exeCtx.Done():
 				return
 			}
 		}

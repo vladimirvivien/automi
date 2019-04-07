@@ -32,8 +32,16 @@ func (s *NullCollector) Open(ctx context.Context) <-chan error {
 			util.Logfn(s.logf, "Closing null collector")
 			close(result)
 		}()
-		// TODO check for ctx cancellation
-		for range s.input {
+
+		for {
+			select {
+			case _, opened := <-s.input:
+				if !opened {
+					return
+				}
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 	return result

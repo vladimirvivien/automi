@@ -58,10 +58,18 @@ func (c *FuncCollector) Open(ctx context.Context) <-chan error {
 			close(result)
 		}()
 
-		for val := range c.input {
-			if err := c.f(val); err != nil {
-				// TODO proper error handling
-				util.Logfn(c.logf, err)
+		for {
+			select {
+			case item, opened := <-c.input:
+				if !opened {
+					return
+				}
+				if err := c.f(item); err != nil {
+					// TODO proper error handling (with StreamError)
+					util.Logfn(c.logf, err)
+				}
+			case <-ctx.Done():
+				return
 			}
 		}
 	}()

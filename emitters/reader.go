@@ -3,6 +3,7 @@ package emitters
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/vladimirvivien/automi/api"
@@ -50,8 +51,10 @@ func (e *ReaderEmitter) Open(ctx context.Context) error {
 	util.Logfn(e.logf, "Opening io.Reader emitter")
 
 	go func() {
+		exeCtx, cancel := context.WithCancel(ctx)
 		defer func() {
 			util.Logfn(e.logf, "Closing io.Reader emitter")
+			cancel()
 			close(e.output)
 		}()
 
@@ -62,13 +65,13 @@ func (e *ReaderEmitter) Open(ctx context.Context) error {
 			if bytesRead > 0 {
 				select {
 				case e.output <- buf[0:bytesRead]:
-				case <-ctx.Done():
+				case <-exeCtx.Done():
 					return
 				}
 			}
 			if err != nil {
 				// Any error closes channel
-				// TODO better error handling
+				util.Logfn(e.logf, fmt.Errorf("Error reading: %s", err))
 				return
 			}
 		}

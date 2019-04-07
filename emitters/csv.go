@@ -118,8 +118,10 @@ func (c *CsvEmitter) Open(ctx context.Context) (err error) {
 	}
 
 	go func() {
+		exeCtx, cancel := context.WithCancel(ctx)
 		defer func() {
-			util.Logfn(c.logf, "Closing CSV emitter")
+			util.Logfn(c.logf, "CSV emitter closing")
+			cancel()
 			close(c.output)
 			if c.file != nil {
 				err = c.file.Close()
@@ -135,14 +137,13 @@ func (c *CsvEmitter) Open(ctx context.Context) (err error) {
 				if err == io.EOF {
 					return
 				}
-				//TODO route error
 				util.Logfn(c.logf, fmt.Errorf("Error reading row: %s", err))
 				continue
 			}
 
 			select {
 			case c.output <- row:
-			case <-ctx.Done():
+			case <-exeCtx.Done():
 				return
 			}
 		}

@@ -37,20 +37,28 @@ func (c *WriterCollector) Open(ctx context.Context) <-chan error {
 			util.Logfn(c.logf, "Closing io.Writer collector")
 		}()
 
-		for val := range c.input {
-			switch data := val.(type) {
-			case string:
-				fmt.Fprint(c.writer, data)
-			case []byte:
-				if _, err := c.writer.Write(data); err != nil {
-					util.Logfn(c.logf, err)
-					//TODO runtime error handling
-					continue
+		for {
+			select {
+			case val, opened := <-c.input:
+				if !opened {
+					return
 				}
-			default:
-				// other types are serialized using string representation
-				// extracted by fmt
-				fmt.Fprintf(c.writer, "%v", data)
+				switch data := val.(type) {
+				case string:
+					fmt.Fprint(c.writer, data)
+				case []byte:
+					if _, err := c.writer.Write(data); err != nil {
+						util.Logfn(c.logf, err)
+						//TODO runtime error handling
+						continue
+					}
+				default:
+					// other types are serialized using string representation
+					// extracted by fmt
+					fmt.Fprintf(c.writer, "%v", data)
+				}
+			case <-ctx.Done():
+				return
 			}
 		}
 	}()

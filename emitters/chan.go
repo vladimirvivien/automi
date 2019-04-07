@@ -47,9 +47,11 @@ func (c *ChanEmitter) Open(ctx context.Context) error {
 	}
 
 	go func() {
+		exeCtx, cancel := context.WithCancel(ctx)
 		defer func() {
+			util.Logfn(c.logf, "Slice emitter closing")
+			cancel()
 			close(c.output)
-			util.Logfn(c.logf, "Closing slice emitter")
 		}()
 
 		for {
@@ -57,7 +59,11 @@ func (c *ChanEmitter) Open(ctx context.Context) error {
 			if !open {
 				return
 			}
-			c.output <- val.Interface()
+			select {
+			case c.output <- val.Interface():
+			case <-exeCtx.Done():
+				return
+			}
 		}
 	}()
 	return nil

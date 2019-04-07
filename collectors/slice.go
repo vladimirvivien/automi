@@ -36,8 +36,17 @@ func (s *SliceCollector) Open(ctx context.Context) <-chan error {
 			close(result)
 			util.Logfn(s.logf, "Closing slice collector")
 		}()
-		for val := range s.input {
-			s.slice = append(s.slice, val)
+
+		for {
+			select {
+			case item, opened := <-s.input:
+				if !opened {
+					return
+				}
+				s.slice = append(s.slice, item)
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 

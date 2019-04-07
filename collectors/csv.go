@@ -95,7 +95,7 @@ func (c *CsvCollector) Open(ctx context.Context) <-chan error {
 
 	go func() {
 		defer func() {
-			util.Logfn(c.logf, "Closing csv collector")
+			util.Logfn(c.logf, "CSV collector closing")
 			// flush remaining bits
 			c.csvWriter.Flush()
 			if e := c.csvWriter.Error(); e != nil {
@@ -113,33 +113,36 @@ func (c *CsvCollector) Open(ctx context.Context) <-chan error {
 			close(result)
 		}()
 
-		for item := range c.input {
-			data, ok := item.([]string)
-
-			if !ok { // bad situation, fail fast
-				msg := fmt.Sprintf("expecting []string, got unexpected type %T", data)
-				util.Logfn(c.logf, msg)
-				panic(msg)
-			}
-
-			if e := c.csvWriter.Write(data); e != nil {
-				//TODO distinguish error values for better handling
-				perr := fmt.Errorf("Unable to write record to file: %s ", e)
-				util.Logfn(c.logf, perr)
-				continue
-			}
-
-			// flush to io
-			c.csvWriter.Flush()
-			if e := c.csvWriter.Error(); e != nil {
-				perr := fmt.Errorf("IO flush error: %s", e)
-				util.Logfn(c.logf, perr)
-			}
-
+		for {
 			select {
+			case item, opened := <-c.input:
+				if !opened {
+					return
+				}
+				data, ok := item.([]string)
+
+				if !ok { // bad situation, fail fast
+					msg := fmt.Sprintf("expecting []string, got unexpected type %T", data)
+					util.Logfn(c.logf, msg)
+					panic(msg)
+				}
+
+				if e := c.csvWriter.Write(data); e != nil {
+					//TODO distinguish error values for better handling
+					perr := fmt.Errorf("Unable to write record to file: %s ", e)
+					util.Logfn(c.logf, perr)
+					continue
+				}
+
+				// flush to io
+				c.csvWriter.Flush()
+				if e := c.csvWriter.Error(); e != nil {
+					perr := fmt.Errorf("IO flush error: %s", e)
+					util.Logfn(c.logf, perr)
+				}
+
 			case <-ctx.Done():
 				return
-			default:
 			}
 		}
 	}()
