@@ -1,6 +1,9 @@
-# Automi
+<h1 align="center">
+    <img src="./docs/automi_logo.png" alt="A stream processing API for Go">
+</h1>
 
-A stream API for the Go programming language (alpha)
+<h4 align="center">A data stream processing API for Go (alpha)</h4>
+<BR>
 
 [![GoDoc](https://godoc.org/github.com/vladimirvivien/automi?status.svg)](https://godoc.org/github.com/vladimirvivien/automi)
 [![Build Status](https://travis-ci.org/vladimirvivien/automi.svg)](https://travis-ci.org/vladimirvivien/automi)

@@ -11,6 +11,7 @@
 * [x] Examples with error handling
 * [x] Examples with logging
 * [x] Context cancellation check for all operators
+* [x] Add logo to README.md
 * [ ] Reset/squash commit history
 * [ ] Merge to main
 
