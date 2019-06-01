@@ -11,6 +11,7 @@
 * [x] Examples with error handling
 * [x] Examples with logging
 * [x] Context cancellation check for all operators
+* [x] Examples with gRPC streaming
 * [x] Add logo to README.md
 * [ ] Reset/squash commit history
 * [ ] Merge to main
@@ -21,6 +22,7 @@
 * [ ] Add Stream.Notify() to catch os/signal notify
 * [ ] Internal type hierarchy refactoring
 * [ ] Automatically turn on batch when batch operators are invoked
+* [ ] Add support for stream.Into(func(item <type>){}) which is equivalent to stream.Into(collectors.Func(func))
 * [ ] Change collectors signature to return StreamError instead of error
 * [ ] Add copyright to source files
 * [ ] Doc wiki
