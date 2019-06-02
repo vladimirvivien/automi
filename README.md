@@ -3,7 +3,7 @@
 </h1>
 
 <h4 align="center">A data stream processing API for Go (alpha)</h4>
-<BR>
+<br/>
 
 [![GoDoc](https://godoc.org/github.com/vladimirvivien/automi?status.svg)](https://godoc.org/github.com/vladimirvivien/automi)
 [![Build Status](https://travis-ci.org/vladimirvivien/automi.svg)](https://travis-ci.org/vladimirvivien/automi)
@@ -12,7 +12,11 @@ Automi is an API for processing streams of data using idiomatic Go.  Using Autom
 
 ## Concept
 
-![Stream](./docs/streaming.png)
+<h1 align="center">
+    <img src="./docs/streaming.png" alt="Automi streaming concepts">
+</h1>
+
+<br/>
 
 The Automi API expresses a stream with four primitives including:
 
