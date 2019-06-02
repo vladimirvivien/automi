@@ -1,5 +1,5 @@
 <h1 align="center">
-    <img src="./docs/automi_logo.png" alt="A stream processing API for Go">
+    <img src="./docs/automi_logo_small.png" alt="A stream processing API for Go">
 </h1>
 
 <h4 align="center">A data stream processing API for Go (alpha)</h4>
