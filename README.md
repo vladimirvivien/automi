@@ -203,6 +203,52 @@ func main() {
 ```
 > See complete example [here](./examples/net/http/httpsvr.go).
 
+### Streaming gRPC service payload
+The following example shows how to use Automi to stream data items from a gRPC streaming sevice.  The following gRPC
+client setups an Automi emitter to emit time values that are streamed from a gRPC time service:
+
+```go
+// setup an Automi emitter function to stream from the gRPC service
+func emitStreamFrom(client pb.TimeServiceClient) <-chan []byte {
+	source := make(chan []byte)
+	timeStream, err := client.GetTimeStream(context.Background(), &pb.TimeRequest{Interval: 3000})
+	...
+	go func(stream pb.TimeService_GetTimeStreamClient, srcCh chan []byte) {
+		defer close(srcCh)
+		for {
+			t, err := stream.Recv()
+			srcCh <- t.Value
+		}
+	}(timeStream, source)
+
+	return source
+}
+
+func main() {
+	...
+	client := pb.NewTimeServiceClient(conn)
+	// create automi stream
+	stream := stream.New(emitStreamFrom(client))
+	stream.Map(func(item []byte) time.Time {
+		secs := int64(binary.BigEndian.Uint64(item))
+		return time.Unix(int64(secs), 0)
+	})
+	stream.Into(collectors.Func(func(item interface{}) error {
+		time := item.(time.Time)
+		fmt.Println(time)
+		return nil
+	}))
+
+	// open the stream
+	if err := <-stream.Open(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+}
+```
+> See complete example [here](./examples/grpc).
+
 ## More Examples
 [Examples](./examples) - View a long list of examples that cover all aspects of using Automi.
 
