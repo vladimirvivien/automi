@@ -16,10 +16,10 @@ $> protoc -I=./protobuf --go_out=plugins=grpc:./protobuf ./protobuf/time.proto
 
 Run the server:
 ```
-go run server.go
+go run ./server/server.go
 ```
 
 In a different terminal, run the client:
 ```
-go run client.go
+go run ./client/client.go
 ```
