@@ -1,5 +1,5 @@
 <h1 align="center">
-    <img src="./docs/automi_logo_small.png" alt="A stream processing API for Go">
+    <img src="./docs/automi_logo.png" alt="automi">
 </h1>
 
 <h4 align="center">A data stream processing API for Go (alpha)</h4>
@@ -259,8 +259,8 @@ Automi comes with a set of built-in components to get you started with stream pr
 
 * `Channel`
 * `CSV`
-* `Reader`
-* `Scanner`
+* `io.Reader`
+* `io.Scanner`
 * `Slice`
 
 ### Operators

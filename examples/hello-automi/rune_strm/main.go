@@ -11,7 +11,7 @@ import (
 func main() {
 
 	// create new stream with a slice of runes as emitter
-	strm := stream.New([]rune("B世!ぽ@opqDQRS#$%^&*()ᅖ...O6PTnVWXѬYZbcef7ghijCklrAstvw"))
+	strm := stream.New([]rune(`B世!ぽ@opqDQRS#$%^&*()ᅖ4x5Њ8yzUd90E12a3ᇳFGHmIザJuKLMᇙNO6PTnVWXѬYZbcef7ghijCklrAstvw`))
 
 	// filter out lowercase, non printable chars
 	strm.Filter(func(item rune) bool {

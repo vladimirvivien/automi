@@ -11,6 +11,7 @@ import (
 
 func main() {
 
+	// emitterFunc returns a chan used for data
 	emitterFunc := func() <-chan time.Time {
 		times := make(chan time.Time)
 		go func() {
