@@ -13,7 +13,7 @@
 * [x] Context cancellation check for all operators
 * [x] Examples with gRPC streaming
 * [x] Add logo to README.md
-* [ ] Reset/squash commit history
+* [x] Rebase commit history
 * [ ] Merge to main
 
 ## 0.2 Alpha - Tasks
