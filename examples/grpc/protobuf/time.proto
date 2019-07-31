@@ -1,0 +1,17 @@
+syntax = "proto3";
+package protobuf;
+
+service TimeService {
+    // GetTimeStream returns a stream of time messages at specified millis intervals
+    rpc GetTimeStream(TimeRequest) returns (stream Time){}
+}
+
+// TimeRequest requests a time
+message TimeRequest {
+    int32 interval = 1;
+}
+
+// Time represents a time value
+message Time {
+    bytes value = 1;
+}

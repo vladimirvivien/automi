@@ -3,56 +3,79 @@ package context
 import (
 	"context"
 	"fmt"
-	"log"
-	"os"
+
+	"github.com/vladimirvivien/automi/api"
 )
 
-const (
-	loggerKey = iota
-	auxChKey
-)
+type ctxKey int
 
 var (
-	logger *log.Logger = log.New(os.Stderr, log.Prefix(), log.Flags())
+	logFuncKey ctxKey = 1
+	errFuncKey ctxKey = 2
 )
 
-// WithLogger sets a logger value in the cotext.
-func WithLogger(ctx context.Context, logger *log.Logger) context.Context {
-	return context.WithValue(ctx, loggerKey, logger)
+// WithLogFunc sets the function to handle logging from runtime components
+func WithLogFunc(ctx context.Context, logFunc api.LogFunc) context.Context {
+	return context.WithValue(ctx, logFuncKey, logFunc)
 }
 
-// GetLogger returns the logger if one is found, or create one.
-func GetLogger(ctx context.Context) *log.Logger {
-	l, ok := ctx.Value(loggerKey).(*log.Logger)
-	if l == nil || !ok {
-		return logger
-	}
-	return l
-}
-
-// WithAuxChan sets the auiliary channel to be used by components using the
-// so they can export message/event that is not
-// part of the main processing flow.
-func WithAuxChan(ctx context.Context, auxChan chan<- interface{}) context.Context {
-	return context.WithValue(ctx, auxChKey, auxChan)
-}
-
-// SendAuxMsg submits an item to be sent to the auxiliary channel.
-// The item can be any arbitrary value that can be used for non-processing
-// messaging such as an event, rejected data, etc.  These messages can be
-// processed using the Plan that is running the flow.
-func SendAuxMsg(ctx context.Context, item interface{}) error {
-	ch, ok := ctx.Value(auxChKey).(chan<- interface{})
+// GetLogFunc returns the log function stored in the context.
+func GetLogFunc(ctx context.Context) func(interface{}) {
+	fn, ok := ctx.Value(logFuncKey).(func(interface{}))
 	if !ok {
-		return fmt.Errorf("Unable to find the auxiliary channel in context")
+		return nil
 	}
-	ch <- item
+	return fn
+}
+
+// Log retrieves Log Function from context and invokes it with message
+func Log(ctx context.Context, message interface{}) error {
+	val := ctx.Value(logFuncKey)
+	if val == nil {
+		return fmt.Errorf("log function nil")
+	}
+	fn, ok := val.(api.LogFunc)
+	if !ok {
+		return fmt.Errorf("unexpected log func type %T", fn)
+	}
+	if fn != nil {
+		fn(message)
+	}
 	return nil
 }
 
-// GetAuxChan returns the auxiliary channel used for communicating
-// non-processing messaging or event to outside of the flow.
-func GetAuxChan(ctx context.Context) (chan<- interface{}, bool) {
-	ch, ok := ctx.Value(auxChKey).(chan<- interface{})
-	return ch, ok
+// WithErrorFunc sets the function to handle error from runtime components
+func WithErrorFunc(ctx context.Context, errFunc api.ErrorFunc) context.Context {
+	return context.WithValue(ctx, errFuncKey, errFunc)
+}
+
+// GetErrFunc returns the error handling function stored in the context.
+func GetErrFunc(ctx context.Context) api.ErrorFunc {
+	fn, ok := ctx.Value(errFuncKey).(api.ErrorFunc)
+	if !ok {
+		return nil
+	}
+	return fn
+}
+
+// HandleErr used to invoke registered error handler to handle error.
+func HandleErr(ctx context.Context, err error) error {
+	val := ctx.Value(errFuncKey)
+	if val == nil {
+		return fmt.Errorf("error function nil")
+	}
+	fn, ok := val.(api.LogFunc)
+	if !ok {
+		return fmt.Errorf("unexpected error func type %T", fn)
+	}
+	if fn != nil {
+		fn(err)
+	}
+	return nil
+}
+
+func Err(fn api.ErrorFunc, err api.StreamError) {
+	if fn != nil {
+		fn(err)
+	}
 }

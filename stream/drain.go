@@ -2,22 +2,23 @@ package stream
 
 import (
 	"context"
-	"log"
-	"os"
+
+	"github.com/vladimirvivien/automi/api"
+	autoctx "github.com/vladimirvivien/automi/api/context"
+	"github.com/vladimirvivien/automi/util"
 )
 
 // Drain is a generic sink that terminates streamed data
 type Drain struct {
 	output chan interface{}
 	input  <-chan interface{}
-	log    *log.Logger
+	logFn  api.LogFunc
 }
 
 // NewDrain creates a new Drain
 func NewDrain() *Drain {
 	return &Drain{
 		output: make(chan interface{}, 1024),
-		log:    log.New(os.Stderr, "", log.Flags()),
 	}
 }
 
@@ -26,18 +27,19 @@ func (s *Drain) SetInput(in <-chan interface{}) {
 	s.input = in
 }
 
-// GetOuput returns output channel for stream node
+// GetOutput returns output channel for stream node
 func (s *Drain) GetOutput() <-chan interface{} {
 	return s.output
 }
 
 // Open opens the sink node to start consuming streaming data
 func (s *Drain) Open(ctx context.Context) <-chan error {
-	s.log.Print("cpening component")
+	s.logFn = autoctx.GetLogFunc(ctx)
+	util.Logfn(s.logFn, "Opening drain")
 	result := make(chan error)
 	go func() {
 		defer func() {
-			s.log.Print("closing component")
+			util.Logfn(s.logFn, "Closing drain")
 			close(s.output)
 			close(result)
 		}()
