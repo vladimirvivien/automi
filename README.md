@@ -6,7 +6,8 @@
 <br/>
 
 [![GoDoc](https://godoc.org/github.com/vladimirvivien/automi?status.svg)](https://godoc.org/github.com/vladimirvivien/automi)
-[![Build Status](https://travis-ci.org/vladimirvivien/automi.svg)](https://travis-ci.org/vladimirvivien/automi)
+[![example workflow](https://github.com/vladimirvivien/automi/actions/workflows/build-test.yaml/badge.svg)](https://github.com/vladimirvivien/automi/actions)
+[![Go Report Card](https://goreportcard.com/badge/github.com/vladimirvivien/automi)](https://goreportcard.com/report/github.com/vladimirvivien/automi)
 
 Automi is an API for processing streams of data using idiomatic Go.  Using Automi, programs can process streaming of data chunks by composing stages of operations that are applied to each element of the stream.  
 
