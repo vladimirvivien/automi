@@ -1,7 +1,0 @@
-language: go
-go:
-  - "1.12.x"
-notifications:
-  email:
-    on_success: change
-    on_failure: always

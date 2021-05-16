@@ -1,10 +1,12 @@
 # TODO
 
 ## 0.2.0 - Tasks
-* [ ] Add go module
-* [ ] Use GitHub Actions CI
-* [ ] Add CI/CD badges
-  * [ ] Build passing, Go Reference, Go Report, Awesome-Go
+* [x] Add go module
+* [x] Use GitHub Actions CI
+* [ ] Submit to Awesome-Go  
+* [x] Add CI/CD badges
+  * [ ] Build passing, Go Reference, Go Report 
+  * [ ] Awesome-Go
 * [ ] Add copyright to source files
 * [ ] Remove dead code  
 * [ ] Signal stream cancellation from error handler ErrorFunc
