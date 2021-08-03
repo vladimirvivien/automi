@@ -6,12 +6,14 @@ import (
 	"github.com/vladimirvivien/automi/operators/unary"
 )
 
+// Batch returns a *batch.Operator with batch.TriggerAll set
 func (s *Stream) Batch() *Stream {
 	operator := batch.New()
 	operator.SetTrigger(batch.TriggerAll())
 	return s.appendOp(operator)
 }
 
+// BatchBySize returns a *batch.Operator with batch.TriggerBySize set
 func (s *Stream) BatchBySize(size int64) *Stream {
 	operator := batch.New()
 	operator.SetTrigger(batch.TriggerBySize(size))
@@ -64,9 +66,6 @@ func (s *Stream) GroupByPos(pos int) *Stream {
 
 // Sort sorts incoming items that are batched as []T where
 // value T is comparable.  The operator returns sorted slice []T.
-//
-// See Also
-//
 // See also the operator function SortFunc in
 //   "github.com/vladimirvivien/automi/operators/batch"
 func (s *Stream) Sort() *Stream {
@@ -78,8 +77,6 @@ func (s *Stream) Sort() *Stream {
 // SortByKey sorts incoming items that are batched as type []map[K]V
 // where K is a comparable type specified by param key and used to
 // sort the slice.  The opertor returns a sorted []map[K]V.
-//
-// See Also
 //
 // See also the operator function SortByKeyFunc in
 //   "github.com/vladimirvivien/automi/operators/batch"
@@ -93,8 +90,6 @@ func (s *Stream) SortByKey(key interface{}) *Stream {
 // T struct with fields identified by param name.  Value struct.<name>
 // is used to sort the slice.  The operator returns stored slice []T.
 //
-// See Also
-//
 // See also the operator function SortByNameFunc in
 //   "github.com/vladimirvivien/automi/operators/batch"
 func (s *Stream) SortByName(name string) *Stream {
@@ -107,8 +102,6 @@ func (s *Stream) SortByName(name string) *Stream {
 // value at [][[pos]T is used to sort the slice.  The operator
 // returns sorted slice [][]T.
 //
-// See Also
-//
 // See also the operator function SortByPosFunc in
 //   "github.com/vladimirvivien/automi/operators/batch"
 func (s *Stream) SortByPos(pos int) *Stream {
@@ -119,8 +112,6 @@ func (s *Stream) SortByPos(pos int) *Stream {
 
 // SortWith sorts incoming items that are batched as []T using the
 // provided Less function for applicaiton with the sort package.
-//
-// See Also
 //
 // See also the operator function SortWithFunc in
 //   "github.com/vladimirvivien/automi/operators/batch"
@@ -133,8 +124,6 @@ func (s *Stream) SortWith(f func(batch interface{}, i, j int) bool) *Stream {
 // Sum sums up numeric items that are batched as []T or [][]T where
 // T is an integer or a floating point value. The operator returns a
 // single value of type float64.
-//
-// See Also
 //
 // See also the operator function SumFunc in
 //   "github.com/vladimirvivien/automi/operators/batch"
@@ -152,8 +141,6 @@ func (s *Stream) Sum() *Stream {
 //
 // This operator returns map[interface{}]float64{key:sum} where
 // sum is the calculated sum.
-//
-// See Also
 //
 // See also the operator function SumByKeyFunc in
 //   "github.com/vladimirvivien/automi/operators/batch"
@@ -174,8 +161,6 @@ func (s *Stream) SumAllKeys() *Stream {
 // name identifier and are of integer of floating point
 // types.  The operator returns a float64 value.
 //
-// See Also
-//
 // See also the operator function SumByNameFunc in
 //   "github.com/vladimirvivien/automi/operator/batch"
 func (s *Stream) SumByName(name string) *Stream {
@@ -189,8 +174,6 @@ func (s *Stream) SumByName(name string) *Stream {
 // [pos]T or [][pos]T are added and returned as a float64
 // value.
 //
-// See Also
-//
 // See also the operator function SumByPosFunc in
 //   "github.com/vladimirvivien/automi/operator/batch"
 func (s *Stream) SumByPos(pos int) *Stream {
@@ -199,7 +182,6 @@ func (s *Stream) SumByPos(pos int) *Stream {
 	return s.appendOp(operator)
 }
 
-// GroupByKey
 func (s *Stream) appendOp(operator api.Operator) *Stream {
 	s.ops = append(s.ops, operator)
 	return s

@@ -135,7 +135,7 @@ func TestBatchOp_Exec_MultipleBatches(t *testing.T) {
 			batchSize := len(batch)
 			t.Log("got batch size:", batchSize)
 			if batchSize != 4 && batchSize != 2 {
-				t.Fatal("unexpected batch size:", batchSize)
+				t.Error("unexpected batch size:", batchSize)
 			}
 
 			m.Lock()
@@ -295,7 +295,7 @@ func BenchmarkBatchOp_Exec(b *testing.B) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		for _ = range o.GetOutput() {
+		for range o.GetOutput() {
 			m.Lock()
 			counter++
 			m.Unlock()

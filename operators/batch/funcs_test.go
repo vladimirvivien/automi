@@ -8,9 +8,9 @@ import (
 func TestBatchFuncs_GroupByPos_WithSlice(t *testing.T) {
 	op := GroupByPosFunc(0)
 	data := [][]string{
-		[]string{"aa", "absolute", "resolute"},
-		[]string{"ab", "merchant", "errand", "elegant"},
-		[]string{"aa", "classic", "magic", "toxic"},
+		{"aa", "absolute", "resolute"},
+		{"ab", "merchant", "errand", "elegant"},
+		{"aa", "classic", "magic", "toxic"},
 	}
 	result := op.Apply(context.TODO(), data)
 	mapVal, ok := result.([]map[interface{}][]interface{})
@@ -30,9 +30,9 @@ func TestBatchFuncs_GroupByPos_WithSlice(t *testing.T) {
 func TestBatchFuncs_GroupByPos_WithArray(t *testing.T) {
 	op := GroupByPosFunc(0)
 	data := [][4]string{
-		[4]string{"aa", "absolute", "resolute", "cantolope"},
-		[4]string{"ab", "merchant", "errand", "elegant"},
-		[4]string{"aa", "classic", "magic", "toxic"},
+		{"aa", "absolute", "resolute", "cantolope"},
+		{"ab", "merchant", "errand", "elegant"},
+		{"aa", "classic", "magic", "toxic"},
 	}
 	result := op.Apply(context.TODO(), data)
 	mapVal, ok := result.([]map[interface{}][]interface{})

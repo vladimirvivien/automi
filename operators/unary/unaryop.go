@@ -3,36 +3,26 @@ package unary
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/vladimirvivien/automi/api"
 	autoctx "github.com/vladimirvivien/automi/api/context"
 	"github.com/vladimirvivien/automi/util"
 )
 
-type packed struct {
-	vals []interface{}
-}
-
-func pack(vals ...interface{}) packed {
-	return packed{vals}
-}
-
-// UnaryOp is an executor node that can execute a unary operation (i.e. transformation, etc)
-type UnaryOperator struct {
+// Operator is an executor node that can execute a unary operation (i.e. transformation, etc)
+type Operator struct {
 	op          api.UnOperation
 	concurrency int
 	input       <-chan interface{}
 	output      chan interface{}
 	logf        api.LogFunc
 	errf        api.ErrorFunc
-	mutex       sync.RWMutex
 }
 
-// NewUnary creates *UnaryOperator value
-func New() *UnaryOperator {
+// New creates *Operator value
+func New() *Operator {
 	// extract logger
-	o := new(UnaryOperator)
+	o := new(Operator)
 
 	o.concurrency = 1
 	o.output = make(chan interface{}, 1024)
@@ -41,12 +31,12 @@ func New() *UnaryOperator {
 }
 
 // SetOperation sets the executor operation
-func (o *UnaryOperator) SetOperation(op api.UnOperation) {
+func (o *Operator) SetOperation(op api.UnOperation) {
 	o.op = op
 }
 
 // SetConcurrency sets the concurrency level for the operation
-func (o *UnaryOperator) SetConcurrency(concurr int) {
+func (o *Operator) SetConcurrency(concurr int) {
 	o.concurrency = concurr
 	if o.concurrency < 1 {
 		o.concurrency = 1
@@ -54,17 +44,17 @@ func (o *UnaryOperator) SetConcurrency(concurr int) {
 }
 
 // SetInput sets the input channel for the executor node
-func (o *UnaryOperator) SetInput(in <-chan interface{}) {
+func (o *Operator) SetInput(in <-chan interface{}) {
 	o.input = in
 }
 
 // GetOutput returns the output channel for the executor node
-func (o *UnaryOperator) GetOutput() <-chan interface{} {
+func (o *Operator) GetOutput() <-chan interface{} {
 	return o.output
 }
 
 // Exec is the entry point for the executor
-func (o *UnaryOperator) Exec(ctx context.Context) (err error) {
+func (o *Operator) Exec(ctx context.Context) (err error) {
 	o.logf = autoctx.GetLogFunc(ctx)
 	o.errf = autoctx.GetErrFunc(ctx)
 	util.Logfn(o.logf, "Unary operator started")
@@ -85,7 +75,7 @@ func (o *UnaryOperator) Exec(ctx context.Context) (err error) {
 	return nil
 }
 
-func (o *UnaryOperator) doOp(ctx context.Context) {
+func (o *Operator) doOp(ctx context.Context) {
 	if o.op == nil {
 		util.Logfn(o.logf, "Unary operator missing operation")
 		return

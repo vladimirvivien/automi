@@ -111,11 +111,10 @@ func (s *Stream) Open() <-chan error {
 		}
 
 		// open stream sink, after log sink is ready.
-		select {
-		case err := <-s.sink.Open(s.ctx):
-			util.Logfn(s.logf, "Closing stream")
-			s.drain <- err
-		}
+		err := <-s.sink.Open(s.ctx)
+		util.Logfn(s.logf, "Closing stream")
+		s.drain <- err
+
 	}()
 
 	return s.drain

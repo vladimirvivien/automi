@@ -17,7 +17,6 @@ import (
 // type []string and write them as comma-separated values to the specified
 // io.Writer or file.
 type CsvCollector struct {
-	filepath  string   // path for the file
 	delimChar rune     // delimiter character
 	headers   []string // optional csv headers
 
@@ -39,11 +38,14 @@ func CSV(sink interface{}) *CsvCollector {
 	return csv
 }
 
+// DelimChar sets the character to use as delimiter for the
+// collected csv items.
 func (c *CsvCollector) DelimChar(char rune) *CsvCollector {
 	c.delimChar = char
 	return c
 }
 
+// Headers sets the header columns for the CSV items collected
 func (c *CsvCollector) Headers(headers []string) *CsvCollector {
 	c.headers = headers
 	return c
@@ -54,7 +56,7 @@ func (c *CsvCollector) SetInput(in <-chan interface{}) {
 	c.input = in
 }
 
-// internal initializiation of the component
+// init  initializes the components
 func (c *CsvCollector) init(ctx context.Context) error {
 	//extract log function
 	c.logf = autoctx.GetLogFunc(ctx)

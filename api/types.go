@@ -4,45 +4,27 @@ import (
 	"context"
 )
 
+// Emitter represents a stream emitter
 type Emitter interface {
 	GetOutput() <-chan interface{}
 }
 
+// Source represents a stream source
 type Source interface {
 	Emitter
 	Open(context.Context) error
 }
 
+// Collector represents a stream collector to collect items
 type Collector interface {
 	SetInput(<-chan interface{})
 }
 
+// Sink is a stream sink to receive stream items
 type Sink interface {
 	Collector
 	Open(context.Context) <-chan error
 }
-
-//Deprecated Source represents a node that can source data
-//type Source interface {
-//	GetOutput() <-chan interface{}
-//}
-
-// StreamSource Represents a source of data stream
-//type StreamSource interface {
-//	Source
-//	Open(context.Context) error
-//}
-
-// Sink represents a node that can absorb/consume data
-//type Sink interface {
-//	SetInput(<-chan interface{})
-//}
-
-// SteamSink  represents a node that can stream data to be absorbed/consumed
-//type StreamSink interface {
-//	Sink
-//	Open(context.Context) <-chan error
-//}
 
 // Operator is an executor node that applies a function on items in the stream
 type Operator interface {
@@ -63,6 +45,7 @@ type StreamError struct {
 	item *StreamItem // Item that caused error
 }
 
+// Error returns a string value for StreamError
 func (e StreamError) Error() string {
 	return e.err
 }
@@ -85,6 +68,7 @@ func ErrorWithItem(msg string, item *StreamItem) StreamError {
 // PanicStreamError signals that the stream should panic immediately
 type PanicStreamError StreamError
 
+// Error returns a string value for PanicStreamError
 func (e PanicStreamError) Error() string {
 	return e.err
 }
@@ -98,6 +82,7 @@ func PanickingError(msg string) PanicStreamError {
 // and the streaming should gracefully end
 type CancelStreamError StreamError
 
+// Error returns a string value for CancelStreamError
 func (e CancelStreamError) Error() string {
 	return e.err
 }
@@ -107,7 +92,7 @@ func CancellationError(msg string) CancelStreamError {
 	return CancelStreamError(Error(msg))
 }
 
-// StreamItem can be used to provide a rich repressentation of streaming data.
+// StreamItem can be used to provide a rich representation of streaming data.
 // Stream data can be wrapped in StreamItem carry additional information downstream
 // including context, metadata, and error.
 type StreamItem struct {

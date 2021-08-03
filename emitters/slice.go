@@ -18,7 +18,7 @@ type SliceEmitter struct {
 	logf   api.LogFunc
 }
 
-// SliceSrc creates new slice source
+// Slice creates new slice source
 func Slice(slice interface{}) *SliceEmitter {
 	return &SliceEmitter{
 		slice:  slice,
@@ -26,7 +26,7 @@ func Slice(slice interface{}) *SliceEmitter {
 	}
 }
 
-// GetOuptut returns the output channel of this source node
+// GetOutput returns the output channel of this source node
 func (s *SliceEmitter) GetOutput() <-chan interface{} {
 	return s.output
 }

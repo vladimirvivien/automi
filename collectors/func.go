@@ -14,7 +14,7 @@ import (
 // stream sink.
 type CollectorFunc func(interface{}) error
 
-// FuncCollector is a colletor that uses a function
+// FuncCollector is a collector that uses a function
 // to collect data.  The specified function must be
 // of type:
 //   CollectorFunc

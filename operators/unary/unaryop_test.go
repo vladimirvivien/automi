@@ -312,7 +312,7 @@ func BenchmarkUnaryOp_Exec(b *testing.B) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		for _ = range o.GetOutput() {
+		for range o.GetOutput() {
 		}
 	}()
 

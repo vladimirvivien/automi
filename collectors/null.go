@@ -8,15 +8,19 @@ import (
 	"github.com/vladimirvivien/automi/util"
 )
 
+// NullCollector represents a collector that terminates
+// to a noop collector
 type NullCollector struct {
 	input <-chan interface{}
 	logf  api.LogFunc
 }
 
+// Null creates the new value of the collector
 func Null() *NullCollector {
 	return new(NullCollector)
 }
 
+// SetInput sets the input source for the collector
 func (s *NullCollector) SetInput(in <-chan interface{}) {
 	s.input = in
 }

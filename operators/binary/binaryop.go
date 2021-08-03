@@ -9,9 +9,9 @@ import (
 	"github.com/vladimirvivien/automi/util"
 )
 
-// BinaryOperator represents an operator that knows how to run a
+// Operator represents an operator that knows how to run a
 // binary operations such as aggregation, reduction, etc.
-type BinaryOperator struct {
+type Operator struct {
 	op          api.BinOperation
 	state       interface{}
 	concurrency int
@@ -22,26 +22,26 @@ type BinaryOperator struct {
 }
 
 // New creates a new binary operator
-func New() *BinaryOperator {
+func New() *Operator {
 	// extract logger
-	o := new(BinaryOperator)
+	o := new(Operator)
 	o.concurrency = 1
 	o.output = make(chan interface{}, 1024)
 	return o
 }
 
 // SetOperation sets the operation to execute
-func (o *BinaryOperator) SetOperation(op api.BinOperation) {
+func (o *Operator) SetOperation(op api.BinOperation) {
 	o.op = op
 }
 
 // SetInitialState sets an initial value used with the first streamed item
-func (o *BinaryOperator) SetInitialState(val interface{}) {
+func (o *Operator) SetInitialState(val interface{}) {
 	o.state = val
 }
 
 // SetConcurrency sets the concurrency level
-func (o *BinaryOperator) SetConcurrency(concurr int) {
+func (o *Operator) SetConcurrency(concurr int) {
 	o.concurrency = concurr
 	if o.concurrency < 1 {
 		o.concurrency = 1
@@ -49,17 +49,17 @@ func (o *BinaryOperator) SetConcurrency(concurr int) {
 }
 
 // SetInput sets the input channel for the executor node
-func (o *BinaryOperator) SetInput(in <-chan interface{}) {
+func (o *Operator) SetInput(in <-chan interface{}) {
 	o.input = in
 }
 
 // GetOutput returns the output channel for the executor node
-func (o *BinaryOperator) GetOutput() <-chan interface{} {
+func (o *Operator) GetOutput() <-chan interface{} {
 	return o.output
 }
 
 // Exec executes the associated operation
-func (o *BinaryOperator) Exec(ctx context.Context) (err error) {
+func (o *Operator) Exec(ctx context.Context) (err error) {
 	o.logf = autoctx.GetLogFunc(ctx)
 	o.errf = autoctx.GetErrFunc(ctx)
 	util.Logfn(o.logf, "Binary operator starting")
@@ -81,7 +81,7 @@ func (o *BinaryOperator) Exec(ctx context.Context) (err error) {
 }
 
 // doProc is a helper function that executes the operation
-func (o *BinaryOperator) doOp(ctx context.Context) {
+func (o *Operator) doOp(ctx context.Context) {
 	if o.op == nil {
 		util.Logfn(o.logf, "Binary operator has no operation")
 		return
