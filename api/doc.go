@@ -1,2 +1,2 @@
-// API package with type definitions
+// Package api with type definitions
 package api

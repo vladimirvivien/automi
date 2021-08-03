@@ -39,7 +39,7 @@ func TestEmitter_CSV_IOReader(t *testing.T) {
 	go func() {
 		defer close(wait)
 		m.Lock()
-		for _ = range csv.GetOutput() {
+		for range csv.GetOutput() {
 			count++
 		}
 		m.Unlock()
@@ -94,7 +94,7 @@ func TestEmitter_CSV_FileName(t *testing.T) {
 	go func() {
 		defer close(wait)
 		m.Lock()
-		for _ = range csv.GetOutput() {
+		for range csv.GetOutput() {
 			count++
 		}
 		m.Unlock()
@@ -144,7 +144,7 @@ func Benchmark_CSV(b *testing.B) {
 	go func() {
 		defer close(wait)
 		m.Lock()
-		for _ = range csv.GetOutput() {
+		for range csv.GetOutput() {
 			counted++
 		}
 		m.Unlock()

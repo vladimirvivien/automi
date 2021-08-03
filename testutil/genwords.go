@@ -21,7 +21,7 @@ func GenWord() string {
 	return GenWordn(n)
 }
 
-// GenWordWithLen generates a random world of N length
+// GenWordn generates a random world of N length
 func GenWordn(n int) string {
 	if n < 1 {
 		n = 12

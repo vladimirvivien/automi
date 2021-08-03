@@ -49,7 +49,7 @@ func TestStreamOp_Exec(t *testing.T) {
 	wait := make(chan struct{})
 	go func() {
 		defer close(wait)
-		for _ = range o.GetOutput() {
+		for range o.GetOutput() {
 			m.Lock()
 			counter++
 			m.Unlock()
@@ -102,7 +102,7 @@ func BenchmarkStreamOp_Exec(b *testing.B) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		for _ = range o.GetOutput() {
+		for range o.GetOutput() {
 			m.Lock()
 			counter++
 			m.Unlock()

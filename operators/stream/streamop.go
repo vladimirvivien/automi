@@ -11,34 +11,34 @@ import (
 	"github.com/vladimirvivien/automi/util"
 )
 
-// StreamOperator is an operator takes streamed items of type
+// Operator is an operator takes streamed items of type
 // map, array, or slice and unpacks and emits each item individually
 // downstream.
-type StreamOperator struct {
+type Operator struct {
 	input  <-chan interface{}
 	output chan interface{}
 	logf   api.LogFunc
 }
 
-// New creates a *StreamOperator value
-func New() *StreamOperator {
-	r := new(StreamOperator)
+// New creates a *Operator value
+func New() *Operator {
+	r := new(Operator)
 	r.output = make(chan interface{}, 1024)
 	return r
 }
 
 // SetInput sets the input channel for the executor node
-func (r *StreamOperator) SetInput(in <-chan interface{}) {
+func (r *Operator) SetInput(in <-chan interface{}) {
 	r.input = in
 }
 
 // GetOutput returns the output channel of the executer node
-func (r *StreamOperator) GetOutput() <-chan interface{} {
+func (r *Operator) GetOutput() <-chan interface{} {
 	return r.output
 }
 
 // Exec is the execution starting point for the executor node.
-func (r *StreamOperator) Exec(ctx context.Context) (err error) {
+func (r *Operator) Exec(ctx context.Context) (err error) {
 	r.logf = autoctx.GetLogFunc(ctx)
 	util.Logfn(r.logf, "Stream operator starting")
 

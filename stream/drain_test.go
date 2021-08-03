@@ -23,7 +23,7 @@ func TestDrain_Open(t *testing.T) {
 	wait := make(chan struct{})
 	go func() {
 		defer close(wait)
-		for _ = range d.GetOutput() {
+		for range d.GetOutput() {
 			m.Lock()
 			count++
 			m.Unlock()

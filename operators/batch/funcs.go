@@ -321,7 +321,7 @@ func SumByKeyFunc(key interface{}) api.UnFunc {
 	})
 }
 
-// Sum generates an api.UnFunc that sums batched items from upstream.
+// SumFunc generates an api.UnFunc that sums batched items from upstream.
 // The data is expected to be of the following types:
 //  []integers
 //  []floats
@@ -545,6 +545,7 @@ func SortWithFunc(f func(batch interface{}, i, j int) bool) api.UnFunc {
 	})
 }
 
+// ForAll returns an api.UnFunc that is applied on all items in the batch
 func ForAll(f func(ctx context.Context, batch interface{}) map[interface{}][]interface{}) api.UnFunc {
 	return api.UnFunc(func(ctx context.Context, param0 interface{}) interface{} {
 		return f(ctx, param0)

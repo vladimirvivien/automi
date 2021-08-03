@@ -11,14 +11,14 @@ import (
 )
 
 // ChanEmitter is an emitter that takes in a channel and
-// and sets it up as the source of the emitter .
+// sets it up as the source of the emitter .
 type ChanEmitter struct {
 	channel interface{}
 	output  chan interface{}
 	logf    api.LogFunc
 }
 
-// Chan creates new slice source
+// Chan is a construction function that returns a new ChanEmitter
 func Chan(channel interface{}) *ChanEmitter {
 	return &ChanEmitter{
 		channel: channel,

@@ -16,7 +16,6 @@ import (
 // CsvEmitter implements an Emitter node that gets its content from the
 // specified io.Reader and emits each record as []string.
 type CsvEmitter struct {
-	filepath    string   // path for the file
 	delimChar   rune     // Delimiter charater, defaults to comma
 	commentChar rune     // Charater indicating line is a cg.org/omment
 	headers     []string // Column header names (specified here or read from file)
@@ -46,7 +45,7 @@ func CSV(source interface{}) *CsvEmitter {
 	return csv
 }
 
-// Delimiter sets the delimiter character to use (default is comma)
+// DelimChar sets the delimiter character to use (default is comma)
 func (c *CsvEmitter) DelimChar(char rune) *CsvEmitter {
 	c.delimChar = char
 	return c

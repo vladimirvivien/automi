@@ -10,35 +10,35 @@ import (
 	"github.com/vladimirvivien/automi/util"
 )
 
-// BatchOperator is an executor that batches incoming streamed items based
+// Operator is an executor that batches incoming streamed items based
 // on provided criteria.  The batched items are streamed on the
-// ouptut channel for downstream processing.
-type BatchOperator struct {
+// output channel for downstream processing.
+type Operator struct {
 	input   <-chan interface{}
 	output  chan interface{}
 	logf    api.LogFunc
 	trigger api.BatchTrigger
 }
 
-// New returns a new BatchOperator operator
-func New() *BatchOperator {
-	op := new(BatchOperator)
+// New returns a new Operator operator
+func New() *Operator {
+	op := new(Operator)
 	op.output = make(chan interface{}, 1024)
 	return op
 }
 
 // SetInput sets the input channel for the executor node
-func (op *BatchOperator) SetInput(in <-chan interface{}) {
+func (op *Operator) SetInput(in <-chan interface{}) {
 	op.input = in
 }
 
 // GetOutput returns the output channel of the executer node
-func (op *BatchOperator) GetOutput() <-chan interface{} {
+func (op *Operator) GetOutput() <-chan interface{} {
 	return op.output
 }
 
 // SetTrigger sets the batch operation to apply for this operator
-func (op *BatchOperator) SetTrigger(trigger api.BatchTrigger) {
+func (op *Operator) SetTrigger(trigger api.BatchTrigger) {
 	op.trigger = trigger
 }
 
@@ -46,7 +46,7 @@ func (op *BatchOperator) SetTrigger(trigger api.BatchTrigger) {
 // The batch operator batches N size items from upstream into
 // a slice []T.  When the slice reaches size N, the slice is sent
 // downstream for processing.
-func (op *BatchOperator) Exec(ctx context.Context) (err error) {
+func (op *Operator) Exec(ctx context.Context) (err error) {
 	op.logf = autoctx.GetLogFunc(ctx)
 	util.Logfn(op.logf, "Batch operator starting")
 
@@ -119,7 +119,7 @@ func (op *BatchOperator) Exec(ctx context.Context) (err error) {
 
 // makeBatchType detects and return type to be used for the batch based
 // on items in the
-func (op *BatchOperator) makeBatchType(item interface{}) reflect.Type {
+func (op *Operator) makeBatchType(item interface{}) reflect.Type {
 	itemType := reflect.TypeOf(item)
 	var retType reflect.Type
 

@@ -10,6 +10,7 @@ import (
 	"github.com/vladimirvivien/automi/util"
 )
 
+// WriterCollector writes collected items into an io.Writer
 type WriterCollector struct {
 	writer io.Writer
 	input  <-chan interface{}
@@ -17,16 +18,20 @@ type WriterCollector struct {
 	errf   api.ErrorFunc
 }
 
+// Writer creates a new WriteCollector
 func Writer(writer io.Writer) *WriterCollector {
 	return &WriterCollector{
 		writer: writer,
 	}
 }
 
+// SetInput sets the source for the collector
 func (c *WriterCollector) SetInput(in <-chan interface{}) {
 	c.input = in
 }
 
+// Open starts the collector and returns a channel to wait for
+// collection to complete or returns an error if one occurred.
 func (c *WriterCollector) Open(ctx context.Context) <-chan error {
 	c.logf = autoctx.GetLogFunc(ctx)
 	c.errf = autoctx.GetErrFunc(ctx)
