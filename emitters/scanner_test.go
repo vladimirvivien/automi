@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func TestEmitter_Scanner(t *testing.T) {
+func TestScannerEmitter(t *testing.T) {
 	tests := []struct {
 		test     string
 		data     string
@@ -40,7 +40,7 @@ func TestEmitter_Scanner(t *testing.T) {
 			defer close(wait)
 			for item := range e.GetOutput() {
 				m.Lock()
-				result = append(result, item.(string))
+				result = append(result, string(item))
 				m.Unlock()
 			}
 		}()

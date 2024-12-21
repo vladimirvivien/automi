@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func TestEmitter_Reader(t *testing.T) {
+func TestReaderEmitter(t *testing.T) {
 	tests := []struct {
 		test     string
 		r        io.Reader
@@ -32,8 +32,7 @@ func TestEmitter_Reader(t *testing.T) {
 		wait := make(chan struct{})
 		go func() {
 			defer close(wait)
-			for item := range e.GetOutput() {
-				bytes := item.([]byte)
+			for bytes := range e.GetOutput() {
 				m.Lock()
 				read.Write(bytes)
 				m.Unlock()

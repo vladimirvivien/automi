@@ -2,50 +2,34 @@ package emitters
 
 import (
 	"context"
-	"errors"
-	"reflect"
 
 	"github.com/vladimirvivien/automi/api"
-	autoctx "github.com/vladimirvivien/automi/api/context"
 	"github.com/vladimirvivien/automi/util"
 )
 
-// SliceEmitter is an emitter that takes in a slice and
-// emits slice items individually as a stream.
-type SliceEmitter struct {
-	slice  interface{}
-	output chan interface{}
+// SliceEmitter is an emitter that gets data from a slice source S []T and
+// emits slice items T individually as a stream.
+type SliceEmitter[T any, S []T] struct {
+	slice  S
+	output chan T
 	logf   api.LogFunc
 }
 
-// Slice creates new slice source
-func Slice(slice interface{}) *SliceEmitter {
-	return &SliceEmitter{
+// Slice creates new slice emitter
+func Slice[T any, S []T](slice S) *SliceEmitter[T, S] {
+	return &SliceEmitter[T, S]{
 		slice:  slice,
-		output: make(chan interface{}, 1024),
+		output: make(chan T, 1024),
 	}
 }
 
-// GetOutput returns the output channel of this source node
-func (s *SliceEmitter) GetOutput() <-chan interface{} {
+// GetOutput returns the output channel of this emitter
+func (s *SliceEmitter[T, S]) GetOutput() <-chan T {
 	return s.output
 }
 
-// Open opens the source node to start streaming data on its channel
-func (s *SliceEmitter) Open(ctx context.Context) error {
-	// ensure slice param is a slice
-	sliceType := reflect.TypeOf(s.slice)
-	if sliceType.Kind() != reflect.Slice {
-		return errors.New("SliceEmitter requires slice")
-	}
-	s.logf = autoctx.GetLogFunc(ctx)
-	util.Logfn(s.logf, "Opening slice emitter")
-	sliceVal := reflect.ValueOf(s.slice)
-
-	if !sliceVal.IsValid() {
-		return errors.New("Invalid slice for SliceEmitter")
-	}
-
+// Open reads the source and start streaming data to the emitter
+func (s *SliceEmitter[T, S]) Open(ctx context.Context) error {
 	go func() {
 		exeCtx, cancel := context.WithCancel(ctx)
 		defer func() {
@@ -53,10 +37,9 @@ func (s *SliceEmitter) Open(ctx context.Context) error {
 			cancel()
 			close(s.output)
 		}()
-		for i := 0; i < sliceVal.Len(); i++ {
-			val := sliceVal.Index(i)
+		for _, val := range s.slice {
 			select {
-			case s.output <- val.Interface():
+			case s.output <- val:
 			case <-exeCtx.Done():
 				return
 			}

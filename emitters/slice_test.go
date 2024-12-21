@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func TestEmitter_Slice(t *testing.T) {
+func TestSliceEmitter(t *testing.T) {
 	s := Slice([]string{"A", "B", "C", "D", "E"})
 	var m sync.Mutex
 	count := 0

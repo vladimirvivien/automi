@@ -4,32 +4,32 @@ import (
 	"context"
 )
 
-// Emitter represents a stream emitter
-type Emitter interface {
-	GetOutput() <-chan interface{}
+// Emitter has the ability to emit data to an output channel
+type Emitter[T any] interface {
+	GetOutput() <-chan T
 }
 
-// Source represents a stream source
-type Source interface {
-	Emitter
+// Source is a component that has data that can be placed on the stream
+type Source[T any] interface {
+	Emitter[T]
 	Open(context.Context) error
 }
 
-// Collector represents a stream collector to collect items
-type Collector interface {
-	SetInput(<-chan interface{})
+// Collector has the ability to collect data from an input channel
+type Collector[T any] interface {
+	SetInput(<-chan T)
 }
 
-// Sink is a stream sink to receive stream items
-type Sink interface {
-	Collector
+// Sink is a resource that can receive stream data
+type Sink[T any] interface {
+	Collector[T]
 	Open(context.Context) <-chan error
 }
 
 // Operator is an executor node that applies a function on items in the stream
-type Operator interface {
-	Collector
-	Emitter
+type Operator[T any] interface {
+	Collector[T]
+	Emitter[T]
 	Exec(context.Context) error
 }
 
@@ -87,7 +87,7 @@ func (e CancelStreamError) Error() string {
 	return e.err
 }
 
-//CancellationError returns a CancelStreamError
+// CancellationError returns a CancelStreamError
 func CancellationError(msg string) CancelStreamError {
 	return CancelStreamError(Error(msg))
 }

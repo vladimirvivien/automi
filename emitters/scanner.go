@@ -13,37 +13,33 @@ import (
 )
 
 // ScannerEmitter takes an io.Reader as its source and emits
-// and wraps it into a bufio.Scanner.  The scanner tokenizes
-// the source data using the splitter func of type bufio.SplitFunc
-// and emits each token as []byte.
-type ScannerEmitter struct {
+// data that is tokenized using a bufio.Scanner.
+type ScannerEmitter[T []byte] struct {
 	rdrParam   io.Reader
 	spltrParam bufio.SplitFunc
 	scanner    *bufio.Scanner
-	output     chan interface{}
+	output     chan T
 	logf       api.LogFunc
 	errf       api.ErrorFunc
 }
 
-// Scanner returns a *ScannerEmitter that wraps io.Reader into
-// a bufio.Scanner.  The SplitFunc is used to tokenize the IO stream.
-// The text value of the token is sent downstream.
-// bufio.ScanLines will be used by default if none is provided.
-func Scanner(reader io.Reader, splitter bufio.SplitFunc) *ScannerEmitter {
-	return &ScannerEmitter{
+// Scanner returns a *ScannerEmitter that takes an io.Reader as its source.
+// It uses splitter to tokenize the data and emits its as a chuck of bytes.
+func Scanner[T []byte](reader io.Reader, splitter bufio.SplitFunc) *ScannerEmitter[T] {
+	return &ScannerEmitter[T]{
 		rdrParam:   reader,
 		spltrParam: splitter,
-		output:     make(chan interface{}, 1024),
+		output:     make(chan T, 1024),
 	}
 }
 
 // GetOutput returns the output channel of this source node
-func (e *ScannerEmitter) GetOutput() <-chan interface{} {
+func (e *ScannerEmitter[T]) GetOutput() <-chan T {
 	return e.output
 }
 
 // Open opens the emitter to start emitting data
-func (e *ScannerEmitter) Open(ctx context.Context) error {
+func (e *ScannerEmitter[T]) Open(ctx context.Context) error {
 	if err := e.setupScanner(); err != nil {
 		return err
 	}
@@ -64,11 +60,11 @@ func (e *ScannerEmitter) Open(ctx context.Context) error {
 
 		for e.scanner.Scan() {
 			if err := e.scanner.Err(); err != nil {
-				util.Logfn(e.logf, fmt.Errorf("Scanner emitter error: %s", err))
+				util.Logfn(e.logf, fmt.Errorf("scanner emitter error: %w", err))
 				autoctx.Err(e.errf, api.Error(err.Error()))
 			}
 			select {
-			case e.output <- e.scanner.Text():
+			case e.output <- e.scanner.Bytes():
 			case <-exeCtx.Done():
 				return
 			}
@@ -77,7 +73,7 @@ func (e *ScannerEmitter) Open(ctx context.Context) error {
 	return nil
 }
 
-func (e *ScannerEmitter) setupScanner() error {
+func (e *ScannerEmitter[T]) setupScanner() error {
 	if e.rdrParam == nil {
 		return errors.New("emitter missing io.Reader source")
 	}

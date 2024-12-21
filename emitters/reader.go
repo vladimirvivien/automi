@@ -11,38 +11,39 @@ import (
 	"github.com/vladimirvivien/automi/util"
 )
 
-// ReaderEmitter takes an io.Reader as its source and emits a slice of
-// bytes, N length, with each iteration.
-type ReaderEmitter struct {
+// ReaderEmitter takes an io.Reader source and emits chunk of bytes of
+// N length, with each iteration.
+type ReaderEmitter[T []byte] struct {
 	reader io.Reader
 	size   int
-	output chan interface{}
+	output chan T
 	logf   api.LogFunc
 	errf   api.ErrorFunc
 }
 
-// Reader returns a *ReaderEmitter which can be used to emit bytes
-func Reader(reader io.Reader) *ReaderEmitter {
-	return &ReaderEmitter{
+// Reader creates a *ReaderEmitter source that can emit []bytes
+func Reader[T []byte](reader io.Reader) *ReaderEmitter[T] {
+	return &ReaderEmitter[T]{
 		reader: reader,
-		output: make(chan interface{}, 1024),
+		size:   1024,
+		output: make(chan T, 1024),
 	}
 }
 
-// BufferSize sets the size of the transfer buffer used to
-// read from the source io.Reader.
-func (e *ReaderEmitter) BufferSize(s int) *ReaderEmitter {
+// BufferSize sets the slice chunck size used to transfer data
+// read from source io.Reader.
+func (e *ReaderEmitter[T]) BufferSize(s int) *ReaderEmitter[T] {
 	e.size = s
 	return e
 }
 
 // GetOutput returns the output channel of this source node
-func (e *ReaderEmitter) GetOutput() <-chan interface{} {
+func (e *ReaderEmitter[T]) GetOutput() <-chan T {
 	return e.output
 }
 
 // Open opens the emitter to start emitting data
-func (e *ReaderEmitter) Open(ctx context.Context) error {
+func (e *ReaderEmitter[T]) Open(ctx context.Context) error {
 	if err := e.setupReader(); err != nil {
 		return err
 	}
@@ -73,7 +74,7 @@ func (e *ReaderEmitter) Open(ctx context.Context) error {
 			}
 			if err != nil {
 				// Any error closes channel
-				util.Logfn(e.logf, fmt.Errorf("Error reading: %s", err))
+				util.Logfn(e.logf, fmt.Errorf("error reading: %w", err))
 				autoctx.Err(e.errf, api.Error(err.Error()))
 				return
 			}
@@ -82,7 +83,7 @@ func (e *ReaderEmitter) Open(ctx context.Context) error {
 	return nil
 }
 
-func (e *ReaderEmitter) setupReader() error {
+func (e *ReaderEmitter[T]) setupReader() error {
 	if e.reader == nil {
 		return errors.New("emitter missing io.Reader source")
 	}
