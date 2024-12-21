@@ -2,103 +2,102 @@ package stream
 
 import (
 	"context"
-	"log"
-	"strings"
-	"sync"
+	"log/slog"
+	"sync/atomic"
 	"testing"
 	"time"
 
-	autoctx "github.com/vladimirvivien/automi/api/context"
-	"github.com/vladimirvivien/automi/collectors"
-	"github.com/vladimirvivien/automi/emitters"
+	"github.com/vladimirvivien/automi/api"
+	"github.com/vladimirvivien/automi/operators/exec"
+	"github.com/vladimirvivien/automi/sinks"
+	"github.com/vladimirvivien/automi/sources"
 )
 
-func TestStream_Log_No_Log(t *testing.T) {
-	src := emitters.Slice([]string{"hello", "world"})
-	strm := New(src).Into(collectors.Null())
+func TestStreamLog(t *testing.T) {
+	t.Run("stream with no log setup", func(t *testing.T) {
+		src := sources.Slice([][]string{
+			{"request", "/i/a"},
+			{"response", "/i/a/", "00:11:51:AA", "served"},
+			{"response", "/i/a/", "00:11:51:AA"},
+		})
 
-	select {
-	case err := <-strm.Open():
-		if err != nil {
-			t.Fatal(err)
+		strm := From(src)
+		strm.Run(
+			exec.Filter(func(ctx context.Context, in []string) bool {
+				return len(in) > 2
+			}),
+		)
+		strm.Into(sinks.Discard())
+
+		select {
+		case err := <-strm.Open(context.Background()):
+			if err != nil {
+				t.Fatal(err)
+			}
+		case <-time.After(10 * time.Millisecond):
+			t.Fatal("Took too long")
 		}
-	case <-time.After(50 * time.Millisecond):
-		t.Fatal("Waited too long ...")
-	}
-}
-
-func TestStream_Log(t *testing.T) {
-	lock := sync.Mutex{}
-	count := 0
-
-	ctx := context.Background()
-	src := emitters.Slice([]string{"hello", "world"})
-
-	strm := New(src).WithContext(ctx)
-	strm.Process(func(val string) error {
-		if err := autoctx.Log(strm.ctx, "Processing"); err != nil {
-			t.Fatal(err)
-		}
-		return nil
 	})
 
-	strm.WithLogFunc(func(val interface{}) {
-		lock.Lock()
-		count++
-		lock.Unlock()
+	t.Run("stream with log setup", func(t *testing.T) {
+		src := sources.Slice([][]string{
+			{"request", "/i/a"},
+			{"response", "/i/a/", "00:11:51:AA", "served"},
+			{"response", "/i/a/", "00:11:51:AA"},
+		})
+
+		var logCount atomic.Int32
+		strm := From(src)
+		strm.WithLogSink(sinks.Func(func(log api.StreamLog) error {
+			logCount.Add(1)
+			return nil
+		}))
+		strm.Run(
+			exec.Filter(func(ctx context.Context, in []string) bool {
+				return len(in) > 2
+			}),
+		)
+		strm.Into(sinks.Discard())
+
+		select {
+		case err := <-strm.Open(context.Background()):
+			if err != nil {
+				t.Fatal(err)
+			}
+			if logCount.Load() == 0 {
+				t.Fatal("expecting count 5, got", logCount.Load())
+			}
+		case <-time.After(10 * time.Millisecond):
+			t.Fatal("Took too long")
+		}
 	})
 
-	strm.Into(collectors.Null())
+	t.Run("with log displayed", func(t *testing.T) {
+		src := sources.Slice([][]string{
+			{"request", "/i/a"},
+			{"response", "/i/a/", "00:11:51:AA", "served"},
+			{"response", "/i/a/", "00:11:51:AA"},
+		})
 
-	select {
-	case err := <-strm.Open():
-		if err != nil {
-			t.Fatal(err)
+		strm := From(src)
+		strm.WithLogSink(sinks.Func(func(log api.StreamLog) error {
+			slog.LogAttrs(context.Background(), log.Level, log.Message, log.Attrs...)
+			return nil
+		}))
+		strm.Run(
+			exec.Filter(func(ctx context.Context, in []string) bool {
+				return len(in) > 2
+			}),
+		)
+		strm.Into(sinks.Discard())
+
+		select {
+		case err := <-strm.Open(context.Background()):
+			if err != nil {
+				t.Fatal(err)
+			}
+		case <-time.After(10 * time.Millisecond):
+			t.Fatal("Took too long")
 		}
-	case <-time.After(50 * time.Millisecond):
-		t.Fatal("Waited too long ...")
-	}
-
-	lock.Lock()
-	if count < 2 {
-		t.Log("count: ", count)
-		t.Fatal("logger func not logging properly")
-	}
-	lock.Unlock()
-}
-
-func TestStream_Log_With_Logger(t *testing.T) {
-	var logs strings.Builder
-	logger := log.New(&logs, "", log.Flags())
-
-	ctx := context.Background()
-	src := emitters.Slice([]string{"hello", "world"})
-
-	strm := New(src).WithContext(ctx)
-	strm.Process(func(val string) error {
-		if err := autoctx.Log(strm.ctx, "Processing"); err != nil {
-			t.Fatal(err)
-		}
-		return nil
 	})
-
-	strm.WithLogFunc(func(val interface{}) {
-		logger.Println(val)
-	})
-
-	strm.Into(collectors.Null())
-
-	select {
-	case err := <-strm.Open():
-		if err != nil {
-			t.Fatal(err)
-		}
-	case <-time.After(50 * time.Millisecond):
-		t.Fatal("Waited too long ...")
-	}
-
-	lines := strings.Split(logs.String(), "\n")
-	if len(lines) < 2 {
-		t.Fatal("logger func not logging properly")
-	}
 }

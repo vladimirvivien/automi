@@ -4,35 +4,77 @@ import (
 	"testing"
 )
 
-func TestGenWords_NextChar(t *testing.T) {
-	validChar := func(c rune) bool {
-		for _, char := range chars {
-			if c == char {
-				return true
-			}
-		}
-		return false
-	}
-	char := nextChar()
-	t.Log("Generated char ", string(char))
-	if !validChar(char) {
-		t.Fatal("Not generating valid char: ", char)
-	}
-}
-
 func TestGenWords_GenWordn(t *testing.T) {
-	word := GenWordn(100)
-	t.Log("Generated word: ", word, " len ", len(word))
-	if len(word) < 1 && len(word) > 200 {
-		t.Fatal("Fail to generate word properly, expecting word len 100, got ", len(word))
+	tests := []struct {
+		name     string
+		length   int
+		minLen   int
+		maxLen   int
+		shouldBe string
+	}{
+		{
+			name:   "zero length word",
+			length: 0,
+			minLen: 12,
+			maxLen: 12,
+		},
+		{
+			name:   "small word",
+			length: 10,
+			minLen: 10,
+			maxLen: 10,
+		},
+		{
+			name:   "medium word",
+			length: 100,
+			minLen: 100,
+			maxLen: 100,
+		},
+		{
+			name:   "large word",
+			length: 500,
+			minLen: 500,
+			maxLen: 500,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			word := GenWordn(tt.length)
+			t.Logf("Generated word: %s, length: %d", word, len(word))
+
+			if len(word) < tt.minLen || len(word) > tt.maxLen {
+				t.Fatalf("Word length %d outside expected range [%d, %d]", len(word), tt.minLen, tt.maxLen)
+			}
+		})
 	}
 }
 
 func TestGenWords_GenWord(t *testing.T) {
-	word := GenWord()
-	t.Log("Generated word: ", word, " len ", len(word))
-	if len(word) < 1 && len(word) > 24 {
-		t.Fatal("Fail to generate word properly, expecting word len 100, got ", len(word))
+	tests := []struct {
+		name  string
+		count int
+	}{
+		{
+			name:  "generate 10 words",
+			count: 10,
+		},
+		{
+			name:  "generate 500 words",
+			count: 500,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var prevstr string
+			for i := 0; i < tt.count; i++ {
+				strVal := GenWord()
+				if len(prevstr) == len(strVal) || prevstr == strVal {
+					t.Errorf("Strings generated are similar length %d or equal", len(strVal))
+				}
+			}
+		})
 	}
 }
 

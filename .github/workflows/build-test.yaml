@@ -2,38 +2,38 @@
 name: Go
 on: [push, pull_request]
 env:
-  SRC_PATHS: ./api ./collectors/ ./emitters ./operators ./stream ./testutil ./util
-  SRC_PATHS_PATTERN: ./api/... ./collectors/... ./emitters/... ./operators/... ./stream/... ./testutil/... ./util/...
+  SRC_PATHS: ./api ./funcs ./reflection ./sinks ./sources ./operators ./stream ./testutil
+  SRC_PATHS_PATTERN: ./api/... ./funcs ./reflection ./sinks/ ./sources/ ./operators/... ./stream ./testutil
 
 jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
     steps:
-      - name: Set up Go 1.16
-        uses: actions/setup-go@v2
+      - name: Code checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          go-version: 1.16.x
+          go-version: '>=1.23.0'
         id: go
 
-      - name: Code checkout
-        uses: actions/checkout@v2
+      - name: Tidy up
+        run: |
+          go mod tidy
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v2
+        uses: golangci/golangci-lint-action@v7
         with:
           skip-go-installation: true
-          args: ./api ./collectors/ ./emitters ./operators/... ./stream ./testutil ./util
+          args: ./...
 
       - name: Code sanity
         run: |
           go vet $SRC_PATHS_PATTERN
-          if [ "$(gofmt -s -l ./api ./collectors ./emitters ./operators ./stream ./testutil ./util | wc -l)" -gt 0 ]; then exit 1; fi
+          if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then exit 1; fi
 
       - name: Run tests
         run: |
-          go test -v ./api ./collectors/ ./emitters ./operators/... ./stream ./testutil ./util
-
-      - name: Build
-        run: |
-          go build ./api ./collectors/ ./emitters ./operators/... ./stream ./testutil ./util
+          go test -v -race ./...
