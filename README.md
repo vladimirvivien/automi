@@ -1,136 +1,153 @@
 <h1 align="center">
-    <img src="./docs/automi_logo.png" alt="automi">
+    <img src="./docs/automi-logo.png" alt="automi">
 </h1>
 
-<h4 align="center">A data stream processing API for Go (alpha)</h4>
+<h4 align="center">Stream Processing API for Go</h4>
 <br/>
 
 [![GoDoc](https://godoc.org/github.com/vladimirvivien/automi?status.svg)](https://godoc.org/github.com/vladimirvivien/automi)
-[![example workflow](https://github.com/vladimirvivien/automi/actions/workflows/build-test.yaml/badge.svg)](https://github.com/vladimirvivien/automi/actions)
+[![Workflow](https://github.com/vladimirvivien/automi/actions/workflows/build-test.yaml/badge.svg)](https://github.com/vladimirvivien/automi/actions)
 [![Go Report Card](https://goreportcard.com/badge/github.com/vladimirvivien/automi)](https://goreportcard.com/report/github.com/vladimirvivien/automi)
 
-Automi is an API for processing streams of data using idiomatic Go.  Using Automi, programs can process streaming of data chunks by composing stages of operations that are applied to each element of the stream.  
+Automi is a Go package for processing streams of data. It enables composing powerful data pipelines by chaining operations that are applied to each element flowing through the stream. The project has been completely re-implemented to leverage Go's generics support, bringing significant advantages:
+
+- **Type safety across the entire pipeline**: Compile-time type checking eliminates runtime type assertions and conversions
+- **Enhanced developer experience**: Better IDE autocompletion and error detection during development
+- **Reduced boilerplate**: No more manual type casting or interface{} conversions
+- **Improved performance**: Elimination of runtime type checks and assertions leads to more efficient execution
+
+With generics, you can now create strongly-typed streams where each operation's input and output types are verified by the compiler, catching errors early and making your stream processing code more robust and maintainable.
 
 ## Concept
 
+Automi implements a data processing pipeline using a streaming architecture. Data flows through a series of connected components that process each element as it passes through. This approach enables efficient handling of large datasets without loading everything into memory at once.
+
 <h1 align="center">
-    <img src="./docs/streaming.png" alt="Automi streaming concepts">
+    <img src="./docs/automi-stream.png" alt="Automi streaming concepts">
 </h1>
 
-<br/>
 
-The Automi API expresses a stream with four primitives including:
 
-- *An emitter*: an in-memory, network, or file resource that can emit elements for streaming
-- *The stream*: represents a conduit whithin which data elements are streamed
-- *Stream operations*: code which can be attached to the stream to process streamed elements
-- *A collector*: an in-memory, network, or file resource that can collect streamed data.
+The Automi API is built around four key primitives:
 
-Automi streams use Go channels internally to route data.  This means Automi streams automatically support features such as buffering, automatic back-pressure queuing, and concurrency safety.
+- *Source*: The entry point that emits data elements into the stream. Sources can read from files, channels, slices, or any data provider.
+- *Stream*: The central abstraction that coordinates the flow of data. It connects the source to operations and ultimately to a sink.
+- *Operations*: Processing steps applied to each element in the stream. These include transformations (map), filters, aggregations, and windowing operations.
+- *Sink*: The termination point that consumes the processed data. Sinks can write to files, collect results into slices, or forward data to other systems.
+
+Data flows through this pipeline in a single direction: from source → through operations → to sink. Each operation receives data, processes it, and passes the result to the next stage.
+
+Automi streams use Go channels internally to route data, providing built-in concurrency safety and automatic back-pressure handling. When a downstream component processes data more slowly, upstream components naturally slow down to match the pace, preventing memory overflow.
 
 ## Using Automi
 
-Now, let us explore some examples to see how easy it is to use Automi to stream and process data.  
+Now, let us explore some examples and see how easy it is to use Automi to process data streams.  
 
->See all examples in the [./example](./examples) directory.
+>See [automi-eamples](https://github.com/vladimirvivien/automi-examples) for a collection of all Automi examples.
 
-### Example: streaming from a slice into stdout
+As an introduction to Automi, let us explore a simple example that uses all primitives of the API to compose and express stream operations. 
 
-This first example shows how easy it is to compose and express stream operations with Automi.  In this example, rune values are emitted from a slice and are streamed invidividually.  Stream operator method `Filter` is applied to filter out unwanted rune values and the `Sort` operator method sorts the remaining items. Lastly, a `collector` is used to collect the result into an io.Writer and piped to `stdout`.
+The following code snippet:
+* Streams individual rune values from a slice source
+* Applies a `Filter` operation to keep only uppercase ASCII letters
+* Maps each rune to its string representation
+* Batches the results
+* And finally sorts the result alphabetically
 
 ```go
 func main() {
-	strm := stream.New([]rune("B世!ぽ@opqDQRS#$%^&*()ᅖ...O6PTnVWXѬYZbcef7ghijCklrAstvw"))
+	// Define slice source
+	slice := sources.Slice([]rune(`B世!ぽ@opqDQRS#$%^&*()ᅖ4x5Њ8yzUd90E12a3ᇳFGHmIザJuKLMᇙNO6PTnVWXѬYZbcef7ghijCklrAstvw`))
 
-	strm.Filter(func(item rune) bool {
-		return item >= 65 && item < (65+26)
-	}).Map(func(item rune) string {
-		return string(item) 
-	}).Batch().Sort() 
-	strm.Into(collectors.Writer(os.Stdout))
+	// creates stream from the source
+	strm := stream.From(slice)
 
-	if err := <-strm.Open(); err != nil {
+	// Define stream operations
+	strm.Run(
+		exec.Filter(func(_ context.Context, item rune) bool {
+			return item >= 65 && item < (65+26) // remove unwanted chars
+		}),
+		
+		exec.Map(func(_ context.Context, item rune) string {
+			return string(item) // map rune to string
+		}),
+
+		// batch incoming string items into []string
+		window.Batch[string](),
+
+		// sort batched items
+		exec.SortSlice[[]string](),
+	)
+
+	// Send result to stdout
+	strm.Into(sinks.Writer[string](os.Stdout)) 
+
+	// open the stream
+	if err := <-strm.Open(context.Background()); err != nil {
 		fmt.Println(err)
 		return
 	}
 }
 ```
 
-> See the full [source code](./examples/emitters/slice0).
+> See the complete example [here](https://github.com/vladimirvivien/automi-examples/blob/main/hello-automi/rune1/main.go).
 
-##### How it works
-
-1. Create the stream with an emitter source. Automi supports several types of sources including channels, io.Reader, slices, etc. (see list of emitters below).  Each element in the slice will be streamed individually.
+#### How it works
+1. The first step defines a stream `Source` from a Go slice using function `sources.Slice`. 
 
 ```go
-strm := stream.New([]rune(`B世!ぽ@opqDQRS#$%^&*()ᅖ...O6PTnVWXѬYZbcef7ghijCklrAstvw`))
+slice := sources.Slice([]rune(`B世!ぽ@opqDQRS#$%^&*()ᅖ4x5Њ8yzUd90E12a3ᇳFGHmIザJuKLMᇙNO6PTnVWXѬYZbcef7ghijCklrAstvw`))
 ```
 
-
-2. Apply user-provided or built-in stream operations as shown below:
+2. Next, the code creates a new Automi using the stream source. Each element of the slice source will be emitted individually to the stream. 
 
 ```go
-strm.Filter(func(item rune) bool {
-    return item >= 65 && item < (65+26)
-}).Map(func(item rune) string {
-    return string(item)
-}).Batch().Sort()
+strm := stream.From(slice)
 ```
 
-3. Collect the result.  In this example, the result is collected into an `io.Writer` which further streams the data into standard output:
+3. Next, we define `Filter`, `Map`, `Batch`, and `Sort` operations to be applied to each item as it streams.
 
 ```go
-strm.Into(collectors.Writer(os.Stdout))
+	// Define stream operations
+	strm.Run(
+		exec.Filter(func(_ context.Context, item rune) bool {
+			return item >= 65 && item < (65+26) // remove unwanted chars
+		}),
+
+		exec.Map(func(_ context.Context, item rune) string {
+			return string(item) // map rune to string
+		}),
+
+		// batch incoming string items into []string
+		window.Batch[string](),
+
+		// sort batched items
+		exec.SortSlice[[]string](),
+	)
+
 ```
 
-4. Lastly, open the stream once it is properly composed:
+4. Next, we define a `Sink` at the end of the stream to collect the result in a Go `io.Writer` which streams the as a string item into standard output:
 
 ```go
-if err := <-strm.Open(); err != nil {
-    fmt.Println(err)
-    return
-}  
+strm.Into(sinks.Writer[string](os.Stdout)) 
 ```
 
-### Example: streaming from an `io.Reader` into collector function
-
-The next example shows how to use Automi to stream data from an `io.Reader` emitting buffered string values from an in-memory source in 50-byte chunks.  The data is processed with a `Map` and `Filter` opertor methods and the result is sent to a user-provided collector function which prints the result.
+5. Lastly, the code opens the stream to start it:
 
 ```go
-func main() {
-	data := `"request", "/i/a", "00:11:51:AA", "accepted"
-"response", "/i/a/", "00:11:51:AA", "served"
-"response", "/i/a", "00:BB:22:DD", "served"...`
-
- 	reader := strings.NewReader(data)
-    
-	// create stream from a buffered io.Reader emitter,
-	// emitting 50-byte chunks.
-	stream := stream.New(emitters.Reader(reader).BufferSize(50))
-	stream.Map(func(chunk []byte) string {
-		str := string(chunk)
-		return str
-	})
-	stream.Filter(func(e string) bool {
-		return (strings.Contains(e, `"response"`))
-	})
-	stream.Into(collectors.Func(func(data interface{}) error {
-		e := data.(string)
-		fmt.Println(e)
-		return nil
-	}))
-
-	if err := <-stream.Open(); err != nil {
+	if err := <-strm.Open(context.Background()); err != nil {
 		fmt.Println(err)
 		return
 	}
-}
 ```
 
-> See complete example [here](./examples/emitters/reader/emitreader.go).
 
-### Example: streaming using CSV files
-The following example streams data from a CSV source file. Each row is mapped to a custom type, filtered, then mapped to a slice of strings which is then collected into another CSV file. 
+#### Example: streaming from a CSV file
+Let's explore another example that streams data from a CSV source file. Each CSV row will be 
+* Mapped to a Go struct type
+* Filtered by value
+* Then mapped to a slice of strings which is then collected into another CSV file. 
 
 ```go
 type scientist struct {
@@ -141,156 +158,134 @@ type scientist struct {
 }
 
 func main() {
-    // creates a stream using a CSV emitter
-    // emits each row as []string
-    stream := stream.New("./data.txt")
+	// Source csv
+	src, _ := os.Open("./data.txt")
+    source := sources.CSV(src)
 
-    // Map each CSV row, []string, to type scientist
-    stream.Map(func(cs []string) scientist {
-        yr, _ := strconv.Atoi(cs[3])
-        return scientist{
-            FirstName: cs[1],
-            LastName:  cs[0],
-            Title:     cs[2],
-            BornYear:  yr,
-        }
-    })
-    stream.Filter(func(cs scientist) bool {
-        return (cs.BornYear > 1930)
-    })
-    stream.Map(func(cs scientist) []string {
-        return []string{cs.FirstName, cs.LastName, cs.Title}
-    })
-    stream.Into("./result.txt")
+	// Sink csv
+	snk, _ := os.Create("./result.txt")
+    sink := sinks.CSV(snk)
 
-    // open the stream
-    if err := <-stream.Open(); err != nil {
-        fmt.Println(err)
-        os.Exit(1)
-    }
-    fmt.Println("wrote result to file result.txt")
+    // Start new stream from source
+	stream := stream.From(source)
+
+    // setup execution operations
+	stream.Run(
+		// map csv row to struct scientist
+		exec.Map(func(ctx context.Context, cs []string) scientist {
+			yr, _ := strconv.Atoi(cs[3])
+			return scientist{
+				FirstName: cs[1],
+				LastName:  cs[0],
+				Title:     cs[2],
+				BornYear:  yr,
+			}
+		}),
+
+		// apply data filter
+		exec.Filter(func(ctx context.Context, cs scientist) bool {
+			return (cs.BornYear > 1930)
+		}),
+
+		// remap value of type scientst to []string
+		exec.Map(func(ctx context.Context, cs scientist) []string {
+			return []string{cs.FirstName, cs.LastName, cs.Title}
+		}),
+	)
+
+	// stream result into sink
+	stream.Into(sink)
 }
 ```
 
-> See complete example [here](./examples/customtype/process.go).
+> See the complete example [here](https://github.com/vladimirvivien/automi-examples/tree/main/customtype).
 
-### Example: streaming HTTP requests and responses
-The following example shows how to use Automi to stream and process data using HTTP requests and responses.  The following HTTP server program streams data from the request Body, encodes it using base64, and streams the result into the HTTP response:
+#### Example: streaming HTTP requests and responses
+This example showcases the versatility of Automi by streaming and processing data from HTTP requests and responses. 
+The example is an HTTP server program that streams data from the request Body, encodes it using base64, and streams the result into the HTTP response:
 
 ```go
-func main() {
-
 	http.HandleFunc(
 		"/",
 		func(resp http.ResponseWriter, req *http.Request) {
 			resp.Header().Add("Content-Type", "text/html")
 			resp.WriteHeader(http.StatusOK)
 
-			strm := stream.New(req.Body)
-			strm.Process(func(data []byte) string {
-				return base64.StdEncoding.EncodeToString(data)
-			}).Into(resp)
+			// setup new stream with HTTP body as source
+			strm := stream.From(sources.Reader(req.Body))
+			strm.Run(
+				exec.Execute(func(_ context.Context, data []byte) string {
+					return base64.StdEncoding.EncodeToString(data)
+				}),
+			)
 
-			if err := <-strm.Open(); err != nil {
+			// route result into response
+			strm.Into(sinks.Writer[[]byte](resp))
+
+			// run the stream
+			if err := <-strm.Open(req.Context()); err != nil {
 				resp.WriteHeader(http.StatusInternalServerError)
-				log.Printf("Stream error: %s", err)
+				slog.Error("Stream failed to open", "error", err)
 			}
 		},
 	)
-
-	log.Println("Server listening on :4040")
-	http.ListenAndServe(":4040", nil)
-}
 ```
-> See complete example [here](./examples/net/http/httpsvr.go).
-
-### Streaming gRPC service payload
-The following example shows how to use Automi to stream data items from a gRPC streaming sevice.  The following gRPC
-client setups an Automi emitter to emit time values that are streamed from a gRPC time service:
-
-```go
-// setup an Automi emitter function to stream from the gRPC service
-func emitStreamFrom(client pb.TimeServiceClient) <-chan []byte {
-	source := make(chan []byte)
-	timeStream, err := client.GetTimeStream(context.Background(), &pb.TimeRequest{Interval: 3000})
-	...
-	go func(stream pb.TimeService_GetTimeStreamClient, srcCh chan []byte) {
-		defer close(srcCh)
-		for {
-			t, err := stream.Recv()
-			srcCh <- t.Value
-		}
-	}(timeStream, source)
-
-	return source
-}
-
-func main() {
-	...
-	client := pb.NewTimeServiceClient(conn)
-	// create automi stream
-	stream := stream.New(emitStreamFrom(client))
-	stream.Map(func(item []byte) time.Time {
-		secs := int64(binary.BigEndian.Uint64(item))
-		return time.Unix(int64(secs), 0)
-	})
-	stream.Into(collectors.Func(func(item interface{}) error {
-		time := item.(time.Time)
-		fmt.Println(time)
-		return nil
-	}))
-
-	// open the stream
-	if err := <-stream.Open(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-}
-```
-> See complete example [here](./examples/grpc).
-
-## More Examples
-[Examples](./examples) - View a long list of examples that cover all aspects of using Automi.
+> See the complete example [here](https://github.com/vladimirvivien/automi-examples/tree/main/net/http).
 
 ## Automi components
 Automi comes with a set of built-in components to get you started with stream processing including the followings.
 
-### Emitters
+### Sources
+* `sources.Chan` - source from Go channels
+* `sources.CSV` - source from CSV
+* `io.Reader` - source from io.Reader
+* `io.Scanner` - source from io.Scanner
+* `Slice` - source from Go slices
 
-* `Channel`
-* `CSV`
-* `io.Reader`
-* `io.Scanner`
-* `Slice`
+### Windowing
+* `window.Batch` - batch all
+* `window.Size` - widow by size
+* `windows.Duration` window by duration
 
-### Operators
+### Function operators
+* `exec.Execute` - user-defined funcion
+* `exec.Filter` - filter func
+* `exec.Map` - map func
 
-* `Stream.Filter`
-* `Stream.Map`
-* `Stream.FlatMap`
-* `Stream.Reduce`
-* `Stream.GroupByKey`
-* `Stream.GroupByName`
-* `Stream.GroupByPos`
-* `Stream.Sort`
-* `Stream.SortByKey`
-* `Stream.SortByName`
-* `Stream.SortByPos`
-* `Stream.SortWith`
-* `Stream.Sum`
-* `Stream.SumByKey`
-* `Stream.SumByName`
-* `Stream.SumByPos`
-* `Stream.SumAllKeys`
+### Aggregation operators
 
-### Collectors
+#### Group 
+* `exec.GroupByIndex` - goup by slice index
+* `exec.GroupByStructField` - group by struct field name
+* `exec.GroupByMapKey` - group by map key value
 
-* `CSV`
-* `Func`
-* `Null`
-* `Slice`
-* `Writer`
+#### Sum
+* `exec.SumByIndex` - sum by slice index
+* `exec.SumByStructField` - sum by struct field name
+* `exec.SumByMapKey` - sum by map key value
+* `exec.Sum` - sum either 1D or 2D slice
+* `exec.SumAll1D` - sum 1D slice
+* `exec.SumAll2D` - sum 2D slice
+
+#### Sort
+* `exec.SortSlice` - sort slice
+* `exec.SortSliceByIndex` - sort by slice index
+* `exec.SortByStructField` - sort by struct field name
+* `exec.SortByMapKey` - sort by map key value
+* `exec.SortWithFunc` - sort with user-defined func
+
+### Sinks
+
+* `sinks.CSV` - sink into CSV
+* `sinks.Func` - sink into a user-defined func
+* `sinks.Discard` - no op sink
+* `sinks.Slice` - sink into Go slice
+* `sinks.Slog` - sink into Go slog Logger
+* `sinks.Writer` - sink into Go io.Writer
+
+## Previous version
+The previous version (v0.1.0) of Automi, which uses Go reflection, has been moved
+to branch `v0.1.0-automi-reflection` and will not be maintained.
 
 ## Licence
-Apache 2.0
+MIT

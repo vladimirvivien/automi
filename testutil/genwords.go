@@ -17,7 +17,7 @@ var rnd = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 // GenWord generates a random word of arbitrary length
 func GenWord() string {
-	n := rnd.Intn(12)
+	n := rnd.Intn(12) + 1
 	return GenWordn(n)
 }
 
@@ -26,15 +26,9 @@ func GenWordn(n int) string {
 	if n < 1 {
 		n = 12
 	}
-	size := rnd.Intn(n)
-	word := make([]rune, size)
-	for i := 0; i < size; i++ {
-		word = append(word, nextChar())
+	word := make([]rune, n)
+	for i := 0; i < n; i++ {
+		word[i] = chars[rnd.Intn(len(chars))]
 	}
 	return string(word)
-}
-
-func nextChar() rune {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	return chars[r.Intn(len(chars))]
 }

@@ -6,72 +6,67 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vladimirvivien/automi/api"
-	"github.com/vladimirvivien/automi/collectors"
-	"github.com/vladimirvivien/automi/emitters"
+	"github.com/vladimirvivien/automi/operators/exec"
+	"github.com/vladimirvivien/automi/sinks"
+	"github.com/vladimirvivien/automi/sources"
+	"github.com/vladimirvivien/automi/testutil"
 )
 
-func TestStream_New(t *testing.T) {
-	st := New([]interface{}{"hello"})
-	if st.ops == nil {
-		t.Fatal("Ops slice not initialized")
-	}
-	if st.srcParam == nil {
-		t.Fatal("src param not initialized")
+func TestNewStream(t *testing.T) {
+	st := From(sources.Slice([]int{1, 2, 3}))
+	if st.source == nil {
+		t.Fatal("source not getting set")
 	}
 }
 
-func TestStream_BuilderMethods(t *testing.T) {
-	op := func(ctx context.Context, data interface{}) interface{} {
-		return nil
-	}
-
-	st := New([]interface{}{"Hello", "World", "!!!"}).
-		Into(collectors.Slice()).
-		Transform(api.UnFunc(op))
-
-	if st.srcParam == nil {
+func TestStreamSetup(t *testing.T) {
+	st := From(sources.Slice([]string{"Hello", "World", "!!!"})).
+		WithLogSink(sinks.Func(testutil.LogSinkFunc(t))).
+		Into(sinks.Slice[[]string]())
+	if st.source == nil {
 		t.Fatal("From() not setting source")
 	}
-	if st.snkParam == nil {
-		t.Fatal("To() not setting sink")
+	if st.sink == nil {
+		t.Fatal("Into() not setting sink")
 	}
-	if len(st.ops) != 1 {
-		t.Fatal("Operation not added to ops slice")
+	if len(st.nodes) != 0 {
+		t.Fatal("operations should not be set")
 	}
 }
 
-func TestStream_InitGraph(t *testing.T) {
-	src := emitters.Slice([]string{"Hello", "World"})
-	snk := collectors.Slice()
-	op1 := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
-		return nil
-	})
-	op2 := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
-		return nil
-	})
+func TestStreamInitGraph(t *testing.T) {
+	src := sources.Slice([]string{"Hello", "World"})
+	snk := sinks.Slice[[]string]()
+	op1 := func(ctx context.Context, in string) string {
+		return in
+	}
+	op2 := func(ctx context.Context, in string) string {
+		return in
+	}
 
-	strm := New(src).Into(snk)
+	strm := From(src).Run(
+		exec.Execute(op1),
+		exec.Execute(op2),
+	)
+	strm.WithLogSink(sinks.Func(testutil.LogSinkFunc(t)))
+	strm.Into(snk)
 
-	if err := strm.initGraph(); err != nil {
+	if err := strm.initGraph(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 
-	strm = New(src).Transform(op1).Transform(op2).Into(snk)
-	if err := strm.initGraph(); err != nil {
-		t.Fatal(err)
-	}
-
-	if len(strm.ops) != 2 {
+	if len(strm.nodes) != 2 {
 		t.Fatal("Not adding operations to stream")
 	}
 }
 
-func TestStream_Open_NoOp(t *testing.T) {
-	snk := collectors.Slice()
-	st := New([]string{"Hello", "World"}).Into(snk)
+func TestStreamOpenWithNoOp(t *testing.T) {
+	snk := sinks.Slice[string]()
+	st := From(sources.Slice([]string{"Hello", "World"}))
+	st.WithLogSink(sinks.Func(testutil.LogSinkFunc(t)))
+	st.Into(snk)
 	select {
-	case err := <-st.Open():
+	case err := <-st.Open(context.Background()):
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -83,27 +78,28 @@ func TestStream_Open_NoOp(t *testing.T) {
 	}
 }
 
-func TestStream_Open_WithOp(t *testing.T) {
-	src := emitters.Slice([]string{"HELLO", "WORLD", "HOW", "ARE", "YOU"})
-	snk := collectors.Slice()
-	op1 := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
-		str := data.(string)
-		return len(str)
-	})
+func TestStreamOpenWithOp(t *testing.T) {
+	src := sources.Slice([]string{"HELLO", "WORLD", "HOW", "ARE", "YOU"})
+	snk := sinks.Slice[[]int]()
+	op1 := func(ctx context.Context, in string) int {
+		return len(in)
+	}
 
 	var m sync.RWMutex
 	runeCount := 0
-	op2 := api.UnFunc(func(ctx context.Context, data interface{}) interface{} {
-		length := data.(int)
+	op2 := func(ctx context.Context, in int) int {
 		m.Lock()
-		runeCount += length
+		runeCount += in
 		m.Unlock()
-		return nil
-	})
+		return runeCount
+	}
 
-	strm := New(src).Transform(op1).Transform(op2).Into(snk)
+	strm := From(src).Run(
+		exec.Execute(op1),
+		exec.Execute(op2),
+	).WithLogSink(sinks.Func(testutil.LogSinkFunc(t))).Into(snk)
 	select {
-	case err := <-strm.Open():
+	case err := <-strm.Open(context.Background()):
 		if err != nil {
 			t.Fatal(err)
 		}
