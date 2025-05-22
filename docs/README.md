@@ -254,8 +254,9 @@ func TestSinkFunc(t *testing.T) {
 Automi provides several built-in sinks to suit various use cases:
 
 - `sinks.CSV`: Writes items in CSV format
-- `sinks.Func[T](func(T)error)`: Processes items using a user-defined function
+- `sinks.Channel[T]`: Sends items to a Go channel of type `chan T`. This can be useful for bridging an Automi stream to another part of your system or even to another Automi stream (e.g., `stream.From(sources.Chan(bridgeChan))`). The sink closes the channel when the stream completes or is cancelled.
 - `sinks.Discard`: Ignores all items (no-op sink)
+- `sinks.Func[T](func(T)error)`: Processes items using a user-defined function
 - `sinks.Slice[T]`: Appends items of type T to a Go slice
 - `sinks.Slog`: Logs items using Go's `slog` package
 - `sinks.Writer[[]byte|string]`: Writes items (of type `[]byte` or `string`) to an `io.Writer`
