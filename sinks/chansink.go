@@ -17,7 +17,7 @@ type ChanSink[T any] struct {
 }
 
 // Channel creates a new *ChanSink that will send items to the provided channel.
-// The provided channel `ch` will be closed by this Sink when the input stream is exhausted or the context is cancelled.
+// The ChanSink will NOT close the provided channel `ch`.
 func Channel[T any](ch chan<- T) *ChanSink[T] {
 	return &ChanSink[T]{
 		outputChan: ch,
@@ -35,98 +35,90 @@ func (s *ChanSink[T]) SetLogFunc(f api.StreamLogFunc) {
 	s.logf = f
 }
 
-// Open starts the sink processing. It reads items from the input channel
-// and sends them to the configured output channel.
-// It returns a channel that will receive an error if one occurs during processing,
-// or nil if processing completes successfully. The error channel is closed afterwards.
-// The output channel provided during construction is closed by this sink when
-// the input channel is exhausted or the context is cancelled.
+// Open starts the sink processing.
+// It returns a channel that signals errors or completion.
+// If a panic occurs in the processing goroutine, an error detailing the panic is sent on this channel.
+// This channel is always closed when the sink stops processing.
 func (s *ChanSink[T]) Open(ctx context.Context) <-chan error {
-	errChan := make(chan error, 1) // Buffered to prevent blocking if sending error
+	errChan := make(chan error, 1) // Buffered to allow sending panic error without blocking
 
-	s.logf(ctx, log.LogInfo(
-		"Component starting",
-		slog.String("sink", "ChanSink"),
-	))
+	s.logf(ctx, log.LogInfo("ChanSink: Component starting", slog.String("sink", "ChanSink")))
 
 	if s.inputChan == nil {
-		s.logf(ctx, log.LogError(
-			"Input channel missing",
-			slog.String("sink", "ChanSink"),
-		))
-		errChan <- api.ErrInputChannelUndefined
-		close(errChan)
-		// Also close the outputChan if it's not nil, as per documented behavior.
-		if s.outputChan != nil {
-			close(s.outputChan)
+		s.logf(ctx, log.LogError("ChanSink: Input channel missing", slog.String("sink", "ChanSink")))
+		select {
+		case errChan <- api.ErrInputChannelUndefined:
+		default:
 		}
+		close(errChan)
+		// Do NOT close s.outputChan here
 		return errChan
 	}
 
 	if s.outputChan == nil {
-		s.logf(ctx, log.LogError(
-			"Output channel missing",
-			slog.String("sink", "ChanSink"),
-		))
-		errChan <- api.ErrSinkDestinationUndefined
+		s.logf(ctx, log.LogError("ChanSink: Output channel missing", slog.String("sink", "ChanSink")))
+		select {
+		case errChan <- api.ErrSinkDestinationUndefined:
+		default:
+		}
 		close(errChan)
 		return errChan
 	}
 
 	go func() {
+		// This defer ensures errChan is always closed and panics are caught.
 		defer func() {
-			s.logf(ctx, log.LogInfo(
-				"Component closing",
-				slog.String("sink", "ChanSink"),
-			))
-			close(s.outputChan) // Close the output channel when done.
-			close(errChan)      // Close the error channel.
+			if r := recover(); r != nil {
+				panicErr := fmt.Errorf("panic in ChanSink worker: %v", r)
+				// Attempt non-blocking send of panicErr.
+				select {
+				case errChan <- panicErr:
+				default: // Avoids blocking if errChan is already full or somehow closed
+				}
+			}
+			close(errChan) // Always close errChan when goroutine exits.
 		}()
 
+		// Main processing loop
 		for {
 			select {
 			case item, open := <-s.inputChan:
 				if !open {
 					s.logf(ctx, log.LogInfo(
-						"Input channel closed",
+						"ChanSink: Input channel closed, stopping",
 						slog.String("sink", "ChanSink"),
 					))
-					return // Input channel closed, normal completion.
+					return // Normal completion, defer will close errChan.
 				}
 
 				typedItem, ok := item.(T)
 				if !ok {
-					errMsg := fmt.Sprintf("unexpected data type: expected %T, got %T", *new(T), item)
-					s.logf(ctx, log.LogDebug( // Using Debug as it's a per-item error
-						errMsg,
+					s.logf(ctx, log.LogDebug(
+						fmt.Sprintf("ChanSink: Unexpected data type: expected %T, got %T", *new(T), item),
 						slog.String("sink", "ChanSink"),
 					))
-					// Decide whether to send an error or continue.
-					// For now, let's log and continue, as per other sinks.
-					// If this should be a fatal error for the sink, send to errChan and return.
-					continue
+					continue 
 				}
-
-				// Send item to output channel, respecting context cancellation
+				
 				select {
-				case s.outputChan <- typedItem:
-					// Item sent successfully
+				case s.outputChan <- typedItem: // This can panic if s.outputChan is closed by user/test.
+					// Item sent successfully.
 				case <-ctx.Done():
 					s.logf(ctx, log.LogInfo(
-						"Context cancelled, closing sink",
+						"ChanSink: Context cancelled while attempting to send to outputChan, stopping",
 						slog.String("sink", "ChanSink"),
 						slog.String("error", ctx.Err().Error()),
 					))
-					return // Context cancelled
+					return // Context cancelled, defer will close errChan.
 				}
 
 			case <-ctx.Done():
 				s.logf(ctx, log.LogInfo(
-					"Context cancelled, closing sink",
+					"ChanSink: Context cancelled while waiting for input, stopping",
 					slog.String("sink", "ChanSink"),
 					slog.String("error", ctx.Err().Error()),
 				))
-				return // Context cancelled
+				return // Context cancelled, defer will close errChan.
 			}
 		}
 	}()
