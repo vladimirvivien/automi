@@ -341,4 +341,3 @@ func TestChanSink_OutputChannelClosedPrematurely(t *testing.T) {
 	}
 }
 
-```
