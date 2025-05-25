@@ -3,15 +3,14 @@ package sinks
 import (
 	"context"
 	"fmt"
-	"strings" // Ensure strings is imported
+	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/vladimirvivien/automi/api" // For api.StreamLog
+	"github.com/vladimirvivien/automi/api"
 )
 
-// Helper for logging in tests
 func testSinkLogFunc(t *testing.T) api.StreamLogFunc {
 	return func(_ context.Context, logEntry api.StreamLog) {
 		var builder strings.Builder
@@ -26,12 +25,12 @@ func testSinkLogFunc(t *testing.T) api.StreamLogFunc {
 func TestChanSink_Basic(t *testing.T) {
 	data := []string{"A", "B", "C", "D", "E"}
 	sourceChan := make(chan any, len(data))
-	destChan := make(chan string, len(data)) // This is the channel the sink sends to
+	destChan := make(chan string, len(data)) 
 
 	for _, item := range data {
 		sourceChan <- item
 	}
-	close(sourceChan) // Close source to signal end of stream to the sink's input
+	close(sourceChan) 
 
 	sink := Channel(destChan)
 	sink.SetLogFunc(testSinkLogFunc(t))
@@ -44,8 +43,6 @@ func TestChanSink_Basic(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		// destChan is NOT closed by the sink.
-		// We read expected number of items.
 		for i := 0; i < len(data); i++ {
 			item, ok := <-destChan
 			if !ok {
@@ -56,12 +53,12 @@ func TestChanSink_Basic(t *testing.T) {
 		}
 	}()
 
-	err := <-errChan // Wait for sink to finish (errChan closed)
+	err := <-errChan 
 	if err != nil {
 		t.Fatalf("Sink returned an error: %v", err)
 	}
 
-	wg.Wait() // Wait for the reading goroutine to finish
+	wg.Wait() 
 
 	if len(receivedData) != len(data) {
 		t.Errorf("Expected %d items, got %d. Received: %v", len(data), len(receivedData), receivedData)
@@ -71,7 +68,7 @@ func TestChanSink_Basic(t *testing.T) {
 			t.Errorf("Expected item %s at index %d, got %s", expected, i, receivedData[i])
 		}
 	}
-	close(destChan) // Test owns destChan, so it closes it.
+	close(destChan) 
 }
 
 func TestChanSink_DifferentTypes(t *testing.T) {
@@ -119,12 +116,12 @@ func TestChanSink_DifferentTypes(t *testing.T) {
 	if receivedData[0] != data[0] || receivedData[1] != data[1] {
 		t.Errorf("Data mismatch: expected %v, got %v", data, receivedData)
 	}
-	close(destChan) // Test owns destChan
+	close(destChan)
 }
 
 func TestChanSink_ContextCancellation(t *testing.T) {
-	sourceChan := make(chan any)    // Unbuffered
-	destChan := make(chan int)       // Unbuffered, sink sends here
+	sourceChan := make(chan any)    
+	destChan := make(chan int)       
 
 	sink := Channel(destChan)
 	sink.SetLogFunc(testSinkLogFunc(t))
@@ -137,8 +134,6 @@ func TestChanSink_ContextCancellation(t *testing.T) {
 		select {
 		case sourceChan <- 123:
 		case <-time.After(1 * time.Second):
-			// Use t.Error or t.Fatal for reporting errors in goroutines if using `t` directly.
-			// For simplicity, this might just log or do nothing, relying on main thread's timeout.
 		}
 	}()
 
@@ -163,7 +158,6 @@ func TestChanSink_ContextCancellation(t *testing.T) {
 		t.Log("Sink errChan closed without error on context cancellation.")
 	}
 
-	// destChan should remain open as sink does not close it.
 	select {
 	case _, ok := <-destChan:
 		if !ok {
@@ -184,7 +178,6 @@ func TestChanSink_NilInputChannel(t *testing.T) {
 	
 	sink := Channel(destChan)
 	sink.SetLogFunc(testSinkLogFunc(t))
-	// SetInput not called
 
 	errChan := sink.Open(context.Background()) 
 	err := <-errChan
@@ -240,8 +233,7 @@ func TestChanSink_TypeMismatch(t *testing.T) {
 		if ok {
 			receivedItems = append(receivedItems, item)
 		} else {
-			// This path might be taken if destChan is closed by other means,
-			// or if no item is sent. Test expects one item.
+			t.Log("destChan closed or no item sent as expected for type mismatch test")
 		}
 	}()
 	
@@ -292,7 +284,7 @@ func TestChanSink_OutputChannelClosedPrematurely(t *testing.T) {
 		close(destChan)
 	}()
 
-	finalErr := <-errChan // This blocks until errChan is closed.
+	finalErr := <-errChan 
 
 	if finalErr == nil {
 		t.Fatalf("Expected an error from sink due to panic (send on closed channel), but got nil (errChan closed without error)")
@@ -305,50 +297,35 @@ func TestChanSink_OutputChannelClosedPrematurely(t *testing.T) {
 		t.Logf("Test: Correctly received panic-related error from sink: %v", finalErr)
 	}
 
-	// Cleanup sourceChan: send remaining items or close it.
-	// This goroutine is for cleanup and observation.
+	cleanupDone := make(chan struct{})
 	go func() {
+		defer close(cleanupDone)
 		defer func() {
-			// Recover from potential panic if sourceChan is already closed,
-			// though this test structure doesn't close it elsewhere until here.
-			recover() 
-			// Ensure sourceChan is closed if not already by previous logic
-			// This is complex because sourceChan could be closed by another part of a failing test.
-			// A select-based close is safer.
-			select {
-			case _, stillOpen := <-sourceChan:
-				if stillOpen { // If it had an item, this would be true.
-					// If it was empty and open, this would block.
-					// A non-blocking read to check if closed is better:
-					// chk := make(chan struct{})
-					// go func() { _, _ = <-sourceChan; close(chk)}()
-					// select { case <-chk: close(sourceChan) if not already... etc.}
-					// For simplicity now, just try to close it.
-					// If this panics because it's already closed, the recover handles it.
-				}
-			default: // sourceChan is empty or already closed
-			}
-			// At this point, it's hard to know state of sourceChan if test failed early.
-			// Best effort: try to close. If it panics, outer test already failed.
-			// Or, just remove this potentially problematic cleanup.
-			// For now, let's assume we might need to close it.
-			// close(sourceChan) // This might panic if test failed and sourceChan was already closed.
+			_ = recover() 
 		}()
-		// Try to send remaining items from original loop, though sink is likely dead.
-		// This mainly ensures this goroutine doesn't block indefinitely on sourceChan if it's unbuffered.
-		for i := 5; i < 8; i++ { 
+		
+		time.Sleep(100 * time.Millisecond) 
+		doneSending := false
+		for i := 5; i < 8 && !doneSending; i++ { 
 			select {
 			case sourceChan <- fmt.Sprintf("late-item-%d", i):
 			case <-time.After(50 * time.Millisecond):
-				return 
+				doneSending = true 
 			}
 		}
-		// After attempting to send, close sourceChan if it wasn't closed by panic recovery.
-		// This is tricky because its state is uncertain if the main test assertions fail.
-		// A robust way: try a non-blocking send of a special "close signal" or just close.
-		// If this sub-goroutine is just for "observational" purposes post-assertion,
-		// its cleanup is secondary to the main test logic.
-		close(sourceChan) // Close it once done sending.
+		
+		select {
+		case _, stillOpen := <-sourceChan:
+			if stillOpen { 
+				t.Log("Test Cleanup Goroutine: sourceChan was still open or had items during cleanup attempt.")
+				close(sourceChan)
+			} else {
+				t.Log("Test Cleanup Goroutine: sourceChan already closed during cleanup.")
+			}
+		default:
+			t.Log("Test Cleanup Goroutine: sourceChan empty or already closed; attempting close.")
+			close(sourceChan)
+		}
 	}()
 
 	var receivedItemsAfterClose []string
@@ -356,4 +333,12 @@ func TestChanSink_OutputChannelClosedPrematurely(t *testing.T) {
 		receivedItemsAfterClose = append(receivedItemsAfterClose, remainingItem)
 	}
 	t.Logf("Test: Received %d items from destChan after it was closed by test's goroutine: %v", len(receivedItemsAfterClose), receivedItemsAfterClose)
+	
+	select {
+	case <-cleanupDone:
+	case <-time.After(1 * time.Second): 
+		t.Log("Test: Cleanup goroutine for sourceChan timed out")
+	}
 }
+
+```
