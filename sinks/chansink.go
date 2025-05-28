@@ -56,6 +56,7 @@ func (s *ChanSink[T]) Open(ctx context.Context) <-chan error {
 				"Component closing",
 				slog.String("sink", "Chan"),
 			))
+			close(s.output) // Ensure output channel is closed
 		}()
 
 		for {
