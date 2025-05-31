@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/vladimirvivien/automi/api"
 )
 
 func TestChanSink_Open(t *testing.T) {
@@ -129,5 +131,28 @@ func TestChanSink_Open_WrongDataType(t *testing.T) {
 	expectedData := []string{"CorrectType", "AnotherCorrectType"}
 	if !reflect.DeepEqual(expectedData, receivedData) {
 		t.Errorf("Received data did not match expected data. Got %v, expected %v", receivedData, expectedData)
+	}
+}
+
+func TestChanSink_Open_InputChannelNotSet(t *testing.T) {
+	// Create a ChanSink without setting input channel
+	cs := Chan[string]()
+
+	// Call Open without setting input - should return ErrInputChannelUndefined
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	sinkErrCh := cs.Open(ctx)
+
+	select {
+	case err := <-sinkErrCh:
+		if err == nil {
+			t.Fatal("Expected error when input channel is not set, but got nil")
+		}
+		if err != api.ErrInputChannelUndefined {
+			t.Fatalf("Expected ErrInputChannelUndefined, but got: %v", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("Context timed out waiting for error")
 	}
 }

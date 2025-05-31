@@ -279,6 +279,23 @@ func TestExecOperator(t *testing.T) {
 	})
 }
 
+func TestExecOperator_InputChannelNotSet(t *testing.T) {
+	// Create an exec operator without setting input channel
+	op := New(func(ctx context.Context, item any) any {
+		return item
+	})
+
+	// Call Exec without setting input - should return ErrInputChannelUndefined
+	err := op.Exec(context.TODO())
+	if err == nil {
+		t.Fatal("Expected error when input channel is not set, but got nil")
+	}
+
+	if err != api.ErrInputChannelUndefined {
+		t.Fatalf("Expected ErrInputChannelUndefined, but got: %v", err)
+	}
+}
+
 func BenchmarkExecOperator(b *testing.B) {
 	N := b.N
 
