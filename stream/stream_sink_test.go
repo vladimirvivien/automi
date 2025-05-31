@@ -136,3 +136,46 @@ func TestStreamToSlice(t *testing.T) {
 		t.Fatal("Took too long")
 	}
 }
+
+func TestStreamToChan(t *testing.T) {
+	src := sources.Slice([][]string{
+		{"request", "/i/a", "00:11:51:AA", "accepted"},
+		{"response", "/i/a/", "00:11:51:AA", "served"},
+		{"request", "/i/b", "00:11:22:33", "accepted"},
+		{"response", "/i/b", "00:11:22:33", "served"},
+		{"request", "/i/c", "00:11:51:AA", "accepted"},
+		{"request", "/i/a", "00:11:51:AA", "accepted"},
+		{"response", "/i/a/", "00:11:51:AA", "served"},
+		{"request", "/i/b", "00:11:22:33", "accepted"},
+		{"response", "/i/b", "00:11:22:33", "served"},
+		{"request", "/i/c", "00:11:51:AA", "accepted"},
+	})
+
+	snk := sinks.Chan[[]string]()
+	strm := From(src)
+	strm.WithLogSink(sinks.Func(testutil.LogSinkFunc(t)))
+	strm.Into(snk)
+
+	var receivedData [][]string
+	doneReceiving := make(chan struct{})
+
+	go func() {
+		defer close(doneReceiving)
+		for data := range snk.Get() {
+			receivedData = append(receivedData, data)
+		}
+	}()
+
+	select {
+	case err := <-strm.Open(context.Background()):
+		if err != nil {
+			t.Fatal(err)
+		}
+		<-doneReceiving
+		if len(receivedData) != 10 {
+			t.Errorf("unexpected sink data: want 10, got %d", len(receivedData))
+		}
+	case <-time.After(10 * time.Millisecond):
+		t.Fatal("Took too long")
+	}
+}
