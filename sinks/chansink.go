@@ -9,39 +9,43 @@ import (
 	"github.com/vladimirvivien/automi/log"
 )
 
-// ChanSink sends streamed items to an output channel.
-type ChanSink[T any] struct {
-	output chan T
+// ChanSink represents a sink backed by a Go channel.
+type ChanSink[IN any, CHAN <-chan IN] struct {
+	chansink chan IN
 	input  <-chan any
 	logf   api.StreamLogFunc
 }
 
-// Chan is the constructor function which returns a new ChanSink.
-func Chan[T any](outputChan chan T) *ChanSink[T] {
-	return &ChanSink[T]{
-		output: outputChan,
+// BufferedChan returns a new ChanSink backed by a buffered channel.
+func BufferedChan[IN any, CHAN <-chan IN](bufferSize int) *ChanSink[IN,CHAN] {
+	return &ChanSink[IN,CHAN]{
+		chansink: make(chan IN, bufferSize),
 		logf:   log.NoLogFunc,
 	}
 }
 
-// SetInput sets the source for the sink.
-func (s *ChanSink[T]) SetInput(in <-chan any) {
+// Chan returns a new ChanSink backed by an unbuffered channel.
+func Chan[IN any, CHAN <-chan IN]() *ChanSink[IN,CHAN] {
+	return BufferedChan[IN,CHAN](0)
+}
+
+// SetInput sets the input for the sink.
+func (s *ChanSink[IN,CHAN]) SetInput(in <-chan any) {
 	s.input = in
 }
 
-// Get returns the output channel used by the sink.
-func (s *ChanSink[T]) Get() <-chan T {
-	return s.output
+// Get returns a receive-only channel used by the sink.
+func (s *ChanSink[IN,CHAN]) Get() CHAN {
+	return s.chansink
 }
 
 // SetLogFunc sets a logging func for the component.
-func (s *ChanSink[T]) SetLogFunc(f api.StreamLogFunc) {
+func (s *ChanSink[IN,CHAN]) SetLogFunc(f api.StreamLogFunc) {
 	s.logf = f
 }
 
 // Open starts the sink and returns and waits on the returned
-// channel for the sink to be done or an error to be received.
-func (s *ChanSink[T]) Open(ctx context.Context) <-chan error {
+func (s *ChanSink[IN,CHAN]) Open(ctx context.Context) <-chan error {
 	result := make(chan error)
 
 	s.logf(ctx, log.LogInfo(
@@ -56,7 +60,7 @@ func (s *ChanSink[T]) Open(ctx context.Context) <-chan error {
 				"Component closing",
 				slog.String("sink", "Chan"),
 			))
-			close(s.output) // Ensure output channel is closed
+			close(s.chansink) // Ensure output channel is closed
 		}()
 
 		for {
@@ -65,7 +69,7 @@ func (s *ChanSink[T]) Open(ctx context.Context) <-chan error {
 				if !opened {
 					return
 				}
-				data, ok := item.(T)
+				data, ok := item.(IN)
 				if !ok {
 					s.logf(ctx, log.LogDebug(
 						"Error: unexpected data type",
@@ -74,7 +78,7 @@ func (s *ChanSink[T]) Open(ctx context.Context) <-chan error {
 					))
 					continue
 				}
-				s.output <- data
+				s.chansink <- data
 			case <-ctx.Done():
 				return
 			}

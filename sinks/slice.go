@@ -39,8 +39,8 @@ func (s *SliceSink[IN, SLICE]) SetLogFunc(f api.StreamLogFunc) {
 	s.logf = f
 }
 
-// Open starts the collector and returns and waits on the returned
-// channel for the collector to be done or an error to be received.
+// Open opens the sink to start collecting items. It returns a channel
+// that will receive an error if the sink encounters an error during setup operation.
 func (s *SliceSink[IN, SLICE]) Open(ctx context.Context) <-chan error {
 	result := make(chan error)
 

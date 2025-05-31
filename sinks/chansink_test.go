@@ -8,10 +8,9 @@ import (
 )
 
 func TestChanSink_Open(t *testing.T) {
-	outputChan := make(chan string)
-	cs := Chan[string](outputChan)
+	cs := Chan[string]()
 
-	inputChan := make(chan interface{})
+	inputChan := make(chan any)
 	go func() {
 		inputChan <- "A"
 		inputChan <- "B"
@@ -23,7 +22,7 @@ func TestChanSink_Open(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
-	sinkErr := cs.Open(ctx)
+	sink := cs.Open(ctx)
 
 	var receivedData []string
 	doneReceiving := make(chan struct{})
@@ -36,7 +35,7 @@ func TestChanSink_Open(t *testing.T) {
 	}()
 
 	select {
-	case err := <-sinkErr:
+	case err := <-sink:
 		if err != nil {
 			t.Fatalf("ChanSink.Open() returned an error: %v", err)
 		}
@@ -54,18 +53,11 @@ func TestChanSink_Open(t *testing.T) {
 	if !reflect.DeepEqual(expectedData, receivedData) {
 		t.Errorf("Received data did not match expected data. Got %v, expected %v", receivedData, expectedData)
 	}
-
-	// Check if the sink's output channel was closed by the sink (indirectly via the receiving goroutine)
-	// This is a bit tricky to test directly for a send-only channel from the sink's perspective.
-	// However, if the receiving goroutine exited, it implies the channel was closed.
-	// A more direct test might involve trying to send to cs.Get() after it's supposed to be closed,
-	// but that's not how this sink is designed to be used.
 }
 
 func TestChanSink_Open_ContextCancel(t *testing.T) {
-	outputChan := make(chan int)
-	cs := Chan[int](outputChan)
-	inputChan := make(chan interface{})
+	cs := Chan[int]()
+	inputChan := make(chan any)
 
 	cs.SetInput(inputChan)
 
@@ -98,9 +90,8 @@ func TestChanSink_Open_ContextCancel(t *testing.T) {
 }
 
 func TestChanSink_Open_WrongDataType(t *testing.T) {
-	outputChan := make(chan string)
-	cs := Chan[string](outputChan) // Expecting string
-	inputChan := make(chan interface{})
+	cs := Chan[string]() // Expecting string
+	inputChan := make(chan any)
 
 	go func() {
 		inputChan <- "CorrectType"
