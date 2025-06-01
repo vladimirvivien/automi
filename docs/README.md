@@ -254,6 +254,7 @@ func TestSinkFunc(t *testing.T) {
 Automi provides several built-in sinks to suit various use cases:
 
 - `sinks.CSV`: Writes items in CSV format
+- `sinks.Chan[T]`: Sends items of type T to a Go channel
 - `sinks.Func[T](func(T)error)`: Processes items using a user-defined function
 - `sinks.Discard`: Ignores all items (no-op sink)
 - `sinks.Slice[T]`: Appends items of type T to a Go slice
