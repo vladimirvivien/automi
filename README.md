@@ -43,7 +43,7 @@ Automi streams use Go channels internally to route data, providing built-in conc
 
 Now, let us explore some examples and see how easy it is to use Automi to process data streams.  
 
->See [automi-eamples](https://github.com/vladimirvivien/automi-examples) for a collection of all Automi examples.
+>See [automi-examples](https://github.com/vladimirvivien/automi-examples) for a collection of all Automi examples.
 
 As an introduction to Automi, let us explore a simple example that uses all primitives of the API to compose and express stream operations. 
 
